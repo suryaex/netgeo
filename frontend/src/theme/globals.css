@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Root / desktop wallpaper -------------------------------------------- */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: theme('fontFamily.sans');
+  color: var(--nf-ink, #f3f4f6);
+  background: radial-gradient(
+      120% 120% at 12% 0%,
+      var(--nf-bg-1, #141a2e) 0%,
+      var(--nf-bg-0, #0b1020) 60%
+    )
+    fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden; /* the OS-shell owns scrolling, not the page */
+}
+
+/* ---- Reusable glass surface ---------------------------------------------- */
+@layer components {
+  .glass {
+    background: var(--nf-glass-bg, rgba(22, 27, 42, 0.55));
+    border: 1px solid var(--nf-glass-border, rgba(255, 255, 255, 0.08));
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+
+  .glass-strong {
+    background: var(--nf-glass-bg, rgba(22, 27, 42, 0.72));
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+  }
+
+  /* macOS traffic-light buttons */
+  .traffic {
+    @apply h-3 w-3 rounded-full transition-opacity duration-fast;
+  }
+}
+
+/* ---- Scrollbars (thin, glass-friendly) ----------------------------------- */
+@layer utilities {
+  .nf-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  }
+  .nf-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .nf-scroll::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 8px;
+  }
+  .nf-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.6);
+  }
+}
+
+/* ---- React Flow theming overrides ---------------------------------------- */
+.react-flow__attribution {
+  display: none;
+}
+.react-flow__edge-path {
+  stroke-width: 2;
+}
+.react-flow__handle {
+  width: 9px;
+  height: 9px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: var(--nf-accent, #007aff);
+}
+
+/* Respect reduced-motion preference for all decorative animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

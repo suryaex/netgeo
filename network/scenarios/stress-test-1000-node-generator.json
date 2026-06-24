@@ -1,0 +1,71 @@
+{
+  "_keterangan": "Ini SPEC GENERATOR, bukan topologi literal. Field di sini mendeskripsikan parameter untuk membangun topologi fat-tree CLOS sintetis secara algoritmik. Tim backend disarankan mengimplementasikan endpoint POST /api/topology/generate yang menerima struktur seperti ini dan mem-build Node/Interface/Link langsung di database (lihat README §Kebutuhan Backend butir 6 dan stress-test-1000-node.md).",
+  "project": {
+    "id": "scn-stress-1000-01",
+    "name": "Stress Test 1296-Node Fat-Tree CLOS Sintetis",
+    "description": "Topologi sintetis murni untuk uji skala engine -- bukan representasi bisnis nyata. 5 pod x (8 switch + 248 host) + 16 core switch global.",
+    "version": "1.0.0",
+    "topology_ref": "stress-test-1000-node-generator.json (generator spec, perlu di-resolve oleh engine/script)",
+    "created_at": "2026-06-23T00:00:00Z"
+  },
+  "generator_params": {
+    "pattern": "fat-tree-clos-custom",
+    "pod_count": 5,
+    "core_switch_count": 16,
+    "agg_switch_per_pod": 4,
+    "edge_switch_per_pod": 4,
+    "host_per_pod": 248,
+    "host_per_edge_switch": 62,
+    "total_node_estimate": 1296,
+
+    "naming_convention": {
+      "core": "stress-core-{seq:02d}",
+      "agg": "stress-pod{pod:02d}-agg-{seq:02d}",
+      "edge": "stress-pod{pod:02d}-edge-{seq:02d}",
+      "host": "stress-pod{pod:02d}-host-{seq:04d}"
+    },
+
+    "node_defaults": {
+      "core":  { "kind": "switch", "nos": "forgeos", "mode": "sim" },
+      "agg":   { "kind": "switch", "nos": "forgeos", "mode": "sim" },
+      "edge":  { "kind": "switch", "nos": "forgeos", "mode": "sim" },
+      "host":  { "kind": "host",   "nos": "forgeos", "mode": "sim" },
+      "_catatan_mode": "SEMUA default mode=sim. Operator BOLEH bulk-override sebagian kecil (mis. 1 pod, atau hanya core) ke mode=emul untuk uji hybrid -- lihat README butir 1 (PATCH /api/nodes/bulk by tag)."
+    },
+
+    "link_defaults": {
+      "core_to_agg":  { "type": "fiber", "bandwidth": 100000, "delay": 0.05, "loss": 0.0 },
+      "agg_to_edge":  { "type": "fiber", "bandwidth": 40000,  "delay": 0.02, "loss": 0.0 },
+      "edge_to_host": { "type": "copper", "bandwidth": 10000, "delay": 0.01, "loss": 0.0 }
+    },
+
+    "connectivity_rule": {
+      "core_to_agg": "full-mesh antar core dan agg tier-atas tiap pod (setiap agg konek ke SEMUA core -- ECMP penuh)",
+      "agg_to_edge": "full-mesh di dalam 1 pod (4 agg x 4 edge = 16 link/pod)",
+      "edge_to_host": "tiap edge switch melayani host_per_edge_switch host secara dedicated (tidak ECMP, akses langsung)"
+    },
+
+    "addressing": {
+      "ip_pool_underlay": "10.0.0.0/8 (private, BUKAN RFC5737 -- skala terlalu besar utk TEST-NET, gunakan RFC1918 dengan disclaimer use-internal-only)",
+      "as_numbering": "eBGP per-link ala Clos: core 4200000001-4200000016, agg 4200001001-4200001999 (per pod offset 1000), edge 4200002001-4200002999",
+      "loopback_pool": "10.255.0.0/16"
+    },
+
+    "ip_allocation_algorithm": "deterministic: ip = base + (pod_index * pod_stride) + (switch_index * switch_stride) + (link_index) -- detail biarkan tim backend tentukan saat implementasi, yang penting REPRODUCIBLE (seed/parameter sama -> topologi identik, penting utk regression test)."
+  },
+  "load_test_profile": {
+    "traffic_patterns": [
+      { "name": "all_to_all_ping_sweep", "description": "tiap host ping ke 10 host acak lain (seeded random), ukur completion time & FIB lookup latency" },
+      { "name": "convergence_storm", "description": "restart 10% node (130 node) secara serentak pada t=60s, ukur waktu seluruh topologi stabil kembali (no more state churn)" },
+      { "name": "event_rate_ceiling", "description": "link flap acak pada 5% link/detik selama 120s, ukur ukuran antrian event engine dari waktu ke waktu (harus plateau, bukan tumbuh terus)" },
+      { "name": "topology_mutation_under_load", "description": "tambah 50 node baru + 100 link baru pada t=90s saat traffic_patterns lain berjalan, ukur dampak ke tick rate" }
+    ]
+  },
+  "acceptance_targets_awal": {
+    "_disclaimer": "Estimasi field-engineering, BELUM divalidasi benchmark nyata -- lihat scaling-guidelines.md",
+    "cold_start_load_time_s_max": 10,
+    "min_event_throughput_per_s": 50000,
+    "ws_broadcast_max_msg_per_client_per_s": 10,
+    "memory_growth_30min_test_mb_max": 200
+  }
+}

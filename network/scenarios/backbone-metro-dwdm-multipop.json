@@ -1,0 +1,89 @@
+{
+  "project": {
+    "id": "scn-backbone-dwdm-01",
+    "name": "Backbone Metro-E/DWDM Multi-POP (6 POP Dual-Ring)",
+    "description": "Backbone regional ISP carrier-grade: 6 POP dual-ring DWDM 100G, IS-IS + SR-MPLS TE, proteksi optik 1+1.",
+    "version": "1.0.0",
+    "topology_ref": "backbone-metro-dwdm-multipop.json",
+    "created_at": "2026-06-23T00:00:00Z"
+  },
+  "_comment_addressing": "IP loopback pakai TEST-NET3 203.0.113.0/24 (RFC5737), link P2P pakai 192.0.2.0/24. AS privat 65001 dipakai untuk seluruh backbone (single-AS, IS-IS internal).",
+  "nodes": [
+    { "id": "jkt-core-01", "name": "JKT-CORE-01", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 400, "y": 300, "interfaces": ["jkt-core-01-lo0", "jkt-core-01-et0-0-0", "jkt-core-01-et0-0-1", "jkt-core-01-et0-0-2"], "config_ref": null, "status": "planned" },
+    { "id": "jkt-core-02", "name": "JKT-CORE-02 (N+1)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 460, "y": 300, "interfaces": ["jkt-core-02-lo0", "jkt-core-02-et0-0-0", "jkt-core-02-et0-0-1"], "config_ref": null, "status": "planned" },
+    { "id": "jkt-roadm-01", "name": "JKT-ROADM-01 (Ring-A)", "kind": "router", "nos": "forgeos", "mode": "sim", "x": 400, "y": 250, "interfaces": ["jkt-roadm-01-w1", "jkt-roadm-01-w2"], "config_ref": null, "status": "planned" },
+    { "id": "jkt-roadm-02", "name": "JKT-ROADM-02 (Ring-B)", "kind": "router", "nos": "forgeos", "mode": "sim", "x": 460, "y": 250, "interfaces": ["jkt-roadm-02-w1", "jkt-roadm-02-w2"], "config_ref": null, "status": "planned" },
+
+    { "id": "bdg-core-01", "name": "BDG-CORE-01", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 250, "y": 400, "interfaces": ["bdg-core-01-lo0", "bdg-core-01-et0-0-0", "bdg-core-01-et0-0-1"], "config_ref": null, "status": "planned" },
+    { "id": "bdg-roadm-01", "name": "BDG-ROADM-01", "kind": "router", "nos": "forgeos", "mode": "sim", "x": 250, "y": 350, "interfaces": ["bdg-roadm-01-w1", "bdg-roadm-01-w2"], "config_ref": null, "status": "planned" },
+    { "id": "bdg-agg-01", "name": "BDG-AGG-01", "kind": "switch", "nos": "vyos", "mode": "sim", "x": 250, "y": 450, "interfaces": ["bdg-agg-01-et1", "bdg-agg-01-et2"], "config_ref": null, "status": "planned" },
+
+    { "id": "sby-core-01", "name": "SBY-CORE-01", "kind": "router", "nos": "junos", "mode": "emul", "x": 600, "y": 400, "interfaces": ["sby-core-01-lo0", "sby-core-01-et0-0-0", "sby-core-01-et0-0-1"], "config_ref": null, "status": "planned" },
+    { "id": "sby-roadm-01", "name": "SBY-ROADM-01", "kind": "router", "nos": "forgeos", "mode": "sim", "x": 600, "y": 350, "interfaces": ["sby-roadm-01-w1", "sby-roadm-01-w2"], "config_ref": null, "status": "planned" },
+    { "id": "sby-agg-01", "name": "SBY-AGG-01", "kind": "switch", "nos": "vyos", "mode": "sim", "x": 600, "y": 450, "interfaces": ["sby-agg-01-et1", "sby-agg-01-et2"], "config_ref": null, "status": "planned" },
+
+    { "id": "mdn-core-01", "name": "MDN-CORE-01", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 250, "y": 200, "interfaces": ["mdn-core-01-lo0", "mdn-core-01-et0-0-0", "mdn-core-01-et0-0-1"], "config_ref": null, "status": "planned" },
+    { "id": "mdn-roadm-01", "name": "MDN-ROADM-01", "kind": "router", "nos": "forgeos", "mode": "sim", "x": 250, "y": 250, "interfaces": ["mdn-roadm-01-w1", "mdn-roadm-01-w2"], "config_ref": null, "status": "planned" },
+    { "id": "mdn-agg-01", "name": "MDN-AGG-01", "kind": "switch", "nos": "vyos", "mode": "sim", "x": 250, "y": 150, "interfaces": ["mdn-agg-01-et1"], "config_ref": null, "status": "planned" },
+
+    { "id": "dps-core-01", "name": "DPS-CORE-01", "kind": "router", "nos": "junos", "mode": "emul", "x": 550, "y": 500, "interfaces": ["dps-core-01-lo0", "dps-core-01-et0-0-0", "dps-core-01-et0-0-1"], "config_ref": null, "status": "planned" },
+    { "id": "dps-roadm-01", "name": "DPS-ROADM-01", "kind": "router", "nos": "forgeos", "mode": "sim", "x": 550, "y": 450, "interfaces": ["dps-roadm-01-w1", "dps-roadm-01-w2"], "config_ref": null, "status": "planned" },
+    { "id": "dps-agg-01", "name": "DPS-AGG-01", "kind": "switch", "nos": "vyos", "mode": "sim", "x": 550, "y": 550, "interfaces": ["dps-agg-01-et1"], "config_ref": null, "status": "planned" },
+
+    { "id": "mks-core-01", "name": "MKS-CORE-01", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 700, "y": 500, "interfaces": ["mks-core-01-lo0", "mks-core-01-et0-0-0", "mks-core-01-et0-0-1"], "config_ref": null, "status": "planned" },
+    { "id": "mks-roadm-01", "name": "MKS-ROADM-01", "kind": "router", "nos": "forgeos", "mode": "sim", "x": 700, "y": 450, "interfaces": ["mks-roadm-01-w1", "mks-roadm-01-w2"], "config_ref": null, "status": "planned" },
+    { "id": "mks-agg-01", "name": "MKS-AGG-01", "kind": "switch", "nos": "vyos", "mode": "sim", "x": 700, "y": 550, "interfaces": ["mks-agg-01-et1"], "config_ref": null, "status": "planned" }
+  ],
+  "interfaces": [
+    { "id": "jkt-core-01-lo0", "node_id": "jkt-core-01", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.1/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "jkt-core-01-et0-0-0", "node_id": "jkt-core-01", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.1/31"], "mac": "02:00:00:00:01:00", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-jkt-bdg-ringA" },
+    { "id": "jkt-core-01-et0-0-1", "node_id": "jkt-core-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.5/31"], "mac": "02:00:00:00:01:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-jkt-mdn-ringA" },
+    { "id": "jkt-core-01-et0-0-2", "node_id": "jkt-core-01", "name": "et-0/0/2", "type": "qsfp", "ip": ["192.0.2.9/31"], "mac": "02:00:00:00:01:02", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-jkt-core01-core02" },
+
+    { "id": "bdg-core-01-lo0", "node_id": "bdg-core-01", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.2/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "bdg-core-01-et0-0-0", "node_id": "bdg-core-01", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.2/31"], "mac": "02:00:00:00:02:00", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-jkt-bdg-ringA" },
+    { "id": "bdg-core-01-et0-0-1", "node_id": "bdg-core-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.13/31"], "mac": "02:00:00:00:02:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-bdg-sby-ringB" },
+
+    { "id": "sby-core-01-lo0", "node_id": "sby-core-01", "name": "lo0.0", "type": "eth", "ip": ["203.0.113.3/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "sby-core-01-et0-0-0", "node_id": "sby-core-01", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.14/31"], "mac": "02:00:00:00:03:00", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-bdg-sby-ringB" },
+    { "id": "sby-core-01-et0-0-1", "node_id": "sby-core-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.17/31"], "mac": "02:00:00:00:03:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sby-mks-ringA" },
+
+    { "id": "mdn-core-01-lo0", "node_id": "mdn-core-01", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.4/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "mdn-core-01-et0-0-0", "node_id": "mdn-core-01", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.6/31"], "mac": "02:00:00:00:04:00", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-jkt-mdn-ringA" },
+    { "id": "mdn-core-01-et0-0-1", "node_id": "mdn-core-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.21/31"], "mac": "02:00:00:00:04:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-mdn-mks-ringB" },
+
+    { "id": "dps-core-01-lo0", "node_id": "dps-core-01", "name": "lo0.0", "type": "eth", "ip": ["203.0.113.5/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dps-core-01-et0-0-0", "node_id": "dps-core-01", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.18/31"], "mac": "02:00:00:00:05:00", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sby-dps-ringA2" },
+    { "id": "dps-core-01-et0-0-1", "node_id": "dps-core-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.25/31"], "mac": "02:00:00:00:05:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-dps-mks-ringB2" },
+
+    { "id": "mks-core-01-lo0", "node_id": "mks-core-01", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.6/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "mks-core-01-et0-0-0", "node_id": "mks-core-01", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.22/31"], "mac": "02:00:00:00:06:00", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-mdn-mks-ringB" },
+    { "id": "mks-core-01-et0-0-1", "node_id": "mks-core-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.26/31"], "mac": "02:00:00:00:06:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-dps-mks-ringB2" }
+  ],
+  "links": [
+    { "id": "lnk-jkt-bdg-ringA", "a_iface": "jkt-core-01-et0-0-0", "b_iface": "bdg-core-01-et0-0-0", "type": "fiber", "bandwidth": 100000, "delay": 0.75, "loss": 0.0001, "mtu": 9216, "_jarak_km": 150, "_keterangan": "Ring-A, DWDM 100G coherent, via ROADM jkt-roadm-01/bdg-roadm-01" },
+    { "id": "lnk-jkt-mdn-ringA", "a_iface": "jkt-core-01-et0-0-1", "b_iface": "mdn-core-01-et0-0-0", "type": "fiber", "bandwidth": 100000, "delay": 7.0, "loss": 0.0005, "mtu": 9216, "_jarak_km": 1400, "_keterangan": "Ring-A, submarine+terrestrial, 14x EDFA span 80-100km" },
+    { "id": "lnk-bdg-sby-ringB", "a_iface": "bdg-core-01-et0-0-1", "b_iface": "sby-core-01-et0-0-0", "type": "fiber", "bandwidth": 100000, "delay": 4.0, "loss": 0.0003, "mtu": 9216, "_jarak_km": 800, "_keterangan": "Ring-B, jalur Pantura, diverse routing dari Ring-A" },
+    { "id": "lnk-sby-mks-ringA", "a_iface": "sby-core-01-et0-0-1", "b_iface": "mks-core-01-et0-0-0", "type": "fiber", "bandwidth": 100000, "delay": 3.0, "loss": 0.0003, "mtu": 9216, "_jarak_km": 600, "_keterangan": "Ring-A lanjutan, sby-mks via submarine cable" },
+    { "id": "lnk-mdn-mks-ringB", "a_iface": "mdn-core-01-et0-0-1", "b_iface": "mks-core-01-et0-0-0", "type": "fiber", "bandwidth": 100000, "delay": 9.0, "loss": 0.0006, "mtu": 9216, "_jarak_km": 1800, "_keterangan": "Ring-B menutup ring (proteksi jalur terjauh)" },
+    { "id": "lnk-sby-dps-ringA2", "a_iface": "sby-core-01-et0-0-1", "b_iface": "dps-core-01-et0-0-0", "type": "fiber", "bandwidth": 100000, "delay": 2.5, "loss": 0.0002, "mtu": 9216, "_jarak_km": 500, "_keterangan": "Spur Ring-A ke dps" },
+    { "id": "lnk-dps-mks-ringB2", "a_iface": "dps-core-01-et0-0-1", "b_iface": "mks-core-01-et0-0-1", "type": "fiber", "bandwidth": 100000, "delay": 2.0, "loss": 0.0002, "mtu": 9216, "_jarak_km": 400, "_keterangan": "Spur Ring-B ke dps (proteksi dps)" },
+    { "id": "lnk-jkt-core01-core02", "a_iface": "jkt-core-01-et0-0-2", "b_iface": "jkt-core-02-et0-0-0", "type": "copper", "bandwidth": 10000, "delay": 0.05, "loss": 0.0, "mtu": 1500, "_jarak_km": 0.01, "_keterangan": "iBGP/ISIS sync link intra-POP, N+1 redundancy" }
+  ],
+  "scenario": {
+    "id": "scn-test-backbone-dwdm-01",
+    "project_id": "scn-backbone-dwdm-01",
+    "name": "Fiber-cut Ring-A + reroute Ring-B",
+    "steps": [
+      "Kirim trafik baseline iperf 20Gbps jkt -> mks selama 60s",
+      "Putuskan link lnk-jkt-bdg-ringA pada t=30s (set status=down)",
+      "Amati waktu reroute via Ring-B (bdg-sby-ringB + sby-mks-ringA) dan packet loss window",
+      "Pulihkan link pada t=90s, amati revert/preempt LSP (apakah balik ke jalur primer atau tetap di backup -- tergantung TE policy)"
+    ],
+    "expected_outcomes": [
+      "packet_loss_window_ms < 50 (jika BFD+FRR aktif) atau < 5000 (tanpa FRR, full IGP reconverge)",
+      "no_permanent_blackhole_after_reconverge == true",
+      "all_other_pop_pairs_unaffected == true"
+    ]
+  }
+}

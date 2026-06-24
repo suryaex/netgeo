@@ -1,0 +1,62 @@
+# Contoh Intent ForgeOS — PE Router (MPLS L3VPN)
+#
+# Skenario: router ini adalah PE (Provider Edge) yang menjalankan:
+#   - OSPF sebagai IGP backbone (membawa loopback/next-hop, bukan prefix pelanggan)
+#   - BGP (iBGP ke PE lain, akan dipakai sbg VPNv4 carrier — address-family VPNv4 belum
+#     dimodelkan di schema v1, dicatat sbg roadmap di schema.md §VRF)
+#   - VRF untuk satu pelanggan (CUST-A) yang terhubung via PE-CE link
+#
+# Dipakai sebagai input node.intent untuk node bernama "PE1" pada skenario
+# network/protocols/scenarios/03-mpls-l3vpn.md
+#
+# Referensi skema lengkap: ../schema.md
+# Referensi pemetaan ke tiap vendor: ../mappings/intent-to-vendor-mapping.md
+
+node:
+  name: PE1
+  kind: router
+  nos: ios          # render native default; bisa di-compile ulang ke vendor lain via configgen.render(node, "junos") dst.
+
+interfaces:
+  - name: Loopback0
+    type: eth
+    ip: ["10.255.255.1/32"]
+    mtu: 1500
+  - name: GigabitEthernet0/0
+    type: eth
+    ip: ["10.0.12.1/30"]      # link P2P ke P-router (core MPLS)
+    mtu: 1500
+  - name: GigabitEthernet0/1
+    type: eth
+    ip: []                     # PE-CE link, IP ditaruh di dalam VRF (lihat catatan vendor masing2 — model interface fisik tidak bawa konsep VRF, ini disederhanakan utk demo)
+    mtu: 1500
+
+intent:
+  ospf:
+    process_id: 1
+    router_id: "10.255.255.1"
+    networks:
+      - prefix: "10.255.255.1/32"
+        area: 0
+      - prefix: "10.0.12.0/30"
+        area: 0
+
+  bgp:
+    asn: 65000
+    router_id: "10.255.255.1"
+    neighbors:
+      - ip: "10.255.255.2"          # iBGP ke PE2 (loopback-to-loopback, biasanya via route-reflector di topologi nyata)
+        remote_as: 65000
+        description: "iBGP to PE2 (RR or full-mesh)"
+    networks: []                     # PE tidak advertise prefix sendiri di address-family global; VPNv4 dipisah (roadmap)
+
+  vrfs:
+    - name: CUST-A
+      rd: "65000:100"
+      import: ["65000:100"]
+      export: ["65000:100"]
+
+  static_routes:
+    # PE-CE static route sederhana (alternatif: PE-CE bisa juga OSPF/eBGP per-VRF, tidak dicakup contoh ini)
+    - prefix: "192.168.100.0/24"     # LAN pelanggan CUST-A di sisi CE
+      next_hop: "10.0.20.2"          # next-hop CE router (asumsi link PE-CE terpisah, lihat catatan interface di atas)

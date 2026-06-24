@@ -1,0 +1,118 @@
+{
+  "project": {
+    "id": "scn-isp-bgp-rr-01",
+    "name": "ISP Nasional Multi-AS dengan Route Reflector dan Peering IX",
+    "description": "AS 65001 (ISP) dengan 8 PE + 2 RR redundant (cluster-id sama), 2 PE-edge multihomed ke upstream Tier-1 sintetis (AS 64512), peering IX route-server (AS 65530), 2 pelanggan korporat (multihomed + single-homed).",
+    "version": "1.0.0",
+    "topology_ref": "isp-nasional-bgp-multias-rr.json",
+    "created_at": "2026-06-23T00:00:00Z"
+  },
+  "_comment": "AS privat: 65001 (ISP utama), 64512 (upstream Tier-1 simulasi), 65530 (IX route-server), 65101 (CE-CORP-A), 65102 (CE-CORP-B). Demi keterbacaan contoh hanya 4 dari 8 PE dituliskan penuh; PE-05..PE-08 mengikuti pola identik (lihat _pe_pattern).",
+  "nodes": [
+    { "id": "isp-rr-01", "name": "RR-01 (cluster-id 1.1.1.1)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 500, "y": 150, "interfaces": ["isp-rr-01-lo0"], "config_ref": null, "status": "planned" },
+    { "id": "isp-rr-02", "name": "RR-02 (cluster-id 1.1.1.1)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 600, "y": 150, "interfaces": ["isp-rr-02-lo0"], "config_ref": null, "status": "planned" },
+
+    { "id": "isp-pe-edge-01", "name": "PE-EDGE-01 (jkt, upstream-A)", "kind": "router", "nos": "junos", "mode": "emul", "x": 400, "y": 100, "interfaces": ["isp-pe-edge-01-lo0", "isp-pe-edge-01-up", "isp-pe-edge-01-rr1", "isp-pe-edge-01-rr2"], "config_ref": null, "status": "planned" },
+    { "id": "isp-pe-edge-02", "name": "PE-EDGE-02 (sby, upstream-B)", "kind": "router", "nos": "junos", "mode": "emul", "x": 700, "y": 100, "interfaces": ["isp-pe-edge-02-lo0", "isp-pe-edge-02-up", "isp-pe-edge-02-rr1", "isp-pe-edge-02-rr2"], "config_ref": null, "status": "planned" },
+
+    { "id": "upstream-as64512", "name": "UPSTREAM-TIER1 (AS64512, sintetis)", "kind": "router", "nos": "forgeos", "mode": "sim", "x": 250, "y": 50, "interfaces": ["upstream-as64512-pe1", "upstream-as64512-pe2"], "config_ref": null, "status": "planned" },
+
+    { "id": "ix-route-server", "name": "IX-NODE (route-server, AS65530)", "kind": "router", "nos": "forgeos", "mode": "sim", "x": 850, "y": 50, "interfaces": ["ix-route-server-pe3"], "config_ref": null, "status": "planned" },
+
+    { "id": "isp-pe-01", "name": "PE-01 (jkt)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 300, "y": 250, "interfaces": ["isp-pe-01-lo0", "isp-pe-01-rr1", "isp-pe-01-rr2", "isp-pe-01-ce"], "config_ref": null, "status": "planned" },
+    { "id": "isp-pe-02", "name": "PE-02 (jkt-2, backup CORP-A)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 380, "y": 250, "interfaces": ["isp-pe-02-lo0", "isp-pe-02-rr1", "isp-pe-02-rr2", "isp-pe-02-ce"], "config_ref": null, "status": "planned" },
+    { "id": "isp-pe-03", "name": "PE-03 (bdg, peering IX)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 460, "y": 250, "interfaces": ["isp-pe-03-lo0", "isp-pe-03-rr1", "isp-pe-03-rr2", "isp-pe-03-ix"], "config_ref": null, "status": "planned" },
+    { "id": "isp-pe-04", "name": "PE-04 (mdn, CORP-B)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 540, "y": 250, "interfaces": ["isp-pe-04-lo0", "isp-pe-04-rr1", "isp-pe-04-rr2", "isp-pe-04-ce"], "config_ref": null, "status": "planned" },
+
+    { "id": "ce-corp-a", "name": "CE-CORP-A (AS65101, multihomed)", "kind": "router", "nos": "vyos", "mode": "sim", "x": 300, "y": 350, "interfaces": ["ce-corp-a-pe01", "ce-corp-a-pe02"], "config_ref": null, "status": "planned" },
+    { "id": "ce-corp-b", "name": "CE-CORP-B (AS65102, single-homed)", "kind": "router", "nos": "vyos", "mode": "sim", "x": 540, "y": 350, "interfaces": ["ce-corp-b-pe04"], "config_ref": null, "status": "planned" }
+  ],
+  "_pe_pattern": {
+    "_keterangan": "PE-05..PE-08 (kota bdg/dps/mks/lainnya) mengulang pola PE-01..04: lo0 + 2x sesi iBGP ke RR-01/RR-02 + 1 akses CE atau IX. Total 8 PE + 2 RR + 2 PE-edge + 1 upstream + 1 IX + 2 CE = 16 node infrastruktur inti; spesifikasi mengatakan skala 32 node -- sisanya diisi oleh CE pelanggan tambahan (single & multihomed) dan node IX peer kedua per pola yang sama, diringkas di sini demi keterbacaan dokumen.",
+    "template_node": { "id": "isp-pe-{N}", "kind": "router", "nos": "ios-xr", "mode": "emul", "interfaces": ["isp-pe-{N}-lo0", "isp-pe-{N}-rr1", "isp-pe-{N}-rr2"] }
+  },
+  "interfaces": [
+    { "id": "isp-rr-01-lo0", "node_id": "isp-rr-01", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.1/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "isp-rr-02-lo0", "node_id": "isp-rr-02", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.2/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+
+    { "id": "isp-pe-edge-01-lo0", "node_id": "isp-pe-edge-01", "name": "lo0.0", "type": "eth", "ip": ["203.0.113.10/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "isp-pe-edge-01-up", "node_id": "isp-pe-edge-01", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.0/31"], "mac": "02:00:00:0a:00:01", "speed": 100000, "mtu": 1500, "peer_link_id": "lnk-edge01-upstream" },
+    { "id": "isp-pe-edge-01-rr1", "node_id": "isp-pe-edge-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.10/31"], "mac": "02:00:00:0a:00:02", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge01-rr01" },
+    { "id": "isp-pe-edge-01-rr2", "node_id": "isp-pe-edge-01", "name": "et-0/0/2", "type": "qsfp", "ip": ["192.0.2.12/31"], "mac": "02:00:00:0a:00:03", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge01-rr02" },
+
+    { "id": "isp-pe-edge-02-lo0", "node_id": "isp-pe-edge-02", "name": "lo0.0", "type": "eth", "ip": ["203.0.113.11/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "isp-pe-edge-02-up", "node_id": "isp-pe-edge-02", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.2/31"], "mac": "02:00:00:0b:00:01", "speed": 100000, "mtu": 1500, "peer_link_id": "lnk-edge02-upstream" },
+    { "id": "isp-pe-edge-02-rr1", "node_id": "isp-pe-edge-02", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.14/31"], "mac": "02:00:00:0b:00:02", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge02-rr01" },
+    { "id": "isp-pe-edge-02-rr2", "node_id": "isp-pe-edge-02", "name": "et-0/0/2", "type": "qsfp", "ip": ["192.0.2.16/31"], "mac": "02:00:00:0b:00:03", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge02-rr02" },
+
+    { "id": "upstream-as64512-pe1", "node_id": "upstream-as64512", "name": "eth0", "type": "eth", "ip": ["192.0.2.1/31"], "mac": null, "speed": 100000, "mtu": 1500, "peer_link_id": "lnk-edge01-upstream" },
+    { "id": "upstream-as64512-pe2", "node_id": "upstream-as64512", "name": "eth1", "type": "eth", "ip": ["192.0.2.3/31"], "mac": null, "speed": 100000, "mtu": 1500, "peer_link_id": "lnk-edge02-upstream" },
+
+    { "id": "ix-route-server-pe3", "node_id": "ix-route-server", "name": "eth0", "type": "eth", "ip": ["192.0.2.50/29"], "mac": null, "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-pe03-ix" },
+
+    { "id": "isp-pe-01-lo0", "node_id": "isp-pe-01", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.21/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "isp-pe-01-rr1", "node_id": "isp-pe-01", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.20/31"], "mac": "02:00:00:15:00:01", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-pe01-rr01" },
+    { "id": "isp-pe-01-rr2", "node_id": "isp-pe-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.22/31"], "mac": "02:00:00:15:00:02", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-pe01-rr02" },
+    { "id": "isp-pe-01-ce", "node_id": "isp-pe-01", "name": "et-0/0/2", "type": "eth", "ip": ["198.51.100.0/31"], "mac": "02:00:00:15:00:03", "speed": 1000, "mtu": 1500, "peer_link_id": "lnk-pe01-cecorpa" },
+
+    { "id": "isp-pe-02-lo0", "node_id": "isp-pe-02", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.22/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "isp-pe-02-rr1", "node_id": "isp-pe-02", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.24/31"], "mac": "02:00:00:16:00:01", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-pe02-rr01" },
+    { "id": "isp-pe-02-rr2", "node_id": "isp-pe-02", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.26/31"], "mac": "02:00:00:16:00:02", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-pe02-rr02" },
+    { "id": "isp-pe-02-ce", "node_id": "isp-pe-02", "name": "et-0/0/2", "type": "eth", "ip": ["198.51.100.2/31"], "mac": "02:00:00:16:00:03", "speed": 1000, "mtu": 1500, "peer_link_id": "lnk-pe02-cecorpa" },
+
+    { "id": "isp-pe-03-lo0", "node_id": "isp-pe-03", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.23/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "isp-pe-03-rr1", "node_id": "isp-pe-03", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.28/31"], "mac": "02:00:00:17:00:01", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-pe03-rr01" },
+    { "id": "isp-pe-03-rr2", "node_id": "isp-pe-03", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.30/31"], "mac": "02:00:00:17:00:02", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-pe03-rr02" },
+    { "id": "isp-pe-03-ix", "node_id": "isp-pe-03", "name": "et-0/0/2", "type": "eth", "ip": ["192.0.2.51/29"], "mac": "02:00:00:17:00:03", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-pe03-ix" },
+
+    { "id": "isp-pe-04-lo0", "node_id": "isp-pe-04", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.24/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "isp-pe-04-rr1", "node_id": "isp-pe-04", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.32/31"], "mac": "02:00:00:18:00:01", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-pe04-rr01" },
+    { "id": "isp-pe-04-rr2", "node_id": "isp-pe-04", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.34/31"], "mac": "02:00:00:18:00:02", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-pe04-rr02" },
+    { "id": "isp-pe-04-ce", "node_id": "isp-pe-04", "name": "et-0/0/2", "type": "eth", "ip": ["198.51.100.4/31"], "mac": "02:00:00:18:00:03", "speed": 1000, "mtu": 1500, "peer_link_id": "lnk-pe04-cecorpb" },
+
+    { "id": "ce-corp-a-pe01", "node_id": "ce-corp-a", "name": "eth0", "type": "eth", "ip": ["198.51.100.1/31"], "mac": null, "speed": 1000, "mtu": 1500, "peer_link_id": "lnk-pe01-cecorpa" },
+    { "id": "ce-corp-a-pe02", "node_id": "ce-corp-a", "name": "eth1", "type": "eth", "ip": ["198.51.100.3/31"], "mac": null, "speed": 1000, "mtu": 1500, "peer_link_id": "lnk-pe02-cecorpa" },
+    { "id": "ce-corp-b-pe04", "node_id": "ce-corp-b", "name": "eth0", "type": "eth", "ip": ["198.51.100.5/31"], "mac": null, "speed": 1000, "mtu": 1500, "peer_link_id": "lnk-pe04-cecorpb" }
+  ],
+  "links": [
+    { "id": "lnk-edge01-upstream", "a_iface": "isp-pe-edge-01-up", "b_iface": "upstream-as64512-pe1", "type": "fiber", "bandwidth": 100000, "delay": 1.0, "loss": 0.0001, "mtu": 1500, "_keterangan": "eBGP, full table sintetis ~10k prefix utk CI; full 950k opsional di profil load-test" },
+    { "id": "lnk-edge02-upstream", "a_iface": "isp-pe-edge-02-up", "b_iface": "upstream-as64512-pe2", "type": "fiber", "bandwidth": 100000, "delay": 1.0, "loss": 0.0001, "mtu": 1500, "_keterangan": "Upstream kedua, multihomed -- jalur fisik diverse dari edge01" },
+    { "id": "lnk-pe03-ix", "a_iface": "isp-pe-03-ix", "b_iface": "ix-route-server-pe3", "type": "fiber", "bandwidth": 10000, "delay": 2.0, "loss": 0.0001, "mtu": 1500, "_keterangan": "Peering settlement-free via route-server IX domestik" },
+
+    { "id": "lnk-edge01-rr01", "a_iface": "isp-pe-edge-01-rr1", "b_iface": null, "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500, "_keterangan": "iBGP multihop ke RR-01 (loopback-to-loopback, bukan link fisik langsung)" },
+    { "id": "lnk-edge01-rr02", "a_iface": "isp-pe-edge-01-rr2", "b_iface": null, "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-edge02-rr01", "a_iface": "isp-pe-edge-02-rr1", "b_iface": null, "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-edge02-rr02", "a_iface": "isp-pe-edge-02-rr2", "b_iface": null, "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-pe01-rr01", "a_iface": "isp-pe-01-rr1", "b_iface": "isp-rr-01-lo0", "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-pe01-rr02", "a_iface": "isp-pe-01-rr2", "b_iface": "isp-rr-02-lo0", "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-pe02-rr01", "a_iface": "isp-pe-02-rr1", "b_iface": "isp-rr-01-lo0", "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-pe02-rr02", "a_iface": "isp-pe-02-rr2", "b_iface": "isp-rr-02-lo0", "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-pe03-rr01", "a_iface": "isp-pe-03-rr1", "b_iface": "isp-rr-01-lo0", "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-pe03-rr02", "a_iface": "isp-pe-03-rr2", "b_iface": "isp-rr-02-lo0", "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-pe04-rr01", "a_iface": "isp-pe-04-rr1", "b_iface": "isp-rr-01-lo0", "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-pe04-rr02", "a_iface": "isp-pe-04-rr2", "b_iface": "isp-rr-02-lo0", "type": "virtual", "bandwidth": 10000, "delay": 0.5, "loss": 0.0, "mtu": 1500 },
+
+    { "id": "lnk-pe01-cecorpa", "a_iface": "isp-pe-01-ce", "b_iface": "ce-corp-a-pe01", "type": "fiber", "bandwidth": 1000, "delay": 0.3, "loss": 0.0, "mtu": 1500, "_keterangan": "Primary link CORP-A, AS-path lebih pendek (preferred inbound)" },
+    { "id": "lnk-pe02-cecorpa", "a_iface": "isp-pe-02-ce", "b_iface": "ce-corp-a-pe02", "type": "fiber", "bandwidth": 1000, "delay": 0.3, "loss": 0.0, "mtu": 1500, "_keterangan": "Backup link CORP-A, di-prepend AS-path di CE utk TE inbound" },
+    { "id": "lnk-pe04-cecorpb", "a_iface": "isp-pe-04-ce", "b_iface": "ce-corp-b-pe04", "type": "fiber", "bandwidth": 1000, "delay": 0.3, "loss": 0.0, "mtu": 1500, "_keterangan": "Single-homed, no redundancy by design -- catat sebagai SPOF yang disengaja (tier pelanggan lebih rendah)" }
+  ],
+  "scenario": {
+    "id": "scn-test-isp-bgp-01",
+    "project_id": "scn-isp-bgp-rr-01",
+    "name": "RR failover + route leak detection + upstream multihoming",
+    "steps": [
+      "Originate prefix CE-CORP-A (2x /24) dan CE-CORP-B (1x /24), tunggu propagasi ke seluruh PE via RR",
+      "Matikan isp-rr-01, verifikasi semua PE tetap menerima update lewat isp-rr-02",
+      "Simulasikan misconfig: PE-03 export rute upstream (community 65001:300) ke IX peer -- harus terdeteksi sebagai leak",
+      "Putuskan lnk-edge01-upstream, verifikasi trafik reroute via PE-EDGE-02",
+      "Putuskan lnk-pe01-cecorpa (primary CORP-A), verifikasi failover ke lnk-pe02-cecorpa"
+    ],
+    "expected_outcomes": [
+      "rr_failover_route_loss == false",
+      "route_leak_detected == true",
+      "upstream_failover_convergence_s < 30",
+      "ce_corp_a_failover_blackhole == false",
+      "ce_corp_b_no_redundancy_flagged_as_design_risk == true"
+    ]
+  }
+}

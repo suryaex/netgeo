@@ -1,0 +1,85 @@
+{
+  "project": {
+    "id": "scn-dci-sr-mpls-01",
+    "name": "Interkoneksi Multi-Datacenter via SR-MPLS",
+    "description": "3 DC (border-leaf masing-masing) terhubung lewat 2 PE-DCI + 2 P-transit, underlay IS-IS-SR (SRGB 16000-23999), TI-LFA fast-reroute, opsional SR-PCE controller untuk explicit TE path.",
+    "version": "1.0.0",
+    "topology_ref": "dci-multidatacenter-sr-mpls.json",
+    "created_at": "2026-06-23T00:00:00Z"
+  },
+  "_comment": "border-leaf-a1/b1/c1 merepresentasikan titik sambung ke skenario 2 (dc-spine-leaf-evpn-vxlan) -- dalam deployment nyata node ini SAMA dengan dc1-border-leaf-01 pada skenario tersebut. AS/SR domain terpisah dari backbone skenario 1 (IS-IS-SR area sendiri, bisa juga digabung sebagai extension area backbone yang sama).",
+  "nodes": [
+    { "id": "dc1-border-leaf-a1", "name": "DC1-JKT-BORDER-LEAF (ref skenario 2)", "kind": "router", "nos": "junos", "mode": "emul", "x": 200, "y": 200, "interfaces": ["dc1-border-leaf-a1-dci"], "config_ref": null, "status": "planned" },
+    { "id": "dc2-border-leaf-b1", "name": "DC2-SBY-BORDER-LEAF", "kind": "router", "nos": "junos", "mode": "emul", "x": 600, "y": 100, "interfaces": ["dc2-border-leaf-b1-dci"], "config_ref": null, "status": "planned" },
+    { "id": "dc3-border-leaf-c1", "name": "DC3-BDG-BORDER-LEAF", "kind": "router", "nos": "junos", "mode": "emul", "x": 1000, "y": 200, "interfaces": ["dc3-border-leaf-c1-dci"], "config_ref": null, "status": "planned" },
+
+    { "id": "dci-pe-01", "name": "PE-DCI-01 (jkt-pop)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 200, "y": 320, "interfaces": ["dci-pe-01-lo0", "dci-pe-01-dc1", "dci-pe-01-p1"], "config_ref": null, "status": "planned" },
+    { "id": "dci-pe-02", "name": "PE-DCI-02 (bdg-pop)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 1000, "y": 320, "interfaces": ["dci-pe-02-lo0", "dci-pe-02-dc3", "dci-pe-02-p2"], "config_ref": null, "status": "planned" },
+
+    { "id": "dci-p-transit-01", "name": "P-TRANSIT-01 (jkt-bdg)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 450, "y": 320, "interfaces": ["dci-p-transit-01-lo0", "dci-p-transit-01-pe1", "dci-p-transit-01-p2", "dci-p-transit-01-dc2"], "config_ref": null, "status": "planned" },
+    { "id": "dci-p-transit-02", "name": "P-TRANSIT-02 (sby-bdg)", "kind": "router", "nos": "ios-xr", "mode": "emul", "x": 750, "y": 320, "interfaces": ["dci-p-transit-02-lo0", "dci-p-transit-02-p1", "dci-p-transit-02-pe2", "dci-p-transit-02-dc2b"], "config_ref": null, "status": "planned" },
+
+    { "id": "dci-sr-pce", "name": "SR-PCE Controller (path computation, opsional)", "kind": "server", "nos": "forgeos", "mode": "sim", "x": 600, "y": 420, "interfaces": ["dci-sr-pce-mgmt"], "config_ref": null, "status": "planned" }
+  ],
+  "interfaces": [
+    { "id": "dc1-border-leaf-a1-dci", "node_id": "dc1-border-leaf-a1", "name": "et-0/0/10", "type": "qsfp", "ip": ["198.51.100.0/30"], "mac": null, "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-dc1-pe01" },
+    { "id": "dc2-border-leaf-b1-dci", "node_id": "dc2-border-leaf-b1", "name": "et-0/0/10", "type": "qsfp", "ip": ["198.51.100.8/30"], "mac": null, "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-dc2-ptransit01" },
+    { "id": "dc3-border-leaf-c1-dci", "node_id": "dc3-border-leaf-c1", "name": "et-0/0/10", "type": "qsfp", "ip": ["198.51.100.4/30"], "mac": null, "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-dc3-pe02" },
+
+    { "id": "dci-pe-01-lo0", "node_id": "dci-pe-01", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.50/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null, "_node_sid": 16050 },
+    { "id": "dci-pe-01-dc1", "node_id": "dci-pe-01", "name": "et-0/0/0", "type": "qsfp", "ip": ["198.51.100.1/30"], "mac": "02:00:00:32:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-dc1-pe01" },
+    { "id": "dci-pe-01-p1", "node_id": "dci-pe-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.0/31"], "mac": "02:00:00:32:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-pe01-ptransit01" },
+
+    { "id": "dci-pe-02-lo0", "node_id": "dci-pe-02", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.51/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null, "_node_sid": 16051 },
+    { "id": "dci-pe-02-dc3", "node_id": "dci-pe-02", "name": "et-0/0/0", "type": "qsfp", "ip": ["198.51.100.5/30"], "mac": "02:00:00:33:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-dc3-pe02" },
+    { "id": "dci-pe-02-p2", "node_id": "dci-pe-02", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.6/31"], "mac": "02:00:00:33:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-pe02-ptransit02" },
+
+    { "id": "dci-p-transit-01-lo0", "node_id": "dci-p-transit-01", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.52/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null, "_node_sid": 16052 },
+    { "id": "dci-p-transit-01-pe1", "node_id": "dci-p-transit-01", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.1/31"], "mac": "02:00:00:34:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-pe01-ptransit01" },
+    { "id": "dci-p-transit-01-p2", "node_id": "dci-p-transit-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.2/31"], "mac": "02:00:00:34:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-ptransit01-ptransit02" },
+    { "id": "dci-p-transit-01-dc2", "node_id": "dci-p-transit-01", "name": "et-0/0/2", "type": "qsfp", "ip": ["198.51.100.9/30"], "mac": "02:00:00:34:00:03", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-dc2-ptransit01" },
+
+    { "id": "dci-p-transit-02-lo0", "node_id": "dci-p-transit-02", "name": "Loopback0", "type": "eth", "ip": ["203.0.113.53/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null, "_node_sid": 16053 },
+    { "id": "dci-p-transit-02-p1", "node_id": "dci-p-transit-02", "name": "et-0/0/0", "type": "qsfp", "ip": ["192.0.2.3/31"], "mac": "02:00:00:35:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-ptransit01-ptransit02" },
+    { "id": "dci-p-transit-02-pe2", "node_id": "dci-p-transit-02", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.7/31"], "mac": "02:00:00:35:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-pe02-ptransit02" },
+    { "id": "dci-p-transit-02-dc2b", "node_id": "dci-p-transit-02", "name": "et-0/0/2", "type": "qsfp", "ip": ["192.0.2.20/31"], "mac": "02:00:00:35:00:03", "speed": 10000, "mtu": 9216, "peer_link_id": "lnk-ptransit01-ptransit02-alt", "_keterangan": "Link sekunder antar P-transit utk redundansi internal core DCI" },
+
+    { "id": "dci-sr-pce-mgmt", "node_id": "dci-sr-pce", "name": "eth0", "type": "eth", "ip": ["203.0.113.60/32"], "mac": null, "speed": 1000, "mtu": 1500, "peer_link_id": null, "_keterangan": "Out-of-band management/PCEP session ke seluruh PE/P, bukan link data-plane" }
+  ],
+  "links": [
+    { "id": "lnk-dc1-pe01", "a_iface": "dc1-border-leaf-a1-dci", "b_iface": "dci-pe-01-dc1", "type": "fiber", "bandwidth": 100000, "delay": 1.0, "loss": 0.0001, "mtu": 9216, "_jarak_km": 20, "_keterangan": "Access link DC1 ke PE-DCI-01, dalam metro yang sama" },
+    { "id": "lnk-dc3-pe02", "a_iface": "dc3-border-leaf-c1-dci", "b_iface": "dci-pe-02-dc3", "type": "fiber", "bandwidth": 100000, "delay": 1.0, "loss": 0.0001, "mtu": 9216, "_jarak_km": 20 },
+    { "id": "lnk-dc2-ptransit01", "a_iface": "dc2-border-leaf-b1-dci", "b_iface": "dci-p-transit-01-dc2", "type": "fiber", "bandwidth": 100000, "delay": 4.0, "loss": 0.0003, "mtu": 9216, "_jarak_km": 800, "_keterangan": "DC2 sby tersambung lewat P-transit-01 (asimetris desain -- titik discussion arsitektur)" },
+
+    { "id": "lnk-pe01-ptransit01", "a_iface": "dci-pe-01-p1", "b_iface": "dci-p-transit-01-pe1", "type": "fiber", "bandwidth": 100000, "delay": 0.75, "loss": 0.0001, "mtu": 9216, "_jarak_km": 150, "_keterangan": "jkt-bdg, jalur darat -- TI-LFA backup path via ptransit02 jika di-enable" },
+    { "id": "lnk-ptransit01-ptransit02", "a_iface": "dci-p-transit-01-p2", "b_iface": "dci-p-transit-02-p1", "type": "fiber", "bandwidth": 100000, "delay": 4.0, "loss": 0.0003, "mtu": 9216, "_jarak_km": 800, "_keterangan": "sby-bdg, link utama core DCI" },
+    { "id": "lnk-pe02-ptransit02", "a_iface": "dci-pe-02-p2", "b_iface": "dci-p-transit-02-pe2", "type": "fiber", "bandwidth": 100000, "delay": 0.75, "loss": 0.0001, "mtu": 9216, "_jarak_km": 150, "_keterangan": "bdg-sby" },
+    { "id": "lnk-ptransit01-ptransit02-alt", "a_iface": "dci-p-transit-02-dc2b", "b_iface": null, "type": "fiber", "bandwidth": 10000, "delay": 4.0, "loss": 0.0005, "mtu": 9216, "_keterangan": "Link sekunder/proteksi capacity lebih kecil -- SPOF mitigation parsial, dicatat di SLA-redundancy.md" }
+  ],
+  "_segment_routing": {
+    "_keterangan": "Model §4 tidak punya field native untuk SID/label -- dicatat sebagai _node_sid pada Interface loopback (konvensi non-standar, lihat README kebutuhan tambahan ke backend) dan sebagai metadata policy di sini.",
+    "srgb": "16000-23999",
+    "ti_lfa_enabled": true,
+    "explicit_te_policy": [
+      { "name": "jkt-to-bdg-via-ptransit01-only", "sid_list": [16052, 16051], "head_end": "dci-pe-01", "color": "low-latency" }
+    ]
+  },
+  "scenario": {
+    "id": "scn-test-dci-01",
+    "project_id": "scn-dci-sr-mpls-01",
+    "name": "TI-LFA failover saat P-transit utama down",
+    "steps": [
+      "Bangun trafik replication DC1->DC3 (10 Gbps steady) lewat path default (PE-DCI-01 -> P-TRANSIT-01 -> P-TRANSIT-02 -> PE-DCI-02)",
+      "Matikan dci-p-transit-01 pada t=30s",
+      "Amati apakah trafik DC2 (yang access via p-transit-01) ikut terdampak -- DC2 hanya punya 1 jalur masuk ke core DCI",
+      "Amati waktu reroute trafik DC1->DC3 (jika TI-LFA aktif vs tidak)",
+      "Ukur RTT baru setelah reroute dan bandingkan terhadap threshold sync-replication (20ms)"
+    ],
+    "expected_outcomes": [
+      "ti_lfa_failover_ms < 50",
+      "dc2_isolated_during_ptransit01_outage == true (flagged as design risk, single path)",
+      "dc1_dc3_traffic_survives_via_alternate_path == true",
+      "post_failover_rtt_ms_reported == true"
+    ]
+  }
+}

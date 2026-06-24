@@ -1,0 +1,73 @@
+# Contoh Intent ForgeOS — Leaf Switch (EVPN-VXLAN Datacenter)
+#
+# Skenario: switch ini adalah satu Leaf di topologi spine-leaf datacenter, menjalankan:
+#   - BGP underlay (eBGP per-leaf ke kedua Spine, model "BGP unnumbered/EVPN fabric" klasik)
+#   - BGP EVPN address-family (overlay control-plane utk MAC/IP learning lewat Type-2/Type-3 route)
+#   - VXLAN data-plane dengan 2 VNI (mapping ke VLAN 10 dan VLAN 20)
+#   - VLAN lokal utk port-port server yang terhubung ke leaf ini
+#
+# Dipakai sebagai input node.intent untuk node bernama "LEAF1" pada skenario
+# network/protocols/scenarios/04-evpn-vxlan-datacenter.md
+#
+# Referensi skema lengkap: ../schema.md
+# Referensi pemetaan ke tiap vendor: ../mappings/intent-to-vendor-mapping.md
+
+node:
+  name: LEAF1
+  kind: switch
+  nos: eos          # Arista EOS — satu-satunya template dgn render EVPN-VXLAN lengkap saat ini (lihat config-gen/README.md §3)
+
+interfaces:
+  - name: Loopback0
+    type: eth
+    ip: ["10.255.0.11/32"]   # dipakai sbg VTEP source-interface
+    mtu: 1500
+  - name: Ethernet1
+    type: eth
+    ip: ["10.0.1.1/31"]       # uplink ke SPINE1, link P2P /31 (BGP unnumbered style)
+    mtu: 9214                 # jumbo MTU wajib utk VXLAN overhead (50 byte) + payload server
+  - name: Ethernet2
+    type: eth
+    ip: ["10.0.1.3/31"]       # uplink ke SPINE2
+    mtu: 9214
+  - name: Ethernet10
+    type: eth
+    ip: []                     # access port server, tidak punya IP L3 (switchport mode access)
+    mtu: 9214
+
+intent:
+  vlans:
+    - id: 10
+      name: WEB-TIER
+    - id: 20
+      name: APP-TIER
+
+  bgp:
+    asn: 65101                          # underlay eBGP — tiap leaf pakai ASN unik (model "eBGP per leaf")
+    router_id: "10.255.0.11"
+    neighbors:
+      - ip: "10.0.1.0"                   # SPINE1 (ujung lain link /31)
+        remote_as: 65000
+        description: "underlay to SPINE1"
+        evpn: true                       # aktifkan address-family EVPN ke neighbor ini
+      - ip: "10.0.1.2"                   # SPINE2
+        remote_as: 65000
+        description: "underlay to SPINE2"
+        evpn: true
+    networks:
+      - "10.255.0.11/32"                 # advertise loopback (VTEP reachability) ke underlay
+
+  evpn:
+    vnis:
+      - vlan: 10
+        vni: 10010
+      - vlan: 20
+        vni: 10020
+
+  fhrp:
+    # Anycast gateway terdistribusi (disederhanakan sbg VRRP per schema v1 — implementasi EVPN
+    # anycast-gateway asli berbeda dari VRRP klasik, dicatat sbg simplifikasi demo, lihat schema.md)
+    interface: "Vlan10"
+    group: 10
+    vip: "10.10.10.1"
+    priority: 100

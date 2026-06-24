@@ -1,0 +1,133 @@
+<div align="center">
+
+# 🛠️ NetForge
+
+**Platform open-source simulasi & emulasi jaringan skala besar**
+
+*Kemudahan Cisco Packet Tracer · kedalaman GNS3/EVE-NG · manajemen visual ala Ubiquiti UISP —*
+*dengan UI desktop-class (rasa macOS / Windows 11) yang tetap seringan aplikasi Linux native.*
+
+[![CI](https://github.com/suryaex/netforge/actions/workflows/backend.yml/badge.svg)](https://github.com/suryaex/netforge/actions)
+![Lisensi](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![React](https://img.shields.io/badge/react-18-61dafb)
+
+</div>
+
+---
+
+## ✨ Apa itu NetForge?
+
+NetForge mensimulasikan jaringan **ribuan node** (router, switch, host, AP, OLT, firewall) memakai
+**engine hybrid**: *discrete-event simulation* (DES) yang ringan untuk skala, plus *container
+emulation* (containerlab/Docker) untuk akurasi NOS nyata — mode bisa diatur **per-node** (`sim` ↔ `emul`).
+
+Outputnya **konfigurasi nyata siap pakai** untuk banyak NOS. Dan pembeda utamanya: **ForgeOS** —
+NOS deklaratif *intent-based* baru. Anda mendeskripsikan *maksud* sekali (YAML), NetForge
+meng-compile-nya menjadi konfigurasi untuk **7 vendor sekaligus** — dan memverifikasinya di
+simulasi sebelum deploy.
+
+> **Satu intent → banyak vendor config**, terverifikasi di simulasi.
+
+## 🚀 Fitur Inti
+
+| | |
+|---|---|
+| 🌐 **Simulasi skala besar** | Engine DES deterministik (seeded), target ribuan–puluhan ribu node mode `sim` |
+| 🧩 **Multi-skenario** | Campus, ISP/FTTH, datacenter spine-leaf EVPN-VXLAN, backbone metro-E/DWDM, MPLS L3VPN, DCI SR-MPLS |
+| ⚙️ **Config-gen multi-vendor** | Cisco IOS/IOS-XR/NX-OS · Juniper Junos · Arista EOS · MikroTik RouterOS · VyOS · FRRouting · **ForgeOS** |
+| 🧠 **ForgeOS intent-based** | Satu intent YAML → konfigurasi banyak vendor + verifikasi simulasi |
+| 🖥️ **UI desktop-class** | Window manager + dock + glassmorphism ala macOS/Win11, kanvas topologi React Flow, ringan (<200MB idle) |
+| 🔌 **Realtime** | WebSocket untuk topologi, telemetry, dan konsol per-perangkat |
+
+## 🧱 Arsitektur
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│  Frontend  React 18 + Vite + Tailwind + React Flow             │
+│  window manager · dock · kanvas topologi · konsol · config view│
+└───────────────▲───────────────────────────────▲───────────────┘
+       REST /api │                     WS /ws/*  │
+┌───────────────┴───────────────────────────────┴───────────────┐
+│  Backend   FastAPI (async)                                     │
+│   ├─ API §4 : projects · nodes · links · scenarios · simulate  │
+│   │           · configs                                        │
+│   ├─ engine : DES kernel (event queue · scheduler · runtimes)  │
+│   │           + emulation adaptor (containerlab/Docker)        │
+│   └─ config-gen : Jinja2 per-vendor + ForgeOS compiler         │
+└───────────────▲───────────────────────────────▲───────────────┘
+                │ PostgreSQL (topologi/config)   │ Redis (state/PubSub/queue)
+                └────────────────────────────────┘
+```
+
+## 📂 Struktur Repositori
+
+| Folder | Isi |
+|---|---|
+| [`backend/`](backend/) | FastAPI app + engine DES + service config-gen/sim (`pytest`: 20 hijau) |
+| [`frontend/`](frontend/) | UI React desktop-class (shell, kanvas, panel, store) |
+| [`config-gen/`](config-gen/) | Template Jinja2 7 vendor + skema & contoh intent **ForgeOS** |
+| [`network/protocols/`](network/protocols/) | Matriks protokol + skenario referensi (campus, BGP, MPLS, EVPN) |
+| [`network/scenarios/`](network/scenarios/) | Skenario skala besar (backbone, DC, ISP, DCI, stress 1296-node) |
+| [`network/devices/`](network/devices/) | Pustaka 36 perangkat + kapabilitas + referensi FTTH |
+| [`infra/`](infra/) | Skema PostgreSQL, Redis, Docker Compose, CI (tervalidasi di PG16) |
+| [`security/`](security/) | Threat model (STRIDE), hardening, skenario lab keamanan |
+| [`docs/vision/`](docs/vision/) | Visi, roadmap, ADR, strategi inovasi, governance |
+| [`docs/research/`](docs/research/) | Analisis kompetitor, evaluasi stack, riset ForgeOS |
+| [`docs/academic/`](docs/academic/) | Paper akademis (IEEE-style) + metodologi + referensi |
+| [`MASTER_SPEC.md`](MASTER_SPEC.md) | Sumber kebenaran tunggal: model data §4, tech stack, konvensi |
+
+## ⚡ Mulai Cepat
+
+### Backend
+```bash
+cd backend
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000        # http://localhost:8000/docs
+pytest -q                                         # 20 passed
+```
+
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev                                       # http://localhost:5173
+```
+
+### Semuanya (Docker Compose)
+```bash
+cd infra
+docker compose up --build                         # backend + frontend + postgres + redis
+```
+
+### Contoh: satu intent → banyak vendor
+```bash
+cd backend
+python - <<'PY'
+from app.models import Node, Interface
+from app.services import configgen
+node = Node(id="n1", project_id="p1", name="PE1", nos="forgeos",
+    interfaces=[Interface(id="i1", node_id="n1", name="Gi0/0", ip=["10.0.0.1/24"])],
+    intent={"bgp":{"asn":65001,"router_id":"1.1.1.1",
+                   "neighbors":[{"ip":"10.0.0.2","remote_as":65002}]}})
+for v in ("ios","junos","eos","routeros","vyos","frr","forgeos"):
+    print(f"\n===== {v} =====\n{configgen.render(node, v)}")
+PY
+```
+
+## 🗺️ Roadmap (ringkas)
+
+- **MVP** — kanvas + DES dasar + config-gen + ForgeOS compiler (≤ ~1.000 node)
+- **v1** — emulasi containerlab, verifikasi intent, skenario besar (≤ ~10.000 node)
+- **v2** — sharding terdistribusi, digital twin, AI-assisted topology
+
+Detail & gate performa: [`docs/vision/ROADMAP.md`](docs/vision/ROADMAP.md).
+
+## 🤝 Kontribusi
+
+Lihat [`docs/vision/GOVERNANCE.md`](docs/vision/GOVERNANCE.md). Kontribusi memakai DCO & SemVer.
+
+## 📜 Lisensi
+
+[Apache-2.0](LICENSE) © Muhammad Surya Ragasin — Politeknik Negeri Sriwijaya, D4 Teknik Telekomunikasi.

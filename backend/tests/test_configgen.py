@@ -1,0 +1,72 @@
+"""Test config generation: satu intent -> banyak config vendor (MASTER_SPEC §5).
+
+Memverifikasi janji ForgeOS: satu node + satu ``intent`` deklaratif dirender ke
+beberapa target NOS nyata melalui template Jinja2 di ``config-gen/templates/``.
+"""
+from __future__ import annotations
+
+import pytest
+
+from app.models import Interface, Node
+from app.services import configgen
+
+
+def _pe_node() -> Node:
+    """Sebuah PE router dengan intent BGP — vendor-neutral."""
+    return Node(
+        id="node-pe1",
+        project_id="proj-1",
+        name="pe1",
+        kind="router",
+        nos="forgeos",
+        interfaces=[
+            Interface(
+                id="if-1",
+                node_id="node-pe1",
+                name="eth0",
+                ip=["10.0.0.1/24"],
+            )
+        ],
+        intent={
+            "bgp": {"asn": 65001, "router_id": "10.0.0.1", "neighbors": []},
+            "ospf": {"process_id": 1, "router_id": "10.0.0.1", "networks": []},
+        },
+    )
+
+
+def test_native_render_produces_text():
+    node = _pe_node()
+    artifact = configgen.build_artifact(node, requested_vendor=None)
+    assert artifact.vendor == "forgeos"
+    assert artifact.content.strip()
+    assert artifact.node_id == node.id
+
+
+@pytest.mark.parametrize(
+    "vendor",
+    ["ios", "junos", "eos", "routeros", "vyos", "frr", "forgeos"],
+)
+def test_one_intent_many_vendors(vendor: str):
+    """Intent yang SAMA menghasilkan config untuk tiap vendor target."""
+    node = _pe_node()
+    artifact = configgen.build_artifact(node, requested_vendor=vendor)
+    assert artifact.vendor == vendor
+    assert len(artifact.content.strip()) > 0
+    # hostname harus muncul di hampir semua dialek vendor
+    assert "pe1" in artifact.content
+
+
+def test_hostname_appears_across_vendors():
+    """Bukti konkret 'satu intent -> banyak config': kumpulkan semua render."""
+    node = _pe_node()
+    vendors = ["ios", "junos", "eos", "routeros", "vyos", "frr", "forgeos"]
+    rendered = {v: configgen.render(node, v) for v in vendors}
+    assert len(rendered) == 7
+    # tiap output unik per vendor (sintaks berbeda), tapi semua memuat hostname
+    assert all("pe1" in text for text in rendered.values())
+
+
+def test_unknown_vendor_raises():
+    node = _pe_node()
+    with pytest.raises(configgen.ConfigGenError):
+        configgen.render(node, "nonexistent-nos")

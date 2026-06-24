@@ -1,0 +1,133 @@
+# =============================================================================
+# NetForge — Docker Compose (PRODUCTION)
+# Jalankan: docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.prod up -d
+#
+# Perbedaan vs dev:
+#   * Tidak ada bind-mount source / hot-reload (image immutable).
+#   * Frontend di-serve nginx (build statis), reverse-proxy /api & /ws.
+#   * Credential via env-file / Docker secret, BUKAN literal.
+#   * Resource limits + restart policy ketat + healthcheck di semua service.
+#   * Port DB/Redis TIDAK di-expose ke host (hanya internal network).
+#   * Backend bisa di-scale (deploy.replicas) — Redis pub/sub jadi fan-out WS.
+#
+# Multi-arch: build & push via buildx (lihat infra/ci/). Image base sudah
+# mendukung linux/amd64 + linux/arm64.
+# =============================================================================
+
+name: netforge
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-netforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}
+      POSTGRES_DB: ${POSTGRES_DB:-netforge}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/00_schema.sql:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netforge} -d ${POSTGRES_DB:-netforge}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2g }
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512m }
+
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/netforge/backend:latest}
+    build:
+      context: ../backend
+      dockerfile: ../infra/docker/backend.Dockerfile
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-netforge}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-netforge}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY wajib diisi}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      ENABLE_HSTS: "true"
+      EMULATION_BACKEND: ${EMULATION_BACKEND:-null}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      replicas: 2          # WS fan-out lintas replica via Redis pub/sub
+      resources:
+        limits: { cpus: "2.0", memory: 1g }
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/netforge/frontend:latest}
+    build:
+      context: ../frontend
+      dockerfile: ../infra/docker/frontend.Dockerfile
+    restart: always
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      # Config nginx tetap berada di area infra/ (di-mount, bukan di-bake).
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [internal]
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128m }
+
+  # ---------------------------------------------------------------------------
+  # (OPSIONAL) Containerlab runner — host engine emulasi (mode 'emul', §1).
+  # Aktifkan dengan profile: docker compose --profile emul ... up
+  # Butuh akses Docker socket -> jalankan hanya di host tepercaya.
+  # ---------------------------------------------------------------------------
+  containerlab:
+    image: ghcr.io/srl-labs/clab:latest
+    profiles: ["emul"]
+    restart: unless-stopped
+    privileged: true
+    environment:
+      REDIS_URL: redis://redis:6379/0      # konsumsi job dari nf:q:emul
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - clab_lab:/lab
+    networks: [internal]
+    depends_on:
+      redis:
+        condition: service_healthy
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  clab_lab:

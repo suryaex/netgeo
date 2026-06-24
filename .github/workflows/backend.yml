@@ -1,0 +1,66 @@
+# =============================================================================
+# NetForge CI — Backend (lint + test)
+# Salin/symlink ke .github/workflows/backend.yml di root repo (orchestrator).
+# =============================================================================
+name: backend-ci
+
+on:
+  push:
+    paths: ["backend/**", "infra/db/**", "infra/ci/backend.yml"]
+  pull_request:
+    paths: ["backend/**", "infra/db/**", "infra/ci/backend.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: netforge
+          POSTGRES_PASSWORD: netforge
+          POSTGRES_DB: netforge
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U netforge -d netforge"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 3s --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://netforge:netforge@localhost:5432/netforge
+      REDIS_URL: redis://localhost:6379/0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: Apply DB schema
+        run: |
+          PGPASSWORD=netforge psql -h localhost -U netforge -d netforge \
+            -v ON_ERROR_STOP=1 -f infra/db/migrations/0001_init.up.sql
+
+      - name: Lint (ruff)
+        working-directory: backend
+        run: ruff check .
+
+      - name: Test (pytest)
+        working-directory: backend
+        run: pytest -q

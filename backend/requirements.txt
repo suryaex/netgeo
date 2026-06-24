@@ -1,0 +1,18 @@
+# NetForge backend — runtime dependencies (MASTER_SPEC §2)
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+jinja2==3.1.4
+networkx==3.3
+redis==5.0.8
+sqlalchemy[asyncio]==2.0.35
+asyncpg==0.29.0
+python-multipart==0.0.9
+pyyaml==6.0.2
+websockets==13.0.1
+
+# dev/test
+pytest==8.3.2
+pytest-asyncio==0.24.0
+httpx==0.27.2

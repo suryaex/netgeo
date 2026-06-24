@@ -1,0 +1,103 @@
+# =============================================================================
+# NetForge — Docker Compose (DEVELOPMENT)
+# Jalankan: docker compose -f infra/docker-compose.yml up -d
+#
+# Fokus DX: hot-reload backend & frontend, port di-expose ke host, data
+# persisten di named volume. Untuk produksi pakai docker-compose.prod.yml.
+#
+# Multi-arch: image base (postgres/redis/python/node) sudah multi-arch
+# (amd64+arm64). Build lokal otomatis mengikuti arsitektur host.
+# =============================================================================
+
+name: netforge-dev
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — sumber-kebenaran persisten (topologi, project, user, config)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: netforge
+      POSTGRES_PASSWORD: netforge          # dev only; prod pakai secret
+      POSTGRES_DB: netforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Bootstrap skema saat volume pertama kali kosong.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/00_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netforge -d netforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Redis — state realtime, pub/sub WS fan-out, job queue (lihat redis-design.md)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Backend — FastAPI (app.main:app). Source di ../backend (di-mount untuk reload).
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../infra/docker/backend.Dockerfile
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://netforge:netforge@postgres:5432/netforge
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: http://localhost:5180,http://localhost:3000
+      EMULATION_BACKEND: "null"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend:/app          # hot-reload source
+    # --reload untuk dev (override CMD image).
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Frontend — Vite dev server (React 18). Source di ../frontend.
+  # ---------------------------------------------------------------------------
+  frontend:
+    image: node:20-alpine
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      # Vite proxy /api & /ws ke backend (lihat frontend/vite.config.ts).
+      VITE_BACKEND_ORIGIN: http://backend:8000
+    ports:
+      - "5180:5180"
+    volumes:
+      - ../frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  redisdata:
+  frontend_node_modules:

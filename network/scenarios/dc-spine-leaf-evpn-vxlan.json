@@ -1,0 +1,177 @@
+{
+  "project": {
+    "id": "scn-dc-evpn-vxlan-01",
+    "name": "Datacenter Spine-Leaf EVPN-VXLAN (1 Pod, Parametrik)",
+    "description": "CLOS 3-tier: 2 super-spine + 2 spine + 4 leaf + 2 border-leaf + 8 server dual-homed. Underlay eBGP unnumbered, overlay EVPN-VXLAN multi-tenant.",
+    "version": "1.0.0",
+    "topology_ref": "dc-spine-leaf-evpn-vxlan.json",
+    "created_at": "2026-06-23T00:00:00Z"
+  },
+  "_comment": "Versi ini diringkas jadi 1 pod (4 leaf, bukan 16) agar JSON tetap manageable sebagai contoh; pola replikasi pod dijelaskan di .md §Cara Scale dan diimplementasikan penuh sebagai generator di stress-test-1000-node. AS privat 65101-65104 (leaf), 65201-65202 (spine), 65301-65302 (super-spine). IP underlay 192.0.2.0/24, loopback 203.0.113.0/24, VTEP loopback 198.51.100.0/24.",
+  "nodes": [
+    { "id": "dc1-ss-01", "name": "DC1-SUPERSPINE-01", "kind": "router", "nos": "forgeos", "mode": "emul", "x": 500, "y": 100, "interfaces": ["dc1-ss-01-lo0", "dc1-ss-01-sw1", "dc1-ss-01-sw2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-ss-02", "name": "DC1-SUPERSPINE-02", "kind": "router", "nos": "forgeos", "mode": "emul", "x": 600, "y": 100, "interfaces": ["dc1-ss-02-lo0", "dc1-ss-02-sw1", "dc1-ss-02-sw2"], "config_ref": null, "status": "planned" },
+
+    { "id": "dc1-pod1-sp-01", "name": "DC1-POD1-SPINE-01", "kind": "switch", "nos": "forgeos", "mode": "emul", "x": 450, "y": 200, "interfaces": ["dc1-pod1-sp-01-lo0", "dc1-pod1-sp-01-uss1", "dc1-pod1-sp-01-uss2", "dc1-pod1-sp-01-lf1", "dc1-pod1-sp-01-lf2", "dc1-pod1-sp-01-lf3", "dc1-pod1-sp-01-lf4"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-sp-02", "name": "DC1-POD1-SPINE-02", "kind": "switch", "nos": "forgeos", "mode": "emul", "x": 550, "y": 200, "interfaces": ["dc1-pod1-sp-02-lo0", "dc1-pod1-sp-02-uss1", "dc1-pod1-sp-02-uss2", "dc1-pod1-sp-02-lf1", "dc1-pod1-sp-02-lf2", "dc1-pod1-sp-02-lf3", "dc1-pod1-sp-02-lf4"], "config_ref": null, "status": "planned" },
+
+    { "id": "dc1-pod1-leaf-01", "name": "DC1-POD1-LEAF-01", "kind": "switch", "nos": "vyos", "mode": "emul", "x": 300, "y": 300, "interfaces": ["dc1-pod1-leaf-01-lo0", "dc1-pod1-leaf-01-vtep", "dc1-pod1-leaf-01-sp1", "dc1-pod1-leaf-01-sp2", "dc1-pod1-leaf-01-srv1", "dc1-pod1-leaf-01-srv2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-leaf-02", "name": "DC1-POD1-LEAF-02", "kind": "switch", "nos": "vyos", "mode": "emul", "x": 400, "y": 300, "interfaces": ["dc1-pod1-leaf-02-lo0", "dc1-pod1-leaf-02-vtep", "dc1-pod1-leaf-02-sp1", "dc1-pod1-leaf-02-sp2", "dc1-pod1-leaf-02-srv1", "dc1-pod1-leaf-02-srv2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-leaf-03", "name": "DC1-POD1-LEAF-03", "kind": "switch", "nos": "vyos", "mode": "emul", "x": 500, "y": 300, "interfaces": ["dc1-pod1-leaf-03-lo0", "dc1-pod1-leaf-03-vtep", "dc1-pod1-leaf-03-sp1", "dc1-pod1-leaf-03-sp2", "dc1-pod1-leaf-03-srv1", "dc1-pod1-leaf-03-srv2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-leaf-04", "name": "DC1-POD1-LEAF-04", "kind": "switch", "nos": "vyos", "mode": "emul", "x": 600, "y": 300, "interfaces": ["dc1-pod1-leaf-04-lo0", "dc1-pod1-leaf-04-vtep", "dc1-pod1-leaf-04-sp1", "dc1-pod1-leaf-04-sp2", "dc1-pod1-leaf-04-srv1", "dc1-pod1-leaf-04-srv2"], "config_ref": null, "status": "planned" },
+
+    { "id": "dc1-border-leaf-01", "name": "DC1-BORDER-LEAF-01", "kind": "router", "nos": "junos", "mode": "emul", "x": 700, "y": 300, "interfaces": ["dc1-border-leaf-01-lo0", "dc1-border-leaf-01-sp1", "dc1-border-leaf-01-sp2", "dc1-border-leaf-01-ext"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-border-leaf-02", "name": "DC1-BORDER-LEAF-02", "kind": "router", "nos": "junos", "mode": "emul", "x": 800, "y": 300, "interfaces": ["dc1-border-leaf-02-lo0", "dc1-border-leaf-02-sp1", "dc1-border-leaf-02-sp2", "dc1-border-leaf-02-ext"], "config_ref": null, "status": "planned" },
+
+    { "id": "dc1-pod1-srv-01", "name": "tenant-a-web-01", "kind": "server", "nos": "forgeos", "mode": "sim", "x": 280, "y": 400, "interfaces": ["dc1-pod1-srv-01-nic1", "dc1-pod1-srv-01-nic2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-srv-02", "name": "tenant-a-db-01", "kind": "server", "nos": "forgeos", "mode": "sim", "x": 320, "y": 400, "interfaces": ["dc1-pod1-srv-02-nic1", "dc1-pod1-srv-02-nic2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-srv-03", "name": "tenant-b-web-01", "kind": "server", "nos": "forgeos", "mode": "sim", "x": 380, "y": 400, "interfaces": ["dc1-pod1-srv-03-nic1", "dc1-pod1-srv-03-nic2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-srv-04", "name": "tenant-b-app-01", "kind": "server", "nos": "forgeos", "mode": "sim", "x": 420, "y": 400, "interfaces": ["dc1-pod1-srv-04-nic1", "dc1-pod1-srv-04-nic2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-srv-05", "name": "tenant-a-web-02", "kind": "server", "nos": "forgeos", "mode": "sim", "x": 480, "y": 400, "interfaces": ["dc1-pod1-srv-05-nic1", "dc1-pod1-srv-05-nic2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-srv-06", "name": "tenant-storage-01", "kind": "server", "nos": "forgeos", "mode": "sim", "x": 520, "y": 400, "interfaces": ["dc1-pod1-srv-06-nic1", "dc1-pod1-srv-06-nic2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-srv-07", "name": "tenant-c-web-01", "kind": "server", "nos": "forgeos", "mode": "sim", "x": 580, "y": 400, "interfaces": ["dc1-pod1-srv-07-nic1", "dc1-pod1-srv-07-nic2"], "config_ref": null, "status": "planned" },
+    { "id": "dc1-pod1-srv-08", "name": "tenant-c-db-01", "kind": "server", "nos": "forgeos", "mode": "sim", "x": 620, "y": 400, "interfaces": ["dc1-pod1-srv-08-nic1", "dc1-pod1-srv-08-nic2"], "config_ref": null, "status": "planned" }
+  ],
+  "interfaces": [
+    { "id": "dc1-ss-01-lo0", "node_id": "dc1-ss-01", "name": "lo0", "type": "eth", "ip": ["203.0.113.10/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dc1-ss-01-sw1", "node_id": "dc1-ss-01", "name": "swp1", "type": "qsfp", "ip": ["192.0.2.0/31"], "mac": "02:00:00:0a:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-ss01-sp01" },
+    { "id": "dc1-ss-01-sw2", "node_id": "dc1-ss-01", "name": "swp2", "type": "qsfp", "ip": ["192.0.2.2/31"], "mac": "02:00:00:0a:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-ss01-sp02" },
+
+    { "id": "dc1-ss-02-lo0", "node_id": "dc1-ss-02", "name": "lo0", "type": "eth", "ip": ["203.0.113.11/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dc1-ss-02-sw1", "node_id": "dc1-ss-02", "name": "swp1", "type": "qsfp", "ip": ["192.0.2.4/31"], "mac": "02:00:00:0b:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-ss02-sp01" },
+    { "id": "dc1-ss-02-sw2", "node_id": "dc1-ss-02", "name": "swp2", "type": "qsfp", "ip": ["192.0.2.6/31"], "mac": "02:00:00:0b:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-ss02-sp02" },
+
+    { "id": "dc1-pod1-sp-01-lo0", "node_id": "dc1-pod1-sp-01", "name": "lo0", "type": "eth", "ip": ["203.0.113.20/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dc1-pod1-sp-01-uss1", "node_id": "dc1-pod1-sp-01", "name": "swp51", "type": "qsfp", "ip": ["192.0.2.1/31"], "mac": "02:00:00:14:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-ss01-sp01" },
+    { "id": "dc1-pod1-sp-01-uss2", "node_id": "dc1-pod1-sp-01", "name": "swp52", "type": "qsfp", "ip": ["192.0.2.5/31"], "mac": "02:00:00:14:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-ss02-sp01" },
+    { "id": "dc1-pod1-sp-01-lf1", "node_id": "dc1-pod1-sp-01", "name": "swp1", "type": "qsfp", "ip": ["192.0.2.8/31"], "mac": "02:00:00:14:00:03", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp01-leaf01" },
+    { "id": "dc1-pod1-sp-01-lf2", "node_id": "dc1-pod1-sp-01", "name": "swp2", "type": "qsfp", "ip": ["192.0.2.10/31"], "mac": "02:00:00:14:00:04", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp01-leaf02" },
+    { "id": "dc1-pod1-sp-01-lf3", "node_id": "dc1-pod1-sp-01", "name": "swp3", "type": "qsfp", "ip": ["192.0.2.12/31"], "mac": "02:00:00:14:00:05", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp01-leaf03" },
+    { "id": "dc1-pod1-sp-01-lf4", "node_id": "dc1-pod1-sp-01", "name": "swp4", "type": "qsfp", "ip": ["192.0.2.14/31"], "mac": "02:00:00:14:00:06", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp01-leaf04" },
+
+    { "id": "dc1-pod1-sp-02-lo0", "node_id": "dc1-pod1-sp-02", "name": "lo0", "type": "eth", "ip": ["203.0.113.21/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dc1-pod1-sp-02-uss1", "node_id": "dc1-pod1-sp-02", "name": "swp51", "type": "qsfp", "ip": ["192.0.2.3/31"], "mac": "02:00:00:15:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-ss01-sp02" },
+    { "id": "dc1-pod1-sp-02-uss2", "node_id": "dc1-pod1-sp-02", "name": "swp52", "type": "qsfp", "ip": ["192.0.2.7/31"], "mac": "02:00:00:15:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-ss02-sp02" },
+    { "id": "dc1-pod1-sp-02-lf1", "node_id": "dc1-pod1-sp-02", "name": "swp1", "type": "qsfp", "ip": ["192.0.2.16/31"], "mac": "02:00:00:15:00:03", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp02-leaf01" },
+    { "id": "dc1-pod1-sp-02-lf2", "node_id": "dc1-pod1-sp-02", "name": "swp2", "type": "qsfp", "ip": ["192.0.2.18/31"], "mac": "02:00:00:15:00:04", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp02-leaf02" },
+    { "id": "dc1-pod1-sp-02-lf3", "node_id": "dc1-pod1-sp-02", "name": "swp3", "type": "qsfp", "ip": ["192.0.2.20/31"], "mac": "02:00:00:15:00:05", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp02-leaf03" },
+    { "id": "dc1-pod1-sp-02-lf4", "node_id": "dc1-pod1-sp-02", "name": "swp4", "type": "qsfp", "ip": ["192.0.2.22/31"], "mac": "02:00:00:15:00:06", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp02-leaf04" },
+
+    { "id": "dc1-pod1-leaf-01-lo0", "node_id": "dc1-pod1-leaf-01", "name": "lo0", "type": "eth", "ip": ["203.0.113.30/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dc1-pod1-leaf-01-vtep", "node_id": "dc1-pod1-leaf-01", "name": "vtep0", "type": "eth", "ip": ["198.51.100.10/32"], "mac": null, "speed": 0, "mtu": 9000, "peer_link_id": null },
+    { "id": "dc1-pod1-leaf-01-sp1", "node_id": "dc1-pod1-leaf-01", "name": "swp51", "type": "qsfp", "ip": ["192.0.2.9/31"], "mac": "02:00:00:1e:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp01-leaf01" },
+    { "id": "dc1-pod1-leaf-01-sp2", "node_id": "dc1-pod1-leaf-01", "name": "swp52", "type": "qsfp", "ip": ["192.0.2.17/31"], "mac": "02:00:00:1e:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp02-leaf01" },
+    { "id": "dc1-pod1-leaf-01-srv1", "node_id": "dc1-pod1-leaf-01", "name": "swp1", "type": "sfp28", "ip": [], "mac": "02:00:00:1e:00:03", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf01-srv01" },
+    { "id": "dc1-pod1-leaf-01-srv2", "node_id": "dc1-pod1-leaf-01", "name": "swp2", "type": "sfp28", "ip": [], "mac": "02:00:00:1e:00:04", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf01-srv02" },
+
+    { "id": "dc1-pod1-leaf-02-lo0", "node_id": "dc1-pod1-leaf-02", "name": "lo0", "type": "eth", "ip": ["203.0.113.31/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dc1-pod1-leaf-02-vtep", "node_id": "dc1-pod1-leaf-02", "name": "vtep0", "type": "eth", "ip": ["198.51.100.11/32"], "mac": null, "speed": 0, "mtu": 9000, "peer_link_id": null },
+    { "id": "dc1-pod1-leaf-02-sp1", "node_id": "dc1-pod1-leaf-02", "name": "swp51", "type": "qsfp", "ip": ["192.0.2.11/31"], "mac": "02:00:00:1f:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp01-leaf02" },
+    { "id": "dc1-pod1-leaf-02-sp2", "node_id": "dc1-pod1-leaf-02", "name": "swp52", "type": "qsfp", "ip": ["192.0.2.19/31"], "mac": "02:00:00:1f:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp02-leaf02" },
+    { "id": "dc1-pod1-leaf-02-srv1", "node_id": "dc1-pod1-leaf-02", "name": "swp1", "type": "sfp28", "ip": [], "mac": "02:00:00:1f:00:03", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf02-srv01" },
+    { "id": "dc1-pod1-leaf-02-srv2", "node_id": "dc1-pod1-leaf-02", "name": "swp2", "type": "sfp28", "ip": [], "mac": "02:00:00:1f:00:04", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf02-srv02" },
+
+    { "id": "dc1-pod1-leaf-03-lo0", "node_id": "dc1-pod1-leaf-03", "name": "lo0", "type": "eth", "ip": ["203.0.113.32/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dc1-pod1-leaf-03-vtep", "node_id": "dc1-pod1-leaf-03", "name": "vtep0", "type": "eth", "ip": ["198.51.100.12/32"], "mac": null, "speed": 0, "mtu": 9000, "peer_link_id": null },
+    { "id": "dc1-pod1-leaf-03-sp1", "node_id": "dc1-pod1-leaf-03", "name": "swp51", "type": "qsfp", "ip": ["192.0.2.13/31"], "mac": "02:00:00:20:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp01-leaf03" },
+    { "id": "dc1-pod1-leaf-03-sp2", "node_id": "dc1-pod1-leaf-03", "name": "swp52", "type": "qsfp", "ip": ["192.0.2.21/31"], "mac": "02:00:00:20:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp02-leaf03" },
+    { "id": "dc1-pod1-leaf-03-srv1", "node_id": "dc1-pod1-leaf-03", "name": "swp1", "type": "sfp28", "ip": [], "mac": "02:00:00:20:00:03", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf03-srv01" },
+    { "id": "dc1-pod1-leaf-03-srv2", "node_id": "dc1-pod1-leaf-03", "name": "swp2", "type": "sfp28", "ip": [], "mac": "02:00:00:20:00:04", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf03-srv02" },
+
+    { "id": "dc1-pod1-leaf-04-lo0", "node_id": "dc1-pod1-leaf-04", "name": "lo0", "type": "eth", "ip": ["203.0.113.33/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dc1-pod1-leaf-04-vtep", "node_id": "dc1-pod1-leaf-04", "name": "vtep0", "type": "eth", "ip": ["198.51.100.13/32"], "mac": null, "speed": 0, "mtu": 9000, "peer_link_id": null },
+    { "id": "dc1-pod1-leaf-04-sp1", "node_id": "dc1-pod1-leaf-04", "name": "swp51", "type": "qsfp", "ip": ["192.0.2.15/31"], "mac": "02:00:00:21:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp01-leaf04" },
+    { "id": "dc1-pod1-leaf-04-sp2", "node_id": "dc1-pod1-leaf-04", "name": "swp52", "type": "qsfp", "ip": ["192.0.2.23/31"], "mac": "02:00:00:21:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp02-leaf04" },
+    { "id": "dc1-pod1-leaf-04-srv1", "node_id": "dc1-pod1-leaf-04", "name": "swp1", "type": "sfp28", "ip": [], "mac": "02:00:00:21:00:03", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf04-srv01" },
+    { "id": "dc1-pod1-leaf-04-srv2", "node_id": "dc1-pod1-leaf-04", "name": "swp2", "type": "sfp28", "ip": [], "mac": "02:00:00:21:00:04", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf04-srv02" },
+
+    { "id": "dc1-border-leaf-01-lo0", "node_id": "dc1-border-leaf-01", "name": "lo0", "type": "eth", "ip": ["203.0.113.40/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dc1-border-leaf-01-sp1", "node_id": "dc1-border-leaf-01", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.30/31"], "mac": "02:00:00:28:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp01-bl01" },
+    { "id": "dc1-border-leaf-01-sp2", "node_id": "dc1-border-leaf-01", "name": "et-0/0/2", "type": "qsfp", "ip": ["192.0.2.32/31"], "mac": "02:00:00:28:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp02-bl01" },
+    { "id": "dc1-border-leaf-01-ext", "node_id": "dc1-border-leaf-01", "name": "et-0/0/10", "type": "qsfp", "ip": ["198.51.100.1/30"], "mac": "02:00:00:28:00:03", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-bl01-dci" },
+
+    { "id": "dc1-border-leaf-02-lo0", "node_id": "dc1-border-leaf-02", "name": "lo0", "type": "eth", "ip": ["203.0.113.41/32"], "mac": null, "speed": 0, "mtu": 1500, "peer_link_id": null },
+    { "id": "dc1-border-leaf-02-sp1", "node_id": "dc1-border-leaf-02", "name": "et-0/0/1", "type": "qsfp", "ip": ["192.0.2.34/31"], "mac": "02:00:00:29:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp01-bl02" },
+    { "id": "dc1-border-leaf-02-sp2", "node_id": "dc1-border-leaf-02", "name": "et-0/0/2", "type": "qsfp", "ip": ["192.0.2.36/31"], "mac": "02:00:00:29:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-sp02-bl02" },
+    { "id": "dc1-border-leaf-02-ext", "node_id": "dc1-border-leaf-02", "name": "et-0/0/10", "type": "qsfp", "ip": ["198.51.100.5/30"], "mac": "02:00:00:29:00:03", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-bl02-dci" },
+
+    { "id": "dc1-pod1-srv-01-nic1", "node_id": "dc1-pod1-srv-01", "name": "eth0", "type": "sfp28", "ip": ["198.51.100.64/26"], "mac": "02:00:01:01:00:01", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf01-srv01" },
+    { "id": "dc1-pod1-srv-01-nic2", "node_id": "dc1-pod1-srv-01", "name": "eth1", "type": "sfp28", "ip": ["198.51.100.64/26"], "mac": "02:00:01:01:00:02", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf02-srv01" },
+    { "id": "dc1-pod1-srv-02-nic1", "node_id": "dc1-pod1-srv-02", "name": "eth0", "type": "sfp28", "ip": ["198.51.100.64/26"], "mac": "02:00:01:02:00:01", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf01-srv02" },
+    { "id": "dc1-pod1-srv-02-nic2", "node_id": "dc1-pod1-srv-02", "name": "eth1", "type": "sfp28", "ip": ["198.51.100.64/26"], "mac": "02:00:01:02:00:02", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf02-srv02" },
+    { "id": "dc1-pod1-srv-03-nic1", "node_id": "dc1-pod1-srv-03", "name": "eth0", "type": "sfp28", "ip": ["198.51.100.128/26"], "mac": "02:00:01:03:00:01", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf03-srv01" },
+    { "id": "dc1-pod1-srv-03-nic2", "node_id": "dc1-pod1-srv-03", "name": "eth1", "type": "sfp28", "ip": ["198.51.100.128/26"], "mac": "02:00:01:03:00:02", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf04-srv01" },
+    { "id": "dc1-pod1-srv-04-nic1", "node_id": "dc1-pod1-srv-04", "name": "eth0", "type": "sfp28", "ip": ["198.51.100.128/26"], "mac": "02:00:01:04:00:01", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf03-srv02" },
+    { "id": "dc1-pod1-srv-04-nic2", "node_id": "dc1-pod1-srv-04", "name": "eth1", "type": "sfp28", "ip": ["198.51.100.128/26"], "mac": "02:00:01:04:00:02", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf04-srv02" },
+    { "id": "dc1-pod1-srv-05-nic1", "node_id": "dc1-pod1-srv-05", "name": "eth0", "type": "sfp28", "ip": ["198.51.100.64/26"], "mac": "02:00:01:05:00:01", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf01-srv01" },
+    { "id": "dc1-pod1-srv-05-nic2", "node_id": "dc1-pod1-srv-05", "name": "eth1", "type": "sfp28", "ip": ["198.51.100.64/26"], "mac": "02:00:01:05:00:02", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf02-srv01" },
+    { "id": "dc1-pod1-srv-06-nic1", "node_id": "dc1-pod1-srv-06", "name": "eth0", "type": "sfp28", "ip": ["198.51.100.192/26"], "mac": "02:00:01:06:00:01", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf02-srv02" },
+    { "id": "dc1-pod1-srv-06-nic2", "node_id": "dc1-pod1-srv-06", "name": "eth1", "type": "sfp28", "ip": ["198.51.100.192/26"], "mac": "02:00:01:06:00:02", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf03-srv01" },
+    { "id": "dc1-pod1-srv-07-nic1", "node_id": "dc1-pod1-srv-07", "name": "eth0", "type": "sfp28", "ip": ["198.51.100.192/26"], "mac": "02:00:01:07:00:01", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf03-srv02" },
+    { "id": "dc1-pod1-srv-07-nic2", "node_id": "dc1-pod1-srv-07", "name": "eth1", "type": "sfp28", "ip": ["198.51.100.192/26"], "mac": "02:00:01:07:00:02", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf04-srv01" },
+    { "id": "dc1-pod1-srv-08-nic1", "node_id": "dc1-pod1-srv-08", "name": "eth0", "type": "sfp28", "ip": ["198.51.100.192/26"], "mac": "02:00:01:08:00:01", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf04-srv02" },
+    { "id": "dc1-pod1-srv-08-nic2", "node_id": "dc1-pod1-srv-08", "name": "eth1", "type": "sfp28", "ip": ["198.51.100.192/26"], "mac": "02:00:01:08:00:02", "speed": 25000, "mtu": 9000, "peer_link_id": "lnk-leaf01-srv02" }
+  ],
+  "links": [
+    { "id": "lnk-ss01-sp01", "a_iface": "dc1-ss-01-sw1", "b_iface": "dc1-pod1-sp-01-uss1", "type": "fiber", "bandwidth": 100000, "delay": 0.01, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-ss01-sp02", "a_iface": "dc1-ss-01-sw2", "b_iface": "dc1-pod1-sp-02-uss1", "type": "fiber", "bandwidth": 100000, "delay": 0.01, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-ss02-sp01", "a_iface": "dc1-ss-02-sw1", "b_iface": "dc1-pod1-sp-01-uss2", "type": "fiber", "bandwidth": 100000, "delay": 0.01, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-ss02-sp02", "a_iface": "dc1-ss-02-sw2", "b_iface": "dc1-pod1-sp-02-uss2", "type": "fiber", "bandwidth": 100000, "delay": 0.01, "loss": 0.0, "mtu": 9216 },
+
+    { "id": "lnk-sp01-leaf01", "a_iface": "dc1-pod1-sp-01-lf1", "b_iface": "dc1-pod1-leaf-01-sp1", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-sp01-leaf02", "a_iface": "dc1-pod1-sp-01-lf2", "b_iface": "dc1-pod1-leaf-02-sp1", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-sp01-leaf03", "a_iface": "dc1-pod1-sp-01-lf3", "b_iface": "dc1-pod1-leaf-03-sp1", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-sp01-leaf04", "a_iface": "dc1-pod1-sp-01-lf4", "b_iface": "dc1-pod1-leaf-04-sp1", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-sp02-leaf01", "a_iface": "dc1-pod1-sp-02-lf1", "b_iface": "dc1-pod1-leaf-01-sp2", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-sp02-leaf02", "a_iface": "dc1-pod1-sp-02-lf2", "b_iface": "dc1-pod1-leaf-02-sp2", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-sp02-leaf03", "a_iface": "dc1-pod1-sp-02-lf3", "b_iface": "dc1-pod1-leaf-03-sp2", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-sp02-leaf04", "a_iface": "dc1-pod1-sp-02-lf4", "b_iface": "dc1-pod1-leaf-04-sp2", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+
+    { "id": "lnk-sp01-bl01", "a_iface": "dc1-border-leaf-01-sp1", "b_iface": "dc1-pod1-sp-01-lf1", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216, "_keterangan": "ilustrasi -- pada deployment nyata border-leaf juga punya port spine sendiri, disederhanakan di contoh ini" },
+    { "id": "lnk-sp02-bl01", "a_iface": "dc1-border-leaf-01-sp2", "b_iface": "dc1-pod1-sp-02-lf1", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-sp01-bl02", "a_iface": "dc1-border-leaf-02-sp1", "b_iface": "dc1-pod1-sp-01-lf2", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-sp02-bl02", "a_iface": "dc1-border-leaf-02-sp2", "b_iface": "dc1-pod1-sp-02-lf2", "type": "fiber", "bandwidth": 100000, "delay": 0.005, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-bl01-dci", "a_iface": "dc1-border-leaf-01-ext", "b_iface": null, "type": "fiber", "bandwidth": 100000, "delay": 2.0, "loss": 0.0001, "mtu": 9216, "_keterangan": "Uplink ke DCI -- lihat skenario 4 dci-multidatacenter-sr-mpls" },
+    { "id": "lnk-bl02-dci", "a_iface": "dc1-border-leaf-02-ext", "b_iface": null, "type": "fiber", "bandwidth": 100000, "delay": 2.0, "loss": 0.0001, "mtu": 9216, "_keterangan": "Uplink ke DCI, jalur diverse dari bl01" },
+
+    { "id": "lnk-leaf01-srv01", "a_iface": "dc1-pod1-leaf-01-srv1", "b_iface": "dc1-pod1-srv-01-nic1", "type": "copper", "bandwidth": 25000, "delay": 0.002, "loss": 0.0, "mtu": 9000 },
+    { "id": "lnk-leaf02-srv01", "a_iface": "dc1-pod1-leaf-02-srv1", "b_iface": "dc1-pod1-srv-01-nic2", "type": "copper", "bandwidth": 25000, "delay": 0.002, "loss": 0.0, "mtu": 9000 },
+    { "id": "lnk-leaf01-srv02", "a_iface": "dc1-pod1-leaf-01-srv2", "b_iface": "dc1-pod1-srv-02-nic1", "type": "copper", "bandwidth": 25000, "delay": 0.002, "loss": 0.0, "mtu": 9000 },
+    { "id": "lnk-leaf02-srv02", "a_iface": "dc1-pod1-leaf-02-srv2", "b_iface": "dc1-pod1-srv-02-nic2", "type": "copper", "bandwidth": 25000, "delay": 0.002, "loss": 0.0, "mtu": 9000 },
+    { "id": "lnk-leaf03-srv01", "a_iface": "dc1-pod1-leaf-03-srv1", "b_iface": "dc1-pod1-srv-03-nic1", "type": "copper", "bandwidth": 25000, "delay": 0.002, "loss": 0.0, "mtu": 9000 },
+    { "id": "lnk-leaf04-srv01", "a_iface": "dc1-pod1-leaf-04-srv1", "b_iface": "dc1-pod1-srv-03-nic2", "type": "copper", "bandwidth": 25000, "delay": 0.002, "loss": 0.0, "mtu": 9000 },
+    { "id": "lnk-leaf03-srv02", "a_iface": "dc1-pod1-leaf-03-srv2", "b_iface": "dc1-pod1-srv-04-nic1", "type": "copper", "bandwidth": 25000, "delay": 0.002, "loss": 0.0, "mtu": 9000 },
+    { "id": "lnk-leaf04-srv02", "a_iface": "dc1-pod1-leaf-04-srv2", "b_iface": "dc1-pod1-srv-04-nic2", "type": "copper", "bandwidth": 25000, "delay": 0.002, "loss": 0.0, "mtu": 9000 }
+  ],
+  "_evpn_overlay": {
+    "_keterangan": "Overlay tidak punya representasi native di model §4 (yang berbasis fisik Node/Link). Dicatat sebagai metadata config-intent di sini; tim backend perlu field 'overlay_config' per-node atau objek terpisah -- lihat README §Kebutuhan Backend butir tambahan di bawah.",
+    "vrf": [
+      { "tenant": "tenant-a", "vrf_name": "TENANT-A", "vni_l3": 50001, "route_target": "65000:1" },
+      { "tenant": "tenant-b", "vrf_name": "TENANT-B", "vni_l3": 50002, "route_target": "65000:2" },
+      { "tenant": "tenant-c", "vrf_name": "TENANT-C", "vni_l3": 50003, "route_target": "65000:3" }
+    ],
+    "vni_l2": [
+      { "vlan": 10, "vni": 10010, "tenant": "tenant-a", "subnet": "198.51.100.64/26" },
+      { "vlan": 20, "vni": 10020, "tenant": "tenant-b", "subnet": "198.51.100.128/26" },
+      { "vlan": 30, "vni": 10030, "tenant": "tenant-c", "subnet": "198.51.100.192/26" }
+    ]
+  },
+  "scenario": {
+    "id": "scn-test-dc-evpn-01",
+    "project_id": "scn-dc-evpn-vxlan-01",
+    "name": "Leaf failure + ECMP rebalance + tenant isolation check",
+    "steps": [
+      "Generate trafik east-west antar server tenant-a (srv-01 <-> srv-05) line-rate 20Gbps",
+      "Matikan dc1-pod1-leaf-01 (status=down) pada t=20s",
+      "Amati srv-01 tetap reachable via leaf-02 (NIC kedua) dengan loss transient < 1s",
+      "Kirim trafik dari tenant-b (srv-03) ke subnet tenant-a -- harus DROP (no route, VRF terpisah)",
+      "Pulihkan leaf-01, amati ECMP kembali memakai 2 uplink ke leaf-01 setelah BGP underlay re-converge"
+    ],
+    "expected_outcomes": [
+      "server_dual_homed_failover_loss_ms < 1000",
+      "tenant_cross_vrf_traffic_blocked == true",
+      "ecmp_path_deviation_pct < 15",
+      "evpn_route_reconverge_s < 2"
+    ]
+  }
+}

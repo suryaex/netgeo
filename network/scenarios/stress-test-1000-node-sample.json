@@ -1,0 +1,90 @@
+{
+  "_keterangan": "Contoh KONKRET skala kecil (1 pod mini: 2 core + 2 agg + 2 edge + 4 host = 10 node) yang merealisasikan pola dari stress-test-1000-node-generator.json. Dipakai tim backend untuk memvalidasi: apakah hasil generator endpoint (jika diimplementasikan) menghasilkan struktur Node/Interface/Link yang konsisten dengan contoh manual ini, sebelum di-scale ke parameter penuh (1296 node).",
+  "project": {
+    "id": "scn-stress-sample-01",
+    "name": "Stress Test -- Sample Pod Mini (validasi pola generator)",
+    "description": "1 pod mini fat-tree: 2 core, 2 agg, 2 edge, 4 host. Skala diperkecil drastis dari spec penuh (1296 node) hanya untuk validasi pola sebelum generate besar.",
+    "version": "1.0.0",
+    "topology_ref": "stress-test-1000-node-sample.json",
+    "created_at": "2026-06-23T00:00:00Z"
+  },
+  "nodes": [
+    { "id": "stress-core-01", "name": "CORE-01", "kind": "switch", "nos": "forgeos", "mode": "sim", "x": 400, "y": 50, "interfaces": ["stress-core-01-a1", "stress-core-01-a2"], "config_ref": null, "status": "planned" },
+    { "id": "stress-core-02", "name": "CORE-02", "kind": "switch", "nos": "forgeos", "mode": "sim", "x": 500, "y": 50, "interfaces": ["stress-core-02-a1", "stress-core-02-a2"], "config_ref": null, "status": "planned" },
+
+    { "id": "stress-pod01-agg-01", "name": "POD01-AGG-01", "kind": "switch", "nos": "forgeos", "mode": "sim", "x": 350, "y": 150, "interfaces": ["stress-pod01-agg-01-c1", "stress-pod01-agg-01-c2", "stress-pod01-agg-01-e1", "stress-pod01-agg-01-e2"], "config_ref": null, "status": "planned" },
+    { "id": "stress-pod01-agg-02", "name": "POD01-AGG-02", "kind": "switch", "nos": "forgeos", "mode": "sim", "x": 450, "y": 150, "interfaces": ["stress-pod01-agg-02-c1", "stress-pod01-agg-02-c2", "stress-pod01-agg-02-e1", "stress-pod01-agg-02-e2"], "config_ref": null, "status": "planned" },
+
+    { "id": "stress-pod01-edge-01", "name": "POD01-EDGE-01", "kind": "switch", "nos": "forgeos", "mode": "sim", "x": 350, "y": 250, "interfaces": ["stress-pod01-edge-01-a1", "stress-pod01-edge-01-a2", "stress-pod01-edge-01-h1", "stress-pod01-edge-01-h2"], "config_ref": null, "status": "planned" },
+    { "id": "stress-pod01-edge-02", "name": "POD01-EDGE-02", "kind": "switch", "nos": "forgeos", "mode": "sim", "x": 450, "y": 250, "interfaces": ["stress-pod01-edge-02-a1", "stress-pod01-edge-02-a2", "stress-pod01-edge-02-h1", "stress-pod01-edge-02-h2"], "config_ref": null, "status": "planned" },
+
+    { "id": "stress-pod01-host-0001", "name": "HOST-0001", "kind": "host", "nos": "forgeos", "mode": "sim", "x": 320, "y": 350, "interfaces": ["stress-pod01-host-0001-nic"], "config_ref": null, "status": "planned" },
+    { "id": "stress-pod01-host-0002", "name": "HOST-0002", "kind": "host", "nos": "forgeos", "mode": "sim", "x": 380, "y": 350, "interfaces": ["stress-pod01-host-0002-nic"], "config_ref": null, "status": "planned" },
+    { "id": "stress-pod01-host-0003", "name": "HOST-0003", "kind": "host", "nos": "forgeos", "mode": "sim", "x": 420, "y": 350, "interfaces": ["stress-pod01-host-0003-nic"], "config_ref": null, "status": "planned" },
+    { "id": "stress-pod01-host-0004", "name": "HOST-0004", "kind": "host", "nos": "forgeos", "mode": "sim", "x": 480, "y": 350, "interfaces": ["stress-pod01-host-0004-nic"], "config_ref": null, "status": "planned" }
+  ],
+  "interfaces": [
+    { "id": "stress-core-01-a1", "node_id": "stress-core-01", "name": "swp1", "type": "qsfp", "ip": ["10.0.0.0/31"], "mac": "02:01:00:00:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-core01-agg01" },
+    { "id": "stress-core-01-a2", "node_id": "stress-core-01", "name": "swp2", "type": "qsfp", "ip": ["10.0.0.2/31"], "mac": "02:01:00:00:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-core01-agg02" },
+    { "id": "stress-core-02-a1", "node_id": "stress-core-02", "name": "swp1", "type": "qsfp", "ip": ["10.0.0.4/31"], "mac": "02:01:00:00:00:03", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-core02-agg01" },
+    { "id": "stress-core-02-a2", "node_id": "stress-core-02", "name": "swp2", "type": "qsfp", "ip": ["10.0.0.6/31"], "mac": "02:01:00:00:00:04", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-core02-agg02" },
+
+    { "id": "stress-pod01-agg-01-c1", "node_id": "stress-pod01-agg-01", "name": "swp1", "type": "qsfp", "ip": ["10.0.0.1/31"], "mac": "02:01:00:01:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-core01-agg01" },
+    { "id": "stress-pod01-agg-01-c2", "node_id": "stress-pod01-agg-01", "name": "swp2", "type": "qsfp", "ip": ["10.0.0.5/31"], "mac": "02:01:00:01:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-core02-agg01" },
+    { "id": "stress-pod01-agg-01-e1", "node_id": "stress-pod01-agg-01", "name": "swp3", "type": "qsfp", "ip": ["10.0.1.0/31"], "mac": "02:01:00:01:00:03", "speed": 40000, "mtu": 9216, "peer_link_id": "lnk-agg01-edge01" },
+    { "id": "stress-pod01-agg-01-e2", "node_id": "stress-pod01-agg-01", "name": "swp4", "type": "qsfp", "ip": ["10.0.1.2/31"], "mac": "02:01:00:01:00:04", "speed": 40000, "mtu": 9216, "peer_link_id": "lnk-agg01-edge02" },
+
+    { "id": "stress-pod01-agg-02-c1", "node_id": "stress-pod01-agg-02", "name": "swp1", "type": "qsfp", "ip": ["10.0.0.3/31"], "mac": "02:01:00:02:00:01", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-core01-agg02" },
+    { "id": "stress-pod01-agg-02-c2", "node_id": "stress-pod01-agg-02", "name": "swp2", "type": "qsfp", "ip": ["10.0.0.7/31"], "mac": "02:01:00:02:00:02", "speed": 100000, "mtu": 9216, "peer_link_id": "lnk-core02-agg02" },
+    { "id": "stress-pod01-agg-02-e1", "node_id": "stress-pod01-agg-02", "name": "swp3", "type": "qsfp", "ip": ["10.0.1.4/31"], "mac": "02:01:00:02:00:03", "speed": 40000, "mtu": 9216, "peer_link_id": "lnk-agg02-edge01" },
+    { "id": "stress-pod01-agg-02-e2", "node_id": "stress-pod01-agg-02", "name": "swp4", "type": "qsfp", "ip": ["10.0.1.6/31"], "mac": "02:01:00:02:00:04", "speed": 40000, "mtu": 9216, "peer_link_id": "lnk-agg02-edge02" },
+
+    { "id": "stress-pod01-edge-01-a1", "node_id": "stress-pod01-edge-01", "name": "swp1", "type": "qsfp", "ip": ["10.0.1.1/31"], "mac": "02:01:00:03:00:01", "speed": 40000, "mtu": 9216, "peer_link_id": "lnk-agg01-edge01" },
+    { "id": "stress-pod01-edge-01-a2", "node_id": "stress-pod01-edge-01", "name": "swp2", "type": "qsfp", "ip": ["10.0.1.5/31"], "mac": "02:01:00:03:00:02", "speed": 40000, "mtu": 9216, "peer_link_id": "lnk-agg02-edge01" },
+    { "id": "stress-pod01-edge-01-h1", "node_id": "stress-pod01-edge-01", "name": "swp3", "type": "eth", "ip": ["10.0.2.0/31"], "mac": "02:01:00:03:00:03", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge01-host0001" },
+    { "id": "stress-pod01-edge-01-h2", "node_id": "stress-pod01-edge-01", "name": "swp4", "type": "eth", "ip": ["10.0.2.2/31"], "mac": "02:01:00:03:00:04", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge01-host0002" },
+
+    { "id": "stress-pod01-edge-02-a1", "node_id": "stress-pod01-edge-02", "name": "swp1", "type": "qsfp", "ip": ["10.0.1.3/31"], "mac": "02:01:00:04:00:01", "speed": 40000, "mtu": 9216, "peer_link_id": "lnk-agg01-edge02" },
+    { "id": "stress-pod01-edge-02-a2", "node_id": "stress-pod01-edge-02", "name": "swp2", "type": "qsfp", "ip": ["10.0.1.7/31"], "mac": "02:01:00:04:00:02", "speed": 40000, "mtu": 9216, "peer_link_id": "lnk-agg02-edge02" },
+    { "id": "stress-pod01-edge-02-h1", "node_id": "stress-pod01-edge-02", "name": "swp3", "type": "eth", "ip": ["10.0.2.4/31"], "mac": "02:01:00:04:00:03", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge02-host0003" },
+    { "id": "stress-pod01-edge-02-h2", "node_id": "stress-pod01-edge-02", "name": "swp4", "type": "eth", "ip": ["10.0.2.6/31"], "mac": "02:01:00:04:00:04", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge02-host0004" },
+
+    { "id": "stress-pod01-host-0001-nic", "node_id": "stress-pod01-host-0001", "name": "eth0", "type": "eth", "ip": ["10.0.2.1/31"], "mac": "02:01:01:00:00:01", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge01-host0001" },
+    { "id": "stress-pod01-host-0002-nic", "node_id": "stress-pod01-host-0002", "name": "eth0", "type": "eth", "ip": ["10.0.2.3/31"], "mac": "02:01:01:00:00:02", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge01-host0002" },
+    { "id": "stress-pod01-host-0003-nic", "node_id": "stress-pod01-host-0003", "name": "eth0", "type": "eth", "ip": ["10.0.2.5/31"], "mac": "02:01:01:00:00:03", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge02-host0003" },
+    { "id": "stress-pod01-host-0004-nic", "node_id": "stress-pod01-host-0004", "name": "eth0", "type": "eth", "ip": ["10.0.2.7/31"], "mac": "02:01:01:00:00:04", "speed": 10000, "mtu": 1500, "peer_link_id": "lnk-edge02-host0004" }
+  ],
+  "links": [
+    { "id": "lnk-core01-agg01", "a_iface": "stress-core-01-a1", "b_iface": "stress-pod01-agg-01-c1", "type": "fiber", "bandwidth": 100000, "delay": 0.05, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-core01-agg02", "a_iface": "stress-core-01-a2", "b_iface": "stress-pod01-agg-02-c1", "type": "fiber", "bandwidth": 100000, "delay": 0.05, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-core02-agg01", "a_iface": "stress-core-02-a1", "b_iface": "stress-pod01-agg-01-c2", "type": "fiber", "bandwidth": 100000, "delay": 0.05, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-core02-agg02", "a_iface": "stress-core-02-a2", "b_iface": "stress-pod01-agg-02-c2", "type": "fiber", "bandwidth": 100000, "delay": 0.05, "loss": 0.0, "mtu": 9216 },
+
+    { "id": "lnk-agg01-edge01", "a_iface": "stress-pod01-agg-01-e1", "b_iface": "stress-pod01-edge-01-a1", "type": "fiber", "bandwidth": 40000, "delay": 0.02, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-agg01-edge02", "a_iface": "stress-pod01-agg-01-e2", "b_iface": "stress-pod01-edge-02-a1", "type": "fiber", "bandwidth": 40000, "delay": 0.02, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-agg02-edge01", "a_iface": "stress-pod01-agg-02-e1", "b_iface": "stress-pod01-edge-01-a2", "type": "fiber", "bandwidth": 40000, "delay": 0.02, "loss": 0.0, "mtu": 9216 },
+    { "id": "lnk-agg02-edge02", "a_iface": "stress-pod01-agg-02-e2", "b_iface": "stress-pod01-edge-02-a2", "type": "fiber", "bandwidth": 40000, "delay": 0.02, "loss": 0.0, "mtu": 9216 },
+
+    { "id": "lnk-edge01-host0001", "a_iface": "stress-pod01-edge-01-h1", "b_iface": "stress-pod01-host-0001-nic", "type": "copper", "bandwidth": 10000, "delay": 0.01, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-edge01-host0002", "a_iface": "stress-pod01-edge-01-h2", "b_iface": "stress-pod01-host-0002-nic", "type": "copper", "bandwidth": 10000, "delay": 0.01, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-edge02-host0003", "a_iface": "stress-pod01-edge-02-h1", "b_iface": "stress-pod01-host-0003-nic", "type": "copper", "bandwidth": 10000, "delay": 0.01, "loss": 0.0, "mtu": 1500 },
+    { "id": "lnk-edge02-host0004", "a_iface": "stress-pod01-edge-02-h2", "b_iface": "stress-pod01-host-0004-nic", "type": "copper", "bandwidth": 10000, "delay": 0.01, "loss": 0.0, "mtu": 1500 }
+  ],
+  "scenario": {
+    "id": "scn-test-stress-sample-01",
+    "project_id": "scn-stress-sample-01",
+    "name": "Validasi pola sebelum scale ke 1296 node",
+    "steps": [
+      "Load topologi sample ini ke engine, verifikasi seluruh node/link ter-resolve tanpa orphan reference",
+      "Jalankan all-to-all ping antar 4 host, verifikasi semua reachable via ECMP core01/core02",
+      "Matikan stress-core-01, verifikasi host masih reachable lewat core-02 (ECMP exclude otomatis)",
+      "Jika lolos, jalankan generator penuh (stress-test-1000-node-generator.json params) dan ulangi test yang sama pada skala 1296 node"
+    ],
+    "expected_outcomes": [
+      "no_orphan_interface_or_link_reference == true",
+      "all_host_reachable_baseline == true",
+      "core_failover_no_blackhole == true",
+      "ready_to_scale_to_full_generator_params == true"
+    ]
+  }
+}

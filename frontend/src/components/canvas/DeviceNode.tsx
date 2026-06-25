@@ -14,6 +14,7 @@ import {
   Cable,
   ShieldAlert,
   Server,
+  Cloud,
 } from 'lucide-react';
 import type { NodeKind, NodeMode, NodeStatus, Nos } from '@/api/types';
 import { nodeColors } from '@/theme/tokens';
@@ -35,6 +36,7 @@ const KIND_ICON: Record<NodeKind, typeof Router> = {
   olt: Cable,
   firewall: ShieldAlert,
   server: Server,
+  cloud: Cloud,
 };
 
 const STATUS_RING: Record<NodeStatus, string> = {

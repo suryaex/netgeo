@@ -7,6 +7,8 @@
 import axios, { AxiosError } from 'axios';
 import type {
   ConfigArtifact,
+  HostInterface,
+  InternetStatus,
   LinkModel,
   NodeModel,
   Project,
@@ -96,6 +98,13 @@ export const configsApi = {
       .then((r) => r.data),
   forNode: (nodeId: string) =>
     http.get<ConfigArtifact[]>('/configs', { params: { node_id: nodeId } }).then((r) => r.data),
+};
+
+/* --------------------------- Host system / NICs -------------------------- */
+export const systemApi = {
+  interfaces: () =>
+    http.get<{ interfaces: HostInterface[] }>('/system/interfaces').then((r) => r.data.interfaces),
+  internet: () => http.get<InternetStatus>('/system/internet').then((r) => r.data),
 };
 
 /* ----------------------------- Self-update ------------------------------- */

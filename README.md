@@ -39,6 +39,7 @@ simulasi sebelum deploy.
 | 🧠 **ForgeOS intent-based** | Satu intent YAML → konfigurasi banyak vendor + verifikasi simulasi |
 | 🖥️ **UI desktop-class** | Window manager + dock + glassmorphism ala macOS/Win11, kanvas topologi React Flow, ringan (<200MB idle) |
 | 🔌 **Realtime** | WebSocket untuk topologi, telemetry, dan konsol per-perangkat |
+| 🌍 **Bridge dunia nyata** | Node **Internet / Cloud** menjembatani simulasi ke **adaptor ethernet host / internet** — backend mendeteksi NIC sistem + status internet, lalu node di-bind ke adapter pilihan (NAT/bridge) |
 
 ## 🧱 Arsitektur
 

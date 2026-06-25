@@ -113,6 +113,20 @@ export const deviceCatalog: DeviceGroup[] = [
       },
     ],
   },
+  {
+    category: 'Real World',
+    devices: [
+      {
+        key: 'cloud-internet',
+        label: 'Internet / Cloud',
+        kind: 'cloud',
+        defaultNos: 'forgeos',
+        ports: [{ type: 'eth', count: 1, speed: 1_000 }],
+        description:
+          'Bridge to a real host ethernet adapter / the internet. Pick the uplink NIC in Properties.',
+      },
+    ],
+  },
 ];
 
 /** Flat lookup by template key. */

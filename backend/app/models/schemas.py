@@ -33,6 +33,11 @@ class NodeKind(str, Enum):
     olt = "olt"
     firewall = "firewall"
     server = "server"
+    # Bridge to the real world — a GNS3-style "cloud" node bound to a host
+    # ethernet adapter so the topology can reach the LAN / internet. The chosen
+    # adapter + bridge mode live in ``Node.intent["uplink"]``
+    # (see app/services/netbridge.py and app/api/system.py).
+    cloud = "cloud"
 
 
 class Nos(str, Enum):

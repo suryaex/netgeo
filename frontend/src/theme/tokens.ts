@@ -38,6 +38,7 @@ export const nodeColors: Record<NodeKind, string> = {
   olt: '#FF9F0A',
   firewall: '#FF453A',
   server: '#0891B2',
+  cloud: '#30B0C7',
 };
 
 /** Link-status colors for edges (up/down/admin-down/unknown). */

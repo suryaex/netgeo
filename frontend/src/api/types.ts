@@ -4,7 +4,15 @@
  * Keep field names in sync with the backend Pydantic schemas.
  */
 
-export type NodeKind = 'router' | 'switch' | 'host' | 'ap' | 'olt' | 'firewall' | 'server';
+export type NodeKind =
+  | 'router'
+  | 'switch'
+  | 'host'
+  | 'ap'
+  | 'olt'
+  | 'firewall'
+  | 'server'
+  | 'cloud'; // bridge to a real host NIC / the internet (GNS3-style cloud)
 
 export type Nos =
   | 'forgeos'
@@ -39,6 +47,13 @@ export interface Interface {
   peer_link_id: string | null;
 }
 
+/** Where a cloud node attaches to the real world. Persisted in `intent.uplink`. */
+export type UplinkMode = 'nat' | 'bridge';
+export interface Uplink {
+  adapter: string; // host NIC name, e.g. "eth0" / "Ethernet"
+  mode: UplinkMode;
+}
+
 export interface NodeModel {
   id: string;
   name: string;
@@ -50,6 +65,29 @@ export interface NodeModel {
   interfaces: Interface[];
   config_ref: string | null;
   status: NodeStatus;
+  /** Extension bag (ForgeOS intent; cloud-node `uplink`). */
+  intent?: Record<string, unknown> | null;
+}
+
+/** A detected host network adapter (GET /api/system/interfaces). */
+export interface HostInterface {
+  name: string;
+  mac: string | null;
+  ipv4: string[];
+  ipv6: string[];
+  is_up: boolean;
+  speed_mbps: number;
+  mtu: number;
+  is_virtual: boolean;
+  is_primary: boolean;
+}
+
+/** Internet reachability (GET /api/system/internet). */
+export interface InternetStatus {
+  online: boolean;
+  latency_ms: number | null;
+  via: string;
+  source_ip: string | null;
 }
 
 export interface LinkModel {

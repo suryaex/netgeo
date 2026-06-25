@@ -9,6 +9,7 @@ import { Cpu, Plug, RefreshCw } from 'lucide-react';
 import { useTopologyStore } from '@/store/topologyStore';
 import { nodesApi, configsApi } from '@/api/client';
 import { useWindowStore } from '@/store/windowStore';
+import { CloudUplink } from '@/components/CloudUplink';
 import type { NodeMode, Nos } from '@/api/types';
 
 const NOS_OPTIONS: Nos[] = [
@@ -99,6 +100,8 @@ export function PropertiesPanel() {
           {node.status}
         </span>
       </Field>
+
+      {node.kind === 'cloud' && <CloudUplink node={node} patch={patch} />}
 
       <section>
         <h4 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/50">

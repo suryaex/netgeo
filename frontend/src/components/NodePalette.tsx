@@ -12,6 +12,7 @@ import {
   Cable,
   ShieldAlert,
   Server,
+  Cloud,
   Search,
 } from 'lucide-react';
 import { deviceCatalog, type DeviceTemplate } from '@/data/deviceCatalog';
@@ -27,6 +28,7 @@ const KIND_ICON: Record<NodeKind, typeof Router> = {
   olt: Cable,
   firewall: ShieldAlert,
   server: Server,
+  cloud: Cloud,
 };
 
 export function NodePalette() {

@@ -73,16 +73,25 @@ simulasi sebelum deploy.
 
 ## ⚡ Mulai Cepat
 
-### Satu perintah (direkomendasikan)
+### Prasyarat
+
+- **Git** + **Docker & Docker Compose**. Di Linux installer bisa **auto-pasang Docker**;
+  di **Windows/macOS** pakai **Docker Desktop** (jalankan dulu sebelum install).
+- Port **8090** bebas (atau set `HTTP_PORT`).
+
+### Langkah cepat (direkomendasikan)
 
 ```bash
-./install.sh
+# 1) Ambil sumbernya
+git clone https://github.com/suryaex/netforge.git
+cd netforge
+
+# 2) Pasang & jalankan — auto: Docker, .env + secret, deteksi LAN, build, tunggu health
+./install.sh            # Windows (PowerShell):  .\install.ps1
 ```
 
-Installer ini meng-install Docker bila belum ada (tahan-banting di Fedora/WSL),
-membuat `.env` berisi secret, mendeteksi alamat LAN, build + start seluruh stack
-(postgres · redis · backend FastAPI · frontend Vite) di belakang satu gateway
-nginx, menunggu `/api/health`, lalu mencetak URL yang bisa dibuka:
+Installer mem-build + menjalankan seluruh stack (postgres · redis · backend FastAPI ·
+frontend Vite) di belakang satu gateway nginx, menunggu `/api/health`, lalu mencetak URL:
 
 ```
 On this machine     →  http://localhost:8090
@@ -90,13 +99,29 @@ On the network      →  http://<LAN-IP>:8090     (buka dari HP/PC lain)
 API docs            →  http://<LAN-IP>:8090/docs
 ```
 
+3. Buka URL di atas. Selesai.
+
 > Port **8090** dipilih agar tidak bentrok dengan project saudara di host yang
 > sama (SecureOps `:80`, StorageHub `:8080`). Override: `HTTP_PORT=9000 ./install.sh`.
 
-Flag lain: `--prod` (stack produksi: image immutable, nginx, scale) ·
-`--rebuild` · `--no-build` · `--down` (stop) · `--reset` (stop + HAPUS data) ·
-`--tailscale` · `--public`. Windows: `./install.ps1`. Uninstall: `./uninstall.sh`
-(`--purge` untuk menghapus volume). Target Make: `make help`.
+### Daftar perintah
+
+| Perintah | Fungsi |
+|---|---|
+| `git clone https://github.com/suryaex/netforge.git && cd netforge` | Ambil sumber |
+| `./install.sh` | Pasang + build + start (dev, gateway LAN nginx `:8090`) |
+| `make install` | Sama seperti `./install.sh` (lewat Make) |
+| `./install.sh --prod` | Stack produksi (image immutable, nginx, scale) |
+| `./install.sh --rebuild` | Build ulang image dari nol (no cache) |
+| `./install.sh --no-build` | Start tanpa build ulang |
+| `./install.sh --down` | Stop stack |
+| `./install.sh --reset` | Stop + **HAPUS** semua data (volume) |
+| `./install.sh --tailscale` | Pasang + join Tailscale, pakai IP VPN-nya |
+| `./install.sh --public` | Deteksi IP publik & tambahkan ke CORS |
+| `HTTP_PORT=9000 ./install.sh` | Ganti port HTTP |
+| `.\install.ps1` | Versi Windows (PowerShell) |
+| `./uninstall.sh` · `./uninstall.sh --purge` | Uninstall · + hapus volume |
+| `make help` | Daftar target Make (`up`, `prod`, `down`, `logs`, `ps`, …) |
 
 ### Manual (per komponen)
 

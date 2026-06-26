@@ -2,8 +2,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # NetForge — one-shot Docker installer (mirrors StorageHub / SecureOps)
 # Auto-installs Docker (resilient on Fedora/WSL), generates .env, detects the
-# LAN/Tailscale/public address, builds + starts the stack, waits for health, and
-# prints the reachable URLs. The compose files live in infra/, so this wrapper
+# LAN/Tailscale/public address, builds + starts the stack, opens the host
+# firewall for the entry port (LAN + VPN), waits for health, and prints the
+# reachable URLs. The compose files live in infra/, so this wrapper
 # always invokes compose with the right -f paths from the repo root.
 #
 # Usage:
@@ -183,6 +184,31 @@ lan_ip() {
 ts_ip()  { command -v tailscale >/dev/null 2>&1 && tailscale ip -4 2>/dev/null | head -n1 || true; }
 pub_ip() { curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || curl -fsS --max-time 5 https://ifconfig.me 2>/dev/null || true; }
 
+# Open the host firewall for the HTTP entry port so other devices reach NetForge
+# over the LAN *and* the VPN (tailscale0) interface. Without this, a healthy
+# stack still times out from a phone/PC because firewalld/ufw drops the SYN.
+# Best-effort and idempotent: handles firewalld (Fedora/RHEL), ufw (Debian/
+# Ubuntu), then nftables/iptables. Silent no-op if no active firewall or no sudo.
+open_firewall() {
+  local port="$1" opened=""
+  if command -v firewall-cmd >/dev/null 2>&1 && sudo firewall-cmd --state >/dev/null 2>&1; then
+    sudo firewall-cmd --permanent --add-port="${port}/tcp" >/dev/null 2>&1 || true
+    sudo firewall-cmd --reload >/dev/null 2>&1 || true
+    opened="firewalld"
+  elif command -v ufw >/dev/null 2>&1 && sudo ufw status 2>/dev/null | grep -qi active; then
+    sudo ufw allow "${port}/tcp" >/dev/null 2>&1 || true
+    opened="ufw"
+  elif command -v nft >/dev/null 2>&1 && sudo nft list ruleset >/dev/null 2>&1; then
+    sudo nft add rule inet filter input tcp dport "${port}" accept >/dev/null 2>&1 || true
+    opened="nftables"
+  elif command -v iptables >/dev/null 2>&1; then
+    sudo iptables -C INPUT -p tcp --dport "${port}" -j ACCEPT >/dev/null 2>&1 \
+      || sudo iptables -I INPUT -p tcp --dport "${port}" -j ACCEPT >/dev/null 2>&1 || true
+    opened="iptables"
+  fi
+  [ -n "$opened" ] && ok "Opened TCP ${port} for LAN + VPN in the host firewall (${opened})"
+}
+
 # Comma-join http origins for every non-empty host on :HTTP_PORT (+ localhost dev ports).
 build_origins() {
   local p=":${HTTP_PORT}" out h
@@ -298,6 +324,9 @@ esac
 info "Building & starting containers (HTTP entry on port ${HTTP_PORT})…"
 HTTP_PORT="$HTTP_PORT" $COMPOSE $ENVOPT $CF up -d $BUILD
 
+# Make the entry port reachable from other devices (LAN + Tailscale VPN).
+open_firewall "$HTTP_PORT"
+
 # ── 3. Wait for backend health (via the single-origin HTTP entry) ────────────
 info "Waiting for backend to become healthy…"
 HEALTHY=0
@@ -319,6 +348,7 @@ echo -e "  ${GREEN}On the network${NC}      →  http://${IP}:${HTTP_PORT}   (op
 echo -e "  ${GREEN}API docs${NC}            →  http://${IP}:${HTTP_PORT}/docs"
 echo -e "  ${GREEN}Health${NC}              →  http://${IP}:${HTTP_PORT}/api/health"
 echo ""
-echo "  If other devices can't reach it, allow TCP port ${HTTP_PORT} in your firewall."
+echo "  TCP ${HTTP_PORT} is auto-opened in the host firewall; if a device still can't"
+echo "  reach it, check your router/cloud security group allows TCP ${HTTP_PORT}."
 echo "  Logs: $COMPOSE $CF logs -f   |   Stop: ./install.sh --down${PROD:+  (--prod)}"
 echo ""

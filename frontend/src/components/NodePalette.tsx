@@ -2,6 +2,7 @@
  * NodePalette — categorized list of draggable device templates.
  * Drag a card onto the TopologyCanvas to create a node. Uses native HTML5 DnD
  * with a custom mime type so the canvas can resolve the template by key.
+ * Custom NOS entries from nosStore are shown as a count badge on each device.
  */
 import { useState } from 'react';
 import {
@@ -14,8 +15,10 @@ import {
   Server,
   Cloud,
   Search,
+  Package,
 } from 'lucide-react';
 import { deviceCatalog, type DeviceTemplate } from '@/data/deviceCatalog';
+import { useNosStore } from '@/store/nosStore';
 import { nodeColors } from '@/theme/tokens';
 import type { NodeKind } from '@/api/types';
 import { cn } from '@/lib/cn';
@@ -33,35 +36,41 @@ const KIND_ICON: Record<NodeKind, typeof Router> = {
 
 export function NodePalette() {
   const [q, setQ] = useState('');
+  const { customNos } = useNosStore();
   const query = q.trim().toLowerCase();
 
   return (
     <div className="flex h-full flex-col">
-      <div className="sticky top-0 z-10 border-b border-white/10 bg-white/5 p-2 backdrop-blur">
-        <label className="flex items-center gap-2 rounded-md bg-black/20 px-2 py-1.5">
-          <Search className="h-3.5 w-3.5 text-white/50" />
+      {/* Search bar */}
+      <div className="sticky top-0 z-10 border-b border-white/10 bg-black/20 p-2 backdrop-blur">
+        <label className="flex items-center gap-2 rounded-md border border-white/10 bg-black/25 px-2.5 py-1.5 transition-colors focus-within:border-accent/50">
+          <Search className="h-3.5 w-3.5 shrink-0 text-white/40" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search devices"
+            placeholder="Search devices…"
             aria-label="Search devices"
-            className="w-full bg-transparent text-xs text-white/90 placeholder:text-white/40 outline-none"
+            className="w-full bg-transparent text-xs text-white/90 placeholder:text-white/35 outline-none"
           />
         </label>
       </div>
 
-      <div className="nf-scroll flex-1 space-y-4 overflow-auto p-2">
+      <div className="nf-scroll flex-1 space-y-5 overflow-auto p-2.5">
         {deviceCatalog.map((group) => {
           const devices = group.devices.filter(
-            (d) => !query || d.label.toLowerCase().includes(query) || d.kind.includes(query),
+            (d) =>
+              !query ||
+              d.label.toLowerCase().includes(query) ||
+              d.kind.includes(query) ||
+              d.defaultNos.includes(query),
           );
           if (devices.length === 0) return null;
           return (
             <section key={group.category}>
-              <h3 className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+              <h3 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/35">
                 {group.category}
               </h3>
-              <ul className="space-y-1">
+              <ul className="space-y-1.5">
                 {devices.map((d) => (
                   <PaletteCard key={d.key} device={d} />
                 ))}
@@ -69,6 +78,30 @@ export function NodePalette() {
             </section>
           );
         })}
+
+        {/* Custom NOS hint at bottom */}
+        {customNos.length > 0 && (
+          <section>
+            <h3 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/35">
+              Custom OS Available
+            </h3>
+            <div className="rounded-md border border-white/8 bg-white/4 px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-accent/70 shrink-0" />
+                <p className="text-xs text-white/60">
+                  <span className="font-medium text-accent">{customNos.length}</span> custom NOS{' '}
+                  {customNos.length === 1 ? 'entry' : 'entries'} available.
+                  Select a node to assign them in Properties.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+      </div>
+
+      {/* Footer tip */}
+      <div className="shrink-0 border-t border-white/8 px-3 py-2 text-center">
+        <p className="text-[10px] text-white/25">Drag a card onto the canvas to place a device</p>
       </div>
     </div>
   );
@@ -88,22 +121,37 @@ function PaletteCard({ device }: { device: DeviceTemplate }) {
           e.dataTransfer.setData('application/netforge-device', device.key);
           e.dataTransfer.effectAllowed = 'copy';
         }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            // keyboard users: could open a dialog to place the node
+          }
+        }}
         title={device.description}
         className={cn(
-          'flex cursor-grab items-center gap-2.5 rounded-md border border-white/10 bg-white/5 p-2',
-          'transition-colors hover:border-accent/50 hover:bg-white/10 active:cursor-grabbing',
+          'flex cursor-grab items-center gap-2.5 rounded-lg border border-white/8 bg-white/4 p-2.5',
+          'transition-all duration-fast hover:border-white/20 hover:bg-white/8 active:cursor-grabbing active:scale-[0.98]',
         )}
       >
+        {/* Icon */}
         <span
           className="grid h-8 w-8 shrink-0 place-items-center rounded-md"
-          style={{ background: `${color}22`, color }}
+          style={{ background: `${color}1a`, color }}
         >
           <Icon className="h-4 w-4" />
         </span>
-        <div className="min-w-0">
+
+        {/* Info */}
+        <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium text-white/90">{device.label}</p>
-          <p className="truncate text-[10px] text-white/45">{device.defaultNos.toUpperCase()}</p>
+          <p className="truncate text-[10px] text-white/40">
+            {device.defaultNos.toUpperCase()} &middot; {device.kind}
+          </p>
         </div>
+
+        {/* Port count badge */}
+        <span className="shrink-0 rounded bg-white/8 px-1.5 py-0.5 text-[9px] font-mono text-white/35">
+          {device.ports.reduce((acc, p) => acc + p.count, 0)}p
+        </span>
       </div>
     </li>
   );

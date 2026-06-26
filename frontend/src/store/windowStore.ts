@@ -12,7 +12,8 @@ export type WindowKind =
   | 'properties'
   | 'console'
   | 'config'
-  | 'scenarios';
+  | 'scenarios'
+  | 'settings';
 
 export interface Rect {
   x: number;
@@ -57,6 +58,7 @@ const DEFAULT_RECTS: Record<WindowKind, Rect> = {
   console: { x: 220, y: 380, w: 720, h: 320 },
   config: { x: 300, y: 140, w: 680, h: 520 },
   scenarios: { x: 360, y: 180, w: 560, h: 460 },
+  settings: { x: 240, y: 120, w: 680, h: 500 },
 };
 
 let seq = 0;

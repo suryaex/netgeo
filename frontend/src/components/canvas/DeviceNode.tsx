@@ -63,7 +63,7 @@ function DeviceNodeImpl({ data, selected }: NodeProps) {
         <Handle
           key={side}
           type="source"
-          position={Position[(side[0].toUpperCase() + side.slice(1)) as keyof typeof Position]}
+          position={Position[(side.charAt(0).toUpperCase() + side.slice(1)) as keyof typeof Position]}
           id={side}
           className="!h-2 !w-2"
         />

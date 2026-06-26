@@ -12,6 +12,7 @@ import { PropertiesPanel } from '@/components/PropertiesPanel';
 import { ConsolePanel } from '@/components/ConsolePanel';
 import { ConfigViewer } from '@/components/ConfigViewer';
 import { ScenariosPanel } from '@/components/ScenariosPanel';
+import { SettingsPanel } from '@/components/SettingsPanel';
 
 function WindowBody({ win }: { win: WindowInstance }) {
   switch (win.kind) {
@@ -27,6 +28,8 @@ function WindowBody({ win }: { win: WindowInstance }) {
       return <ConfigViewer win={win} />;
     case 'scenarios':
       return <ScenariosPanel />;
+    case 'settings':
+      return <SettingsPanel />;
     default:
       return null;
   }

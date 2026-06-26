@@ -39,7 +39,7 @@ export function CloudUplink({
           list.find((i) => i.is_primary) ??
           list.find((i) => !i.is_virtual && i.is_up) ??
           list[0];
-        setUplink({ adapter: pick.name, mode: 'nat' });
+        if (pick) setUplink({ adapter: pick.name, mode: 'nat' });
       }
     } catch {
       setIfaces([]);

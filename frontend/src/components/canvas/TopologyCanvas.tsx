@@ -23,6 +23,7 @@ import {
   type Edge,
   type Node,
   type NodeChange,
+  type OnNodeDrag,
   type NodeMouseHandler,
   type ReactFlowInstance,
 } from '@xyflow/react';
@@ -37,7 +38,7 @@ import type { NodeModel } from '@/api/types';
 const nodeTypes = { device: DeviceNode };
 
 export function TopologyCanvas() {
-  const rfRef = useRef<ReactFlowInstance | null>(null);
+  const rfRef = useRef<ReactFlowInstance<Node<DeviceNodeData>, Edge> | null>(null);
   const nodesMap = useTopologyStore((s) => s.nodes);
   const linksMap = useTopologyStore((s) => s.links);
   const moveNode = useTopologyStore((s) => s.moveNode);
@@ -85,11 +86,11 @@ export function TopologyCanvas() {
     [moveNode],
   );
 
-  const onNodeDragStop: NodeMouseHandler = useCallback((_e, node) => {
+  const onNodeDragStop: OnNodeDrag<Node<DeviceNodeData>> = useCallback((_e, node) => {
     void nodesApi.move(node.id, node.position.x, node.position.y).catch(() => {});
   }, []);
 
-  const onSelectionNode: NodeMouseHandler = useCallback(
+  const onSelectionNode: NodeMouseHandler<Node<DeviceNodeData>> = useCallback(
     (_e, node) => select({ nodeId: node.id }),
     [select],
   );

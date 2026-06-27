@@ -209,6 +209,39 @@ open_firewall() {
   [ -n "$opened" ] && ok "Opened TCP ${port} for LAN + VPN in the host firewall (${opened})"
 }
 
+# WSL2 + mirrored networking: the stack is reachable on the *Windows* host's LAN
+# IP, but the WSL Hyper-V firewall blocks inbound by default — so phones/PCs on
+# the LAN time out even though the app is healthy. Add a one-time Windows firewall
+# rule for HTTP_PORT (Hyper-V rule for the WSL vNIC + a host rule), the same
+# mechanism the sibling apps rely on. Needs one UAC approval; no-op outside WSL,
+# outside mirrored mode, or if the rule already exists. (NAT-mode WSL would need a
+# netsh portproxy instead — out of scope; use --tailscale for remote access there.)
+WSL_VMCREATOR='{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'   # fixed WSL VM creator id
+setup_wsl_firewall() {
+  is_wsl || return 0
+  command -v powershell.exe >/dev/null 2>&1 || { warn "WSL detected but powershell.exe not on PATH — open TCP ${1} on Windows manually"; return 0; }
+  local port="$1"
+  # Only when mirrored networking is active (otherwise a portproxy, not a firewall
+  # rule, is what's needed — we don't want to give false assurance).
+  powershell.exe -NoProfile -Command "if((Get-Content \$env:USERPROFILE\\.wslconfig -ErrorAction SilentlyContinue) -match 'networkingMode\\s*=\\s*mirrored'){exit 0}else{exit 1}" >/dev/null 2>&1 || {
+    warn "WSL is not in mirrored networking mode — LAN devices reach NetForge only via --tailscale (VPN). See README."
+    return 0
+  }
+  if powershell.exe -NoProfile -Command "if(Get-NetFirewallHyperVRule -Name 'NetForge-${port}' -ErrorAction SilentlyContinue){exit 0}else{exit 1}" >/dev/null 2>&1; then
+    ok "Windows firewall already allows TCP ${port} into WSL (LAN ready)"; return 0
+  fi
+  info "WSL mirrored networking — adding a Windows firewall rule for TCP ${port} (approve the UAC prompt)…"
+  local ps enc
+  ps="New-NetFirewallHyperVRule -Name 'NetForge-${port}' -DisplayName 'NetForge ${port} (WSL LAN)' -Direction Inbound -VMCreatorId '${WSL_VMCREATOR}' -Protocol TCP -LocalPorts ${port} -Action Allow -ErrorAction SilentlyContinue; New-NetFirewallRule -DisplayName 'NetForge ${port}' -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${port} -Profile Any -ErrorAction SilentlyContinue"
+  enc="$(powershell.exe -NoProfile -Command "[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('${ps}'))" 2>/dev/null | tr -d '\r')"
+  if [ -n "$enc" ] && powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-EncodedCommand','${enc}'" >/dev/null 2>&1; then
+    ok "Windows firewall rule added — NetForge reachable from the LAN on the host IP:${port}"
+  else
+    warn "Could not add the Windows firewall rule automatically (UAC declined?). Run this in an elevated PowerShell:"
+    warn "  New-NetFirewallHyperVRule -Name 'NetForge-${port}' -DisplayName 'NetForge ${port}' -Direction Inbound -VMCreatorId '${WSL_VMCREATOR}' -Protocol TCP -LocalPorts ${port} -Action Allow"
+  fi
+}
+
 # Comma-join http origins for every non-empty host on :HTTP_PORT (+ localhost dev ports).
 build_origins() {
   local p=":${HTTP_PORT}" out h
@@ -326,6 +359,7 @@ HTTP_PORT="$HTTP_PORT" $COMPOSE $ENVOPT $CF up -d $BUILD
 
 # Make the entry port reachable from other devices (LAN + Tailscale VPN).
 open_firewall "$HTTP_PORT"
+setup_wsl_firewall "$HTTP_PORT"
 
 # ── 3. Wait for backend health (via the single-origin HTTP entry) ────────────
 info "Waiting for backend to become healthy…"

@@ -30,10 +30,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH"
 
-# libpq untuk runtime asyncpg; curl untuk healthcheck;
-# postgresql-client (pg_isready) + redis-tools (redis-cli) untuk entrypoint wait-loop.
+# libpq untuk runtime asyncpg; curl untuk healthcheck.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libpq5 curl postgresql-client redis-tools \
+        libpq5 curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r netforge && useradd -r -g netforge -d /app netforge
 
@@ -41,16 +40,12 @@ COPY --from=builder /opt/venv /opt/venv
 
 WORKDIR /app
 COPY . .
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh \
-    && chown -R netforge:netforge /app
+RUN chown -R netforge:netforge /app
 
 USER netforge
 EXPOSE 8000
 
-# Healthcheck menumpang endpoint /api/health.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
     CMD curl -fsS http://localhost:8000/api/health || exit 1
 
-ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

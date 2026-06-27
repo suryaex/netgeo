@@ -32,11 +32,6 @@ export const MAP_TILES = {
     attribution:
       'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
     maxZoom: 19,
-    overlay: {
-      url: 'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-      opacity: 0.7,
-    },
   },
 
   /**
@@ -45,25 +40,20 @@ export const MAP_TILES = {
    */
   street: {
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19,
     subdomains: 'abc',
   },
 
   /**
-   * Hybrid — Esri satellite base + CartoDB road/label overlay.
-   * Best for combining real-world context with infrastructure planning.
+   * Hybrid — Esri World Imagery satellite base (no overlay).
+   * Best for combining real-world imagery with infrastructure planning.
    */
   hybrid: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution:
-      'Tiles &copy; Esri &mdash; Imagery; Roads &copy; <a href="https://carto.com/">CARTO</a>',
+      'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
     maxZoom: 19,
-    overlay: {
-      url: 'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-      opacity: 0.85,
-    },
   },
 
   /**
@@ -94,4 +84,4 @@ export const MAP_TILES = {
 export type MapTileKey = keyof typeof MAP_TILES;
 
 /** Default tile layer to use on first load. */
-export const DEFAULT_TILE: MapTileKey = 'satellite';
+export const DEFAULT_TILE: MapTileKey = 'street';

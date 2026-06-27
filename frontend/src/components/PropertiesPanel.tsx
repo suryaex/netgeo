@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { Cpu, Plug, RefreshCw, Settings2 } from 'lucide-react';
 import { useTopologyStore } from '@/store/topologyStore';
 import { useNosStore } from '@/store/nosStore';
+import { useUiStore } from '@/store/uiStore';
 import { nodesApi, configsApi } from '@/api/client';
 import { useWindowStore } from '@/store/windowStore';
 import { CloudUplink } from '@/components/CloudUplink';
@@ -40,6 +41,7 @@ export function PropertiesPanel() {
   const upsertNode = useTopologyStore((s) => s.upsertNode);
   const openWindow = useWindowStore((s) => s.open);
   const { customNos } = useNosStore();
+  const simState = useUiStore((s) => s.simState);
   const [name, setName] = useState('');
 
   useEffect(() => setName(node?.name ?? ''), [node?.id, node?.name]);
@@ -64,7 +66,13 @@ export function PropertiesPanel() {
     void nodesApi.update(node.id, p).catch(() => {});
   };
 
-  const statusColor = STATUS_COLORS[node.status] ?? '#8E8E93';
+  // During a live sim run the engine is stepping every node; reflect that in the
+  // status indicator rather than showing the stored topology state ("stopped").
+  // The backend only publishes sim.tick events during a run — it does not emit
+  // per-node node.status events — so we derive the effective status here.
+  const effectiveStatus =
+    simState === 'running' || simState === 'paused' ? 'running' : node.status;
+  const statusColor = STATUS_COLORS[effectiveStatus] ?? '#8E8E93';
 
   // Combine built-in + custom NOS options.
   const nosOptions = [
@@ -150,7 +158,7 @@ export function PropertiesPanel() {
       <Field label="Status">
         <span className="inline-flex items-center gap-1.5 rounded-md bg-white/5 px-2.5 py-1 text-xs text-white/80">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: statusColor }} />
-          {node.status}
+          {effectiveStatus}
         </span>
       </Field>
 

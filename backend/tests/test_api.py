@@ -115,6 +115,47 @@ async def test_config_generate_multi_vendor_via_api(client):
     assert len(history) == 3
 
 
+async def test_node_names_auto_increment_per_type(client):
+    """Dropping the same device type repeatedly must yield unique, incrementing
+    names — the store rewrites colliding auto-names (EdgeRouter1, EdgeRouter2…)."""
+    pid = await _make_project(client, "naming")
+
+    async def _create(name: str) -> str:
+        resp = await client.post(
+            "/api/nodes",
+            json={"project_id": pid, "name": name, "kind": "router", "nos": "ios"},
+        )
+        assert resp.status_code == 201, resp.text
+        return resp.json()["name"]
+
+    # Client naively suggests the same name three times; store must dedupe.
+    assert await _create("EdgeRouter1") == "EdgeRouter1"
+    assert await _create("EdgeRouter1") == "EdgeRouter2"
+    assert await _create("EdgeRouter1") == "EdgeRouter3"
+
+    # A different base name is tracked independently.
+    assert await _create("AccessSwitch1") == "AccessSwitch1"
+    assert await _create("AccessSwitch1") == "AccessSwitch2"
+
+    # All names in the project are distinct.
+    topo = (await client.get(f"/api/projects/{pid}/topology")).json()
+    names = [n["name"] for n in topo["nodes"]]
+    assert len(names) == len(set(names)) == 5
+
+
+async def test_node_name_collision_isolated_per_project(client):
+    """Identical names in different projects do not collide."""
+    p1 = await _make_project(client, "p1")
+    p2 = await _make_project(client, "p2")
+    for pid in (p1, p2):
+        resp = await client.post(
+            "/api/nodes",
+            json={"project_id": pid, "name": "Core1", "kind": "router", "nos": "ios"},
+        )
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["name"] == "Core1"
+
+
 async def test_simulate_unknown_project_404(client):
     resp = await client.post("/api/simulate", json={"project_id": "nope", "seed": 0})
     assert resp.status_code == 404

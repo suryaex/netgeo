@@ -45,6 +45,7 @@ export function TopologyCanvas() {
   const selectedNodeId = useTopologyStore((s) => s.selectedNodeId);
   const moveNode = useTopologyStore((s) => s.moveNode);
   const upsertNode = useTopologyStore((s) => s.upsertNode);
+  const removeNode = useTopologyStore((s) => s.removeNode);
   const upsertLink = useTopologyStore((s) => s.upsertLink);
   const select = useTopologyStore((s) => s.select);
   const projectId = useUiStore((s) => s.projectId);
@@ -145,10 +146,14 @@ export function TopologyCanvas() {
       const pos = rfRef.current.screenToFlowPosition({ x: e.clientX, y: e.clientY });
 
       const tempId = `tmp-node-${Date.now()}`;
+      // Suggest a sensible per-device-type default (EdgeRouter1, EdgeRouter2, …)
+      // by scanning existing node names — never a global count. The backend is
+      // the authority and may rewrite this to break ties; we adopt its result.
+      const base = tpl.label.replace(/\s/g, '');
       const draft: NodeModel = {
         id: tempId,
         project_id: projectId,
-        name: `${tpl.label.replace(/\s/g, '')}${nodesMap.size + 1}`,
+        name: nextNodeName(nodesMap.values(), base),
         kind: tpl.kind,
         nos: tpl.defaultNos,
         mode: 'sim',
@@ -162,10 +167,17 @@ export function TopologyCanvas() {
       select({ nodeId: tempId });
       void nodesApi
         .create({ project_id: projectId, name: draft.name, kind: draft.kind, nos: draft.nos, mode: 'sim', x: pos.x, y: pos.y })
-        .then((real) => upsertNode(real))
+        .then((real) => {
+          // Replace the optimistic node with the server's authoritative copy.
+          // Without removing the temp first, the differing ids would leave two
+          // nodes sharing the same name on the canvas.
+          removeNode(tempId);
+          upsertNode(real);
+          select({ nodeId: real.id });
+        })
         .catch(() => {});
     },
-    [nodesMap.size, upsertNode, select, projectId],
+    [nodesMap, upsertNode, removeNode, select, projectId],
   );
 
   return (
@@ -205,6 +217,22 @@ export function TopologyCanvas() {
 }
 
 /* ----------------------------- helpers ----------------------------------- */
+/**
+ * Suggest the next auto-name for a device type by finding the highest existing
+ * "<base><n>" suffix among current nodes and incrementing it. Purely a sensible
+ * default — the backend enforces final uniqueness and returns the real name.
+ */
+function nextNodeName(nodes: Iterable<NodeModel>, base: string): string {
+  const escaped = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`^${escaped}(\\d+)$`);
+  let highest = 0;
+  for (const n of nodes) {
+    const m = re.exec(n.name);
+    if (m) highest = Math.max(highest, Number(m[1]));
+  }
+  return `${base}${highest + 1}`;
+}
+
 function ifaceNodeId(nodes: Map<string, NodeModel>, ifaceId: string): string {
   for (const n of nodes.values()) {
     if (n.interfaces.some((i) => i.id === ifaceId)) return n.id;

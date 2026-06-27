@@ -78,6 +78,39 @@ body {
   background: var(--nf-accent, #007aff);
 }
 
+/* Controls: the base @xyflow style.css ships a light theme (white buttons with
+   dark glyphs) that renders as an out-of-place white sliver on our dark glass
+   shell. Re-skin the buttons to match the desktop UI. */
+.react-flow__controls {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.react-flow__controls-button {
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  width: 26px;
+  height: 26px;
+}
+.react-flow__controls-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.react-flow__controls-button svg {
+  fill: rgba(255, 255, 255, 0.85);
+  max-width: 12px;
+  max-height: 12px;
+}
+
+/* MiniMap: give the SVG a dark translucent surface and a soft viewport mask so
+   it reads as a panel rather than an empty black box on sparse topologies. */
+.react-flow__minimap {
+  background: transparent;
+}
+.react-flow__minimap-mask {
+  fill: rgba(0, 0, 0, 0.45);
+}
+
 /* ---- Leaflet map overrides ------------------------------------------------ */
 /* Custom label tooltip for device names on the map */
 .nf-map-label {

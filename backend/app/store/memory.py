@@ -12,6 +12,7 @@ Thread-safety: guarded by a single ``asyncio.Lock`` — adequate for the single
 from __future__ import annotations
 
 import asyncio
+import re
 from collections import defaultdict
 
 from app.models import (
@@ -27,6 +28,39 @@ from app.utils.ids import new_id
 
 class NotFound(KeyError):
     """Raised when a resource id does not resolve. Mapped to HTTP 404."""
+
+
+_TRAILING_DIGITS = re.compile(r"^(.*?)(\d+)$")
+
+
+def _unique_node_name(proposed: str, taken: set[str]) -> str:
+    """Return ``proposed`` if free, else the next non-colliding name for its base.
+
+    The base is ``proposed`` with any trailing digits stripped (so ``EdgeRouter1``
+    -> base ``EdgeRouter``). We then pick ``base`` + one above the highest existing
+    suffix for that base, scanning *all* current names rather than trusting a
+    counter — this keeps auto-generated defaults unique even when several clients
+    create nodes concurrently or the client suggests a stale number.
+
+    Manually chosen names are unaffected: this only rewrites a name that already
+    collides with an existing node in the same project.
+    """
+    if proposed not in taken:
+        return proposed
+    m = _TRAILING_DIGITS.match(proposed)
+    base = m.group(1) if m else proposed
+    suffix_re = re.compile(rf"^{re.escape(base)}(\d+)$")
+    highest = 0
+    for name in taken:
+        sm = suffix_re.match(name)
+        if sm:
+            highest = max(highest, int(sm.group(1)))
+    n = highest + 1
+    candidate = f"{base}{n}"
+    while candidate in taken:
+        n += 1
+        candidate = f"{base}{n}"
+    return candidate
 
 
 class MemoryRepository:
@@ -70,6 +104,15 @@ class MemoryRepository:
 
     async def add_node(self, node: Node) -> Node:
         async with self._lock:
+            # Enforce unique node names within a project. The store is the
+            # authority so uniqueness holds even with multiple clients; the
+            # final (possibly rewritten) name is returned to the caller.
+            taken = {
+                n.name for n in self._nodes.values() if n.project_id == node.project_id
+            }
+            unique = _unique_node_name(node.name, taken)
+            if unique != node.name:
+                node = node.model_copy(update={"name": unique})
             self._nodes[node.id] = node
             return node
 

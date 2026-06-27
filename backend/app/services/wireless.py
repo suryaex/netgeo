@@ -79,8 +79,6 @@ def plan_topology(topo: Topology) -> WirelessPlanResult:
     Returns the planned wireless links (with full link budgets) plus a coverage
     circle per serving node, ready for the map to render."""
     geo = _geo_devices(topo.nodes)
-    by_id = {g.id: g for g in geo}
-
     planned = rf.plan_links(geo)
     links = [
         WirelessLink(
@@ -106,7 +104,6 @@ def plan_topology(topo: Topology) -> WirelessPlanResult:
                 CoverageCircle(node_id=g.id, lat=g.lat, lon=g.lon, radius_m=round(radius, 1))
             )
 
-    _ = by_id  # reserved for future per-link enrichment
     return WirelessPlanResult(project_id=topo.project.id, links=links, coverage=coverage)
 
 

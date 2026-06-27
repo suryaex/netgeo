@@ -53,4 +53,6 @@ def test_topology_ws_ping_pong():
         ws.receive_json()  # snapshot
         ws.receive_json()  # wireless.plan
         ws.send_text("ping")
-        assert ws.receive_json() == {"type": "pong"}
+        # Heartbeat reply is a plain-text "pong" frame (frontend checks
+        # ev.data === 'pong'; see frontend/src/api/ws.ts), not a JSON envelope.
+        assert ws.receive_text() == "pong"

@@ -1,0 +1,28 @@
+# Python runtime artifacts
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Test & dev tooling
+.pytest_cache/
+tests/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Editor / OS
+.env
+.env.*
+*.DS_Store
+.idea/
+.vscode/
+
+# Git
+.git/
+.gitignore

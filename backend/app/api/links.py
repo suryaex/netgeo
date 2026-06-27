@@ -31,11 +31,12 @@ async def update_link(link_id: str, patch: LinkUpdate, r: MemoryRepository = Dep
     return updated
 
 
-@router.delete("/links/{link_id}", status_code=204)
-async def delete_link(link_id: str, r: MemoryRepository = Depends(repo)):
+@router.delete("/links/{link_id}", status_code=200)
+async def delete_link(link_id: str, r: MemoryRepository = Depends(repo)) -> dict:
     try:
         link = await r.get_link(link_id)
         await r.delete_link(link_id)
     except StoreNotFound as exc:
         raise translate_not_found(exc) from exc
     await notify.link_removed(link.project_id, link_id)
+    return {"deleted": link_id}

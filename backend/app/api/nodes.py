@@ -61,11 +61,12 @@ async def update_node(node_id: str, patch: NodeUpdate, r: MemoryRepository = Dep
     return updated
 
 
-@router.delete("/nodes/{node_id}", status_code=204)
-async def delete_node(node_id: str, r: MemoryRepository = Depends(repo)):
+@router.delete("/nodes/{node_id}", status_code=200)
+async def delete_node(node_id: str, r: MemoryRepository = Depends(repo)) -> dict:
     try:
         node = await r.get_node(node_id)
         await r.delete_node(node_id)
     except StoreNotFound as exc:
         raise translate_not_found(exc) from exc
     await notify.node_removed(r, node.project_id, node_id)
+    return {"deleted": node_id}

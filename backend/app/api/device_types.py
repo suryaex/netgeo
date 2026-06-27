@@ -106,8 +106,8 @@ async def create_device_type(body: DeviceTypeCreate) -> DeviceType:
     return dt
 
 
-@router.delete("/device-types/{device_type_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_device_type(device_type_id: str) -> None:
+@router.delete("/device-types/{device_type_id}", status_code=status.HTTP_200_OK)
+async def delete_device_type(device_type_id: str) -> dict:
     """Delete a custom device type.
 
     Built-in types cannot be deleted (returns 403).
@@ -125,6 +125,7 @@ async def delete_device_type(device_type_id: str) -> None:
             detail=f"Device type '{device_type_id}' not found.",
         )
     del _custom[device_type_id]
+    return {"deleted": device_type_id}
 
 
 # ---------------------------------------------------------------------------

@@ -181,7 +181,21 @@ lan_ip() {
   [ -z "$ip" ] && command -v ipconfig >/dev/null 2>&1 && ip="$(ipconfig getifaddr en0 2>/dev/null || true)"
   echo "${ip:-127.0.0.1}"
 }
-ts_ip()  { command -v tailscale >/dev/null 2>&1 && tailscale ip -4 2>/dev/null | head -n1 || true; }
+# Tailscale (VPN) IPv4. In WSL mirrored networking the *Windows host* runs its own
+# tailscaled and its 100.64/10 address is mirrored onto the WSL NIC (eth0); remote
+# peers reach services running in WSL via THAT Windows-host node. The distro's own
+# tailscale0 node is a second peer on the same physical uplink that peers can't
+# hairpin to (it shows reachable only from inside WSL). So in WSL prefer a
+# 100.64/10 address that is NOT on tailscale0; otherwise fall back to this node's
+# own tailscale IP.
+ts_ip() {
+  if is_wsl; then
+    local m
+    m="$(ip -4 -o addr show 2>/dev/null | awk '$2!="tailscale0" && $4 ~ /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./ {sub(/\/.*/,"",$4); print $4; exit}')"
+    [ -n "$m" ] && { echo "$m"; return 0; }
+  fi
+  command -v tailscale >/dev/null 2>&1 && tailscale ip -4 2>/dev/null | head -n1 || true
+}
 pub_ip() { curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || curl -fsS --max-time 5 https://ifconfig.me 2>/dev/null || true; }
 
 # Open the host firewall for the HTTP entry port so other devices reach NetForge

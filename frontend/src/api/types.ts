@@ -56,6 +56,7 @@ export interface Uplink {
 
 export interface NodeModel {
   id: string;
+  project_id: string;
   name: string;
   kind: NodeKind;
   nos: Nos;
@@ -92,6 +93,7 @@ export interface InternetStatus {
 
 export interface LinkModel {
   id: string;
+  project_id: string;
   a_iface: string;
   b_iface: string;
   type: LinkType;

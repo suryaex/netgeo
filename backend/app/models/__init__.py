@@ -15,6 +15,7 @@ from app.models.schemas import (  # noqa: F401
     LinkBudgetRequest,
     LinkBudgetResult,
     LinkCreate,
+    LinkStatus,
     LinkType,
     LinkUpdate,
     LosCheckRequest,

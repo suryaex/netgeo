@@ -108,6 +108,7 @@ export function TopologyCanvas() {
       const tempId = `tmp-${conn.source}-${conn.target}-${Date.now()}`;
       upsertLink({
         id: tempId,
+        project_id: projectId,
         a_iface: aIface,
         b_iface: bIface,
         type: 'copper',
@@ -143,6 +144,7 @@ export function TopologyCanvas() {
       const tempId = `tmp-node-${Date.now()}`;
       const draft: NodeModel = {
         id: tempId,
+        project_id: projectId,
         name: `${tpl.label.replace(/\s/g, '')}${nodesMap.size + 1}`,
         kind: tpl.kind,
         nos: tpl.defaultNos,

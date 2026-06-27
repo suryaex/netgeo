@@ -184,6 +184,7 @@ class Link(_Base):
     delay: float = 0.0         # ms one-way
     loss: float = 0.0          # 0..1 drop probability
     mtu: int = 1500
+    status: LinkStatus = LinkStatus.up
 
 
 class LinkCreate(_Base):
@@ -195,6 +196,7 @@ class LinkCreate(_Base):
     delay: float = 0.0
     loss: float = 0.0
     mtu: int = 1500
+    status: LinkStatus = LinkStatus.up
 
 
 class LinkUpdate(_Base):
@@ -202,6 +204,7 @@ class LinkUpdate(_Base):
     delay: float | None = None
     loss: float | None = None
     mtu: int | None = None
+    status: LinkStatus | None = None
 
 
 class Project(_Base):

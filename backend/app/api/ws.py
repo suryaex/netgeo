@@ -56,7 +56,8 @@ async def ws_topology(ws: WebSocket, project: str | None = None):
         while True:
             msg = await ws.receive_text()
             if msg == "ping":
-                await ws.send_json({"type": "pong"})
+                # Send plain-text "pong" so the frontend's ev.data === 'pong' check works.
+                await ws.send_text("pong")
 
     async with bus.subscription(project) as events:
 
@@ -95,8 +96,18 @@ async def ws_console(ws: WebSocket, node_id: str):
 
     try:
         while True:
-            line = await ws.receive_text()
-            await ws.send_json({"type": "output", "text": _handle_console(line)})
+            raw = await ws.receive_text()
+            # The frontend sends JSON-wrapped input: {"type":"input","data":"<cmd>"}.
+            # Fall back to treating the raw string as the command if parsing fails.
+            cmd = raw
+            try:
+                import json as _json
+                payload = _json.loads(raw)
+                if isinstance(payload, dict) and payload.get("type") == "input":
+                    cmd = str(payload.get("data", ""))
+            except Exception:
+                pass
+            await ws.send_json({"type": "output", "node_id": node_id, "data": _handle_console(cmd)})
     except WebSocketDisconnect:
         return
 

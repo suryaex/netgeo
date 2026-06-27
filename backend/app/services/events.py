@@ -22,7 +22,7 @@ import asyncio
 import contextlib
 import logging
 from functools import lru_cache
-from typing import Any, AsyncIterator
+from typing import Any, AsyncGenerator, AsyncIterator
 
 logger = logging.getLogger("netforge.events")
 
@@ -76,12 +76,18 @@ class TopologyBus:
         """Async context manager yielding an event iterator for one client."""
         sub = _Subscriber(project_id, self._sub_maxsize)
         self._subs.add(sub)
+        gen = self._iter(sub)
         try:
-            yield self._iter(sub)
+            yield gen
         finally:
+            # Remove from fan-out set first so no new events are offered.
             self._subs.discard(sub)
+            # Explicitly close the async generator so any pending queue.get()
+            # coroutine is cancelled immediately rather than waiting for GC.
+            with contextlib.suppress(Exception):
+                await gen.aclose()
 
-    async def _iter(self, sub: _Subscriber) -> AsyncIterator[dict[str, Any]]:
+    async def _iter(self, sub: _Subscriber) -> AsyncGenerator[dict[str, Any], None]:
         while True:
             yield await sub.queue.get()
 

@@ -49,12 +49,30 @@ def _interpolate_points(
     return out
 
 
+def _flat_profile(pts: list[tuple[float, float, float]]) -> list[dict]:
+    """Return zero-elevation (flat terrain) fallback for all interpolated points."""
+    return [
+        {
+            "lat": lat,
+            "lon": lon,
+            "elevation_m": 0.0,
+            "distance_m": round(dist, 2),
+        }
+        for lat, lon, dist in pts
+    ]
+
+
 async def fetch_profile(
-    a_lat: float, a_lon: float, b_lat: float, b_lon: float, samples: int = 24
+    a_lat: float, a_lon: float, b_lat: float, b_lon: float, samples: int = 24,
+    *, fallback_to_flat: bool = False,
 ) -> list[dict]:
     """Return a list of ``{lat, lon, elevation_m, distance_m}`` along the path.
 
-    Raises :class:`ElevationUnavailable` on network / provider errors.
+    When ``fallback_to_flat=True`` (the default for offline-tolerant callers),
+    a network or provider error silently returns a flat-terrain profile
+    (elevation_m=0.0) instead of raising.  When ``fallback_to_flat=False``
+    (the default for the elevation-proxy endpoint that must signal provider
+    unavailability explicitly), raises :class:`ElevationUnavailable`.
     """
     pts = _interpolate_points(a_lat, a_lon, b_lat, b_lon, samples)
     locations = [{"latitude": lat, "longitude": lon} for lat, lon, _ in pts]
@@ -65,9 +83,19 @@ async def fetch_profile(
             results = resp.json().get("results", [])
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("elevation provider unavailable: %s", exc)
+        if fallback_to_flat:
+            logger.info("returning flat-terrain profile (elevation_m=0) as offline fallback")
+            return _flat_profile(pts)
         raise ElevationUnavailable(str(exc)) from exc
 
     if len(results) != len(pts):
+        if fallback_to_flat:
+            logger.warning(
+                "elevation provider returned mismatched length (%d vs %d); "
+                "using flat-terrain fallback",
+                len(results), len(pts),
+            )
+            return _flat_profile(pts)
         raise ElevationUnavailable("elevation provider returned mismatched length")
 
     return [

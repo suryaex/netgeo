@@ -38,3 +38,49 @@ def test_build_model_converts_units():
     assert link.up is True
     assert link.bandwidth == 1000 * 1_000_000   # Mbps -> bits/s
     assert abs(link.delay - 0.001) < 1e-9        # ms -> s
+
+
+async def test_realtime_run_streams_sim_tick_and_completes():
+    """The live runner must publish ``sim.tick`` telemetry on the bus and drive
+    the state machine to a terminal state.
+
+    Regression: ``/simulate`` ran headless and never emitted ticks, so the UI's
+    transport bar — which relies on ``sim.tick`` for authoritative progress —
+    showed a dead simulation when the user pressed Play.
+    """
+    import asyncio
+
+    from app.services.events import get_bus
+    from app.services.sim import get_manager
+
+    topo = _topo()
+    topo.links[0].status = "up"
+    pid = topo.project.id
+
+    bus = get_bus()
+    mgr = get_manager()
+    received: list[dict] = []
+
+    async def collect() -> None:
+        async with bus.subscription(pid) as events:
+            async for ev in events:
+                received.append(ev)
+
+    collector = asyncio.create_task(collect())
+    await asyncio.sleep(0)  # let the subscription register before we publish
+
+    try:
+        start = await mgr.start(topo)
+        assert start["state"] == "running"
+        # give the background driver loop turns to drain the queue
+        for _ in range(20):
+            await asyncio.sleep(0)
+    finally:
+        await mgr.stop(pid)
+        collector.cancel()
+
+    ticks = [e for e in received if e.get("type") == "sim.tick"]
+    assert ticks, "expected at least one sim.tick to be broadcast"
+    assert ticks[-1]["state"] in ("completed", "stopped")
+    # probe traffic actually moved end-to-end over the link
+    assert ticks[-1]["metrics"]["delivered"] >= 1

@@ -38,6 +38,10 @@ _TEMPLATE_MAP: dict[str, str] = {
     "vyos": "vyos.j2",
     "frr": "frr.j2",
     "forgeos": "forgeos.j2",
+    # Nokia SR OS — MD-CLI hierarchical flat-path syntax
+    "sros": "nokia_sros.j2",
+    # Huawei VRP — VRP CLI syntax
+    "vrp": "huawei_vrp.j2",
 }
 
 

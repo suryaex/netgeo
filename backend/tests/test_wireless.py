@@ -177,3 +177,27 @@ async def test_geo_fields_round_trip_on_node(client):
     node = resp.json()
     assert node["lat"] == 1.23 and node["lon"] == 4.56
     assert node["radio"]["frequency_ghz"] == 5.0
+
+
+# --- degenerate-input hardening --------------------------------------------
+def test_engine_rf_never_crashes_on_degenerate_input():
+    """Edge inputs reachable from the UI (device dropped on another → distance 0,
+    blank frequency field → 0 Hz) must yield finite numbers, never raise.
+
+    Regression: ``fspl_db``/``fresnel_radius_m``/``max_range_m`` did ``log10`` /
+    divide on a 0 frequency and threw ValueError/ZeroDivisionError, surfacing as
+    a 500 on the wireless endpoints.
+    """
+    # zero distance, zero frequency
+    assert math.isfinite(rf.fspl_db(0.0, 0.0))
+    assert math.isfinite(rf.fspl_db(1000.0, 0.0))
+
+    z = rf.Radio(frequency_ghz=0.0)
+    b = rf.link_budget(z, rf.Radio(), 0.0)
+    assert math.isfinite(b.rssi_dbm)
+    assert math.isfinite(rf.max_range_m(z, rf.Radio()))
+
+    # fresnel / line-of-sight with a 0 frequency
+    assert rf.fresnel_radius_m(500.0, 500.0, 0.0) == 0.0
+    los = rf.line_of_sight(1000.0, 0.0, 10.0, 10.0, [(0, 0), (500, 5), (1000, 0)])
+    assert math.isfinite(los.worst_obstruction_m)

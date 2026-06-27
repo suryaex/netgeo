@@ -83,14 +83,13 @@ async def los_check(body: LosCheckRequest):
         profile = [p.model_dump() for p in body.profile]
         out_profile = None
     else:
-        try:
-            profile = await esvc.fetch_profile(
-                body.a_lat, body.a_lon, body.b_lat, body.b_lon, body.samples
-            )
-        except esvc.ElevationUnavailable as exc:
-            raise HTTPException(
-                status_code=503, detail=f"elevation provider: {exc}"
-            ) from exc
+        # fallback_to_flat=True: LoS check degrades gracefully when the elevation
+        # provider is offline by treating terrain as flat (elevation_m=0).  This
+        # allows the RF planner to keep working in air-gapped / offline deployments.
+        profile = await esvc.fetch_profile(
+            body.a_lat, body.a_lon, body.b_lat, body.b_lon, body.samples,
+            fallback_to_flat=True,
+        )
         out_profile = ElevationProfile(
             samples=len(profile),
             total_distance_m=profile[-1]["distance_m"] if profile else 0.0,

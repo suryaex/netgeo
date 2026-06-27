@@ -105,9 +105,15 @@ def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 # --- RF primitives ----------------------------------------------------------
 def fspl_db(distance_m: float, freq_hz: float) -> float:
-    """Free-space path loss in dB. Clamped at 1 m to avoid log10(0)."""
+    """Free-space path loss in dB. Clamped at 1 m / 1 Hz to avoid log10(0).
+
+    Distance and frequency are both floored at a tiny positive value so the
+    function never raises on degenerate input from the UI (e.g. a device dropped
+    on top of another → distance 0, or a frequency field left blank → 0 Hz).
+    """
     d = max(distance_m, 1.0)
-    return 20.0 * math.log10(d) + 20.0 * math.log10(freq_hz) + _FSPL_CONST
+    f = max(freq_hz, 1.0)
+    return 20.0 * math.log10(d) + 20.0 * math.log10(f) + _FSPL_CONST
 
 
 def noise_floor_dbm(bandwidth_mhz: float, noise_figure_db: float = 6.0) -> float:
@@ -182,7 +188,7 @@ def max_range_m(tx: Radio, rx: Radio) -> float:
         - rx.misc_loss_db
         - rx.rx_sensitivity_dbm
     )
-    exponent = (fspl_budget - 20.0 * math.log10(tx.freq_hz()) - _FSPL_CONST) / 20.0
+    exponent = (fspl_budget - 20.0 * math.log10(max(tx.freq_hz(), 1.0)) - _FSPL_CONST) / 20.0
     d = 10.0 ** exponent
     cap = tx.max_range_m if tx.max_range_m is not None else math.inf
     return max(0.0, min(d, cap))
@@ -275,7 +281,7 @@ def fresnel_radius_m(d1_m: float, d2_m: float, freq_hz: float, n: int = 1) -> fl
     Returns 0 at either endpoint (d1 or d2 == 0).
     """
     total = d1_m + d2_m
-    if total <= 0 or d1_m <= 0 or d2_m <= 0:
+    if total <= 0 or d1_m <= 0 or d2_m <= 0 or freq_hz <= 0:
         return 0.0
     lam = _C / freq_hz
     return math.sqrt(n * lam * d1_m * d2_m / total)

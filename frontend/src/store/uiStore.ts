@@ -4,16 +4,16 @@
  * Persists theme to localStorage; everything else is session state.
  */
 import { create } from 'zustand';
-import { applyTheme, type ThemeMode } from '@/theme/tokens';
+import { applyTheme, THEME_ORDER, type ThemeMode } from '@/theme/tokens';
 import type { SimState } from '@/api/types';
 
-const THEME_KEY = 'netforge.theme';
+const THEME_KEY = 'netgeo.theme';
 
 export type ViewMode = 'topology' | 'map';
 
 function initialTheme(): ThemeMode {
   const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null;
-  if (saved === 'light' || saved === 'dark') return saved;
+  if (saved === 'light' || saved === 'dark' || saved === 'high-contrast') return saved;
   return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
 }
 
@@ -29,6 +29,7 @@ interface UiState {
   viewMode: ViewMode;
 
   setTheme: (mode: ThemeMode) => void;
+  /** Cycle Dark → Light → High Contrast → Dark. */
   toggleTheme: () => void;
   setSimState: (s: SimState) => void;
   setSimSpeed: (n: number) => void;
@@ -56,7 +57,11 @@ export const useUiStore = create<UiState>((set, get) => ({
     localStorage.setItem(THEME_KEY, mode);
     set({ theme: mode });
   },
-  toggleTheme: () => get().setTheme(get().theme === 'dark' ? 'light' : 'dark'),
+  toggleTheme: () => {
+    const order = THEME_ORDER;
+    const idx = order.indexOf(get().theme);
+    get().setTheme(order[(idx + 1) % order.length]!);
+  },
   setSimState: (simState) => set({ simState }),
   setSimSpeed: (simSpeed) => set({ simSpeed }),
   applySimTick: (t, metrics, state) =>

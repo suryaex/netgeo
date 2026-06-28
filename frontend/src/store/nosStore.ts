@@ -1,12 +1,12 @@
 /**
  * NOS store — user-defined custom Network OS entries.
  * Persisted to localStorage so they survive page reloads.
- * Custom NOS keys are injected into PropertiesPanel dropdowns alongside
+ * Custom NOS keys are injected into the Inspector NOS dropdown alongside
  * the built-in Nos union values.
  */
 import { create } from 'zustand';
 
-const STORAGE_KEY = 'netforge.customNos';
+const STORAGE_KEY = 'netgeo.customNos';
 
 export interface CustomNosEntry {
   /** Unique slug, e.g. "openwrt-23" */

@@ -55,7 +55,7 @@ export function MenuBar({ projectName, conn }: MenuBarProps) {
         <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-accent text-[11px] font-bold text-white">
           N
         </span>
-        <span className="hidden sm:inline">NetForge</span>
+        <span className="hidden sm:inline">NetGeo</span>
       </div>
 
       <span className="text-white/30">/</span>

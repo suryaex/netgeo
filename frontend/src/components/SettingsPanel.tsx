@@ -17,6 +17,7 @@ import {
   Package,
   ChevronDown,
   Radio,
+  Contrast,
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
@@ -34,7 +35,7 @@ const SECTIONS: { key: Section; label: string; icon: typeof Cpu }[] = [
 
 /** Built-in NOS list (read-only display). */
 const BUILTIN_NOS = [
-  { key: 'forgeos', label: 'ForgeOS', description: 'Native simulation NOS' },
+  { key: 'forgeos', label: 'NetGeo OS', description: 'Native simulation NOS' },
   { key: 'ios', label: 'Cisco IOS', description: 'Classic IOS CLI' },
   { key: 'iosxr', label: 'Cisco IOS-XR', description: 'Service-provider grade' },
   { key: 'nxos', label: 'Cisco NX-OS', description: 'Datacenter switching' },
@@ -72,7 +73,7 @@ export function SettingsPanel() {
       </nav>
 
       {/* Content */}
-      <div className="nf-scroll min-h-0 flex-1 overflow-auto p-5">
+      <div className="ng-scroll min-h-0 flex-1 overflow-auto p-5">
         {activeSection === 'general' && <GeneralSection />}
         {activeSection === 'nos' && <NosSection />}
         {activeSection === 'devices' && <DeviceTypesSection />}
@@ -94,21 +95,26 @@ function GeneralSection() {
     <div className="space-y-6">
       <SectionHeading>Appearance</SectionHeading>
 
-      <Row label="Theme" description="Choose between dark and light interface.">
-        <div className="flex gap-2">
-          {(['dark', 'light'] as const).map((m) => (
+      <Row label="Theme" description="Light, Dark, or High Contrast interface.">
+        <div className="flex flex-wrap gap-2">
+          {([
+            { key: 'dark', label: 'Dark', icon: Moon },
+            { key: 'light', label: 'Light', icon: Sun },
+            { key: 'high-contrast', label: 'High Contrast', icon: Contrast },
+          ] as const).map(({ key, label, icon: Icon }) => (
             <button
-              key={m}
-              onClick={() => setTheme(m)}
+              key={key}
+              onClick={() => setTheme(key)}
+              aria-pressed={theme === key}
               className={cn(
                 'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors',
-                theme === m
+                theme === key
                   ? 'border-accent bg-accent/15 text-accent'
                   : 'border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white/85',
               )}
             >
-              {m === 'dark' ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
-              {m.charAt(0).toUpperCase() + m.slice(1)}
+              <Icon className="h-3.5 w-3.5" />
+              {label}
             </button>
           ))}
         </div>
@@ -135,8 +141,10 @@ function GeneralSection() {
 
       <SectionHeading>About</SectionHeading>
       <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60">
-        <p className="font-medium text-white/80">NetForge v0.1.0</p>
-        <p className="mt-0.5 text-xs">Network Simulation Platform — React + FastAPI</p>
+        <p className="font-medium text-white/80">NetGeo v0.1.0 Alpha</p>
+        <p className="mt-0.5 text-xs">
+          Network Simulation · Planning · GIS Digital-Twin · AI — React + FastAPI
+        </p>
       </div>
     </div>
   );
@@ -172,7 +180,7 @@ function NosSection() {
     <div className="space-y-6">
       <SectionHeading>Built-in Network Operating Systems</SectionHeading>
       <p className="text-xs text-white/45">
-        These NOS entries are built into NetForge and cannot be removed.
+        These NOS entries are built into NetGeo and cannot be removed.
       </p>
 
       <div className="space-y-1.5">
@@ -318,7 +326,7 @@ interface CustomDeviceType {
   createdAt: string;
 }
 
-const DEVICE_TYPES_KEY = 'netforge.deviceTypes';
+const DEVICE_TYPES_KEY = 'netgeo.deviceTypes';
 
 function loadDeviceTypes(): CustomDeviceType[] {
   try {

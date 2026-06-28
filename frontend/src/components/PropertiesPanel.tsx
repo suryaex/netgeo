@@ -15,7 +15,7 @@ import { CloudUplink } from '@/components/CloudUplink';
 import type { NodeMode, Nos } from '@/api/types';
 
 const BUILTIN_NOS: { value: string; label: string }[] = [
-  { value: 'forgeos', label: 'ForgeOS' },
+  { value: 'forgeos', label: 'NetGeo OS' },
   { value: 'ios', label: 'Cisco IOS' },
   { value: 'iosxr', label: 'Cisco IOS-XR' },
   { value: 'nxos', label: 'Cisco NX-OS' },
@@ -90,7 +90,7 @@ export function PropertiesPanel() {
   ];
 
   return (
-    <div className="nf-scroll h-full space-y-4 overflow-auto p-3">
+    <div className="ng-scroll h-full space-y-4 overflow-auto p-3">
       {/* Node summary header */}
       <div className="flex items-center gap-2.5 rounded-lg border border-white/8 bg-white/4 px-3 py-2">
         <div

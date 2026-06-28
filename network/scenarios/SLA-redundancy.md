@@ -1,8 +1,8 @@
-# SLA & Pola Redundansi — Apa yang Harus Bisa Disimulasikan NetForge
+# SLA & Pola Redundansi — Apa yang Harus Bisa Disimulasikan NetGeo
 
 Dokumen ini mendaftar pola High Availability (HA) yang lazim di backbone/datacenter carrier-grade,
 dijelaskan dari sudut pandang operasional nyata (bukan hanya teori buku), dan menyatakan
-**apa yang dibutuhkan dari engine NetForge** agar pola-pola ini bisa benar-benar disimulasikan
+**apa yang dibutuhkan dari engine NetGeo** agar pola-pola ini bisa benar-benar disimulasikan
 dengan hasil yang dapat dipercaya — bukan sekadar "link merah jadi hijau lagi".
 
 ---
@@ -55,7 +55,7 @@ bukan hanya satu yang "menang".
   setiap tier bisa menyebabkan beberapa path tidak pernah terpakai sama sekali (efek
   "polarisasi" — semua flow yang lolos hash tier-1 tertentu kebetulan jatuh ke hash yang sama
   di tier-2). Vendor nyata mengatasi ini dengan seed hash yang berbeda per-tier/per-device.
-  **NetForge sebaiknya memodelkan risiko ini**, bukan asumsi ECMP selalu sempurna.
+  **NetGeo sebaiknya memodelkan risiko ini**, bukan asumsi ECMP selalu sempurna.
 - **Resilient hashing** (modern, mis. Broadcom resilient ECMP): saat 1 path hilang, HANYA
   flow yang sebelumnya lewat path itu yang di-reshuffle — flow lain TIDAK terganggu. Hashing
   klasik (non-resilient) bisa reshuffle SEMUA flow saat 1 path berubah (member count ECMP
@@ -111,7 +111,7 @@ control-plane reconverge (SPF recompute IGP, dst). Backup path **sudah dihitung 
 ### Kebutuhan ke Engine
 - Engine **wajib bisa mensimulasikan dua kondisi berdampingan** (dengan FRR vs tanpa FRR)
   pada topologi yang SAMA, supaya tim dev/pengguna bisa melihat langsung gap performanya —
-  ini value proposition edukasi terbesar dari fitur simulasi failure di NetForge.
+  ini value proposition edukasi terbesar dari fitur simulasi failure di NetGeo.
 - Backup path FRR harus **pre-computed sebelum failure terjadi** dalam model engine (state
   "siap pakai"), bukan dihitung on-the-fly saat failure — supaya waktu failover yang
   disimulasikan benar-benar mendekati realita (real FRR TIDAK menghitung saat failure,
@@ -175,5 +175,5 @@ daripada menunggu timer native routing protocol.
   pola HA penting untuk maintenance window tanpa downtime, layak jadi skenario tambahan
   di masa depan jika ada kapasitas.
 - Semua **angka target waktu failover** di §3 adalah rule-of-thumb industri umum, BUKAN
-  janji SLA kontraktual nyata — kalau NetForge nanti dipakai untuk semacam SLA compliance
+  janji SLA kontraktual nyata — kalau NetGeo nanti dipakai untuk semacam SLA compliance
   testing produk asli, angka ini harus disesuaikan dengan kontrak SLA spesifik yang relevan.

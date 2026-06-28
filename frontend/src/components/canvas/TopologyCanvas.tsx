@@ -1,5 +1,5 @@
 /**
- * TopologyCanvas — the heart of NetForge. React Flow canvas with:
+ * TopologyCanvas — the heart of NetGeo's topology workspace. React Flow canvas with:
  *  - drag-drop device creation from the palette (HTML5 DnD)
  *  - link creation by dragging between node handles
  *  - zoom/pan, minimap, snap grid
@@ -140,7 +140,7 @@ export function TopologyCanvas() {
     (e: React.DragEvent) => {
       e.preventDefault();
       if (!projectId) return;
-      const key = e.dataTransfer.getData('application/netforge-device');
+      const key = e.dataTransfer.getData('application/netgeo-device');
       const tpl = deviceByKey[key];
       if (!tpl || !rfRef.current) return;
       const pos = rfRef.current.screenToFlowPosition({ x: e.clientX, y: e.clientY });

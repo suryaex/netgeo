@@ -22,7 +22,7 @@ import httpx
 
 from engine import wireless as rf
 
-logger = logging.getLogger("netforge.elevation")
+logger = logging.getLogger("netgeo.elevation")
 
 # Allowlisted provider — pinned to avoid SSRF via a user-supplied base URL.
 _PROVIDER_URL = "https://api.open-elevation.com/api/v1/lookup"

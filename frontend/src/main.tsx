@@ -1,7 +1,7 @@
 /**
- * NetForge entry point.
+ * NetGeo entry point.
  * Mounts <App/> with a single QueryClient (server-state cache) and the global
- * glassmorphism stylesheet. React Query handles fetch dedupe/caching so the
+ * design-system stylesheet. React Query handles fetch dedupe/caching so the
  * shell stays light; realtime updates flow through the WS channels, not polling.
  */
 import { StrictMode } from 'react';

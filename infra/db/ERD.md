@@ -1,6 +1,6 @@
-# NetForge — Entity-Relationship Diagram
+# NetGeo — Entity-Relationship Diagram
 
-Diagram relasi entitas lapisan data NetForge, mengacu pada `schema.sql` dan
+Diagram relasi entitas lapisan data NetGeo, mengacu pada `schema.sql` dan
 MASTER_SPEC §4. Notasi Mermaid (`erDiagram`) + ringkasan kardinalitas as-text.
 
 ## Diagram (Mermaid)

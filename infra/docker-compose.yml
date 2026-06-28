@@ -1,5 +1,5 @@
 # =============================================================================
-# NetForge — Docker Compose (DEVELOPMENT)
+# NetGeo — Docker Compose (DEVELOPMENT)
 # Jalankan: docker compose -f infra/docker-compose.yml up -d
 #
 # Fokus DX: hot-reload backend & frontend, port di-expose ke host, data
@@ -9,7 +9,7 @@
 # (amd64+arm64). Build lokal otomatis mengikuti arsitektur host.
 # =============================================================================
 
-name: netforge-dev
+name: netgeo-dev
 
 services:
   # ---------------------------------------------------------------------------
@@ -19,9 +19,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: netforge
-      POSTGRES_PASSWORD: netforge          # dev only; prod pakai secret
-      POSTGRES_DB: netforge
+      POSTGRES_USER: netgeo
+      POSTGRES_PASSWORD: netgeo          # dev only; prod pakai secret
+      POSTGRES_DB: netgeo
     ports:
       - "5432:5432"
     volumes:
@@ -29,7 +29,7 @@ services:
       # Bootstrap skema saat volume pertama kali kosong.
       - ./db/schema.sql:/docker-entrypoint-initdb.d/00_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U netforge -d netforge"]
+      test: ["CMD-SHELL", "pg_isready -U netgeo -d netgeo"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -66,7 +66,7 @@ services:
       # the pydantic-settings default ("0.1") when running compose directly
       # without install.sh.
       APP_VERSION: ${APP_VERSION:-0.1}
-      DATABASE_URL: postgresql+asyncpg://netforge:netforge@postgres:5432/netforge
+      DATABASE_URL: postgresql+asyncpg://netgeo:netgeo@postgres:5432/netgeo
       REDIS_URL: redis://redis:6379/0
       # install.sh computes CORS from the detected LAN/VPN/public IPs and passes
       # it here.  The default includes :8090 (nginx gateway) and both common dev

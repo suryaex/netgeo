@@ -1,5 +1,5 @@
 {
-  "$schema": "netforge.device.v1",
+  "$schema": "netgeo.device.v1",
   "category": "switches",
   "devices": [
     {

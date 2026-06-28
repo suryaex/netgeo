@@ -1,7 +1,7 @@
 {
-  "$schema": "netforge.device-index.v1",
+  "$schema": "netgeo.device-index.v1",
   "version": "1.0.0",
-  "generated_for": "NetForge device palette loader (frontend) + engine instantiation (backend)",
+  "generated_for": "NetGeo device palette loader (frontend) + engine instantiation (backend)",
   "interface_type_enum": ["eth", "sfp", "sfp28", "qsfp", "gpon", "wifi"],
   "node_kind_enum": ["router", "switch", "host", "ap", "olt", "firewall", "server"],
   "node_mode_enum": ["sim", "emul"],

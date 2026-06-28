@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Migration 0001 — init (UP)
--- Membuat skema awal NetForge: ekstensi, enum, helper, dan tabel inti.
+-- Membuat skema awal NetGeo: ekstensi, enum, helper, dan tabel inti.
 -- Setara dengan schema.sql, dipecah agar kompatibel dengan migration runner
 -- (sqitch / dbmate / migrate / alembic-via-raw-sql).
 -- =============================================================================
@@ -9,8 +9,8 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "citext";
 
-CREATE SCHEMA IF NOT EXISTS netforge;
-SET search_path TO netforge, public;
+CREATE SCHEMA IF NOT EXISTS netgeo;
+SET search_path TO netgeo, public;
 
 -- ---- Enum -------------------------------------------------------------------
 DO $$

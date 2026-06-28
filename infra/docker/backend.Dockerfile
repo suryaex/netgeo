@@ -1,5 +1,5 @@
 # =============================================================================
-# NetForge backend image — FastAPI + Uvicorn (MASTER_SPEC §2)
+# NetGeo backend image — FastAPI + Uvicorn (MASTER_SPEC §2)
 # Multi-arch (linux/amd64, linux/arm64) via base image multi-arch + buildx.
 # Build context = ../backend (lihat docker-compose.yml).
 # =============================================================================
@@ -34,15 +34,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq5 curl \
     && rm -rf /var/lib/apt/lists/* \
-    && groupadd -r netforge && useradd -r -g netforge -d /app netforge
+    && groupadd -r netgeo && useradd -r -g netgeo -d /app netgeo
 
 COPY --from=builder /opt/venv /opt/venv
 
 WORKDIR /app
 COPY . .
-RUN chown -R netforge:netforge /app
+RUN chown -R netgeo:netgeo /app
 
-USER netforge
+USER netgeo
 EXPOSE 8000
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \

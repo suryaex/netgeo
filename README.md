@@ -1,191 +1,342 @@
 <div align="center">
 
-# 🛠️ NetForge
+# NetGeo
 
-**Platform open-source simulasi & emulasi jaringan skala besar**
+**Next-generation large-scale network simulation, planning, GIS/digital-twin, and AI-assistant platform**
 
-*Kemudahan Cisco Packet Tracer · kedalaman GNS3/EVE-NG · manajemen visual ala Ubiquiti UISP —*
-*dengan UI desktop-class (rasa macOS / Windows 11) yang tetap seringan aplikasi Linux native.*
+*The simplicity of Cisco Packet Tracer · the depth of GNS3/EVE-NG · telecom-grade RF and optical planning —*
+*unified in a single cross-platform application built for engineers, researchers, and enterprises.*
 
-[![CI](https://github.com/suryaex/netforge/actions/workflows/backend.yml/badge.svg)](https://github.com/suryaex/netforge/actions)
-![Lisensi](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Python](https://img.shields.io/badge/python-3.12-blue)
+[![CI](https://github.com/suryaex/netgeo/actions/workflows/backend.yml/badge.svg)](https://github.com/suryaex/netgeo/actions)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Python](https://img.shields.io/badge/python-3.13+-blue)
 ![React](https://img.shields.io/badge/react-18-61dafb)
+![Status](https://img.shields.io/badge/status-alpha-orange)
 
 </div>
 
 ---
 
-## ✨ Apa itu NetForge?
+## What is NetGeo?
 
-NetForge mensimulasikan jaringan **ribuan node** (router, switch, host, AP, OLT, firewall) memakai
-**engine hybrid**: *discrete-event simulation* (DES) yang ringan untuk skala, plus *container
-emulation* (containerlab/Docker) untuk akurasi NOS nyata — mode bisa diatur **per-node** (`sim` ↔ `emul`).
+NetGeo is a **next-generation large-scale network simulation platform** that combines:
 
-Outputnya **konfigurasi nyata siap pakai** untuk banyak NOS. Dan pembeda utamanya: **ForgeOS** —
-NOS deklaratif *intent-based* baru. Anda mendeskripsikan *maksud* sekali (YAML), NetForge
-meng-compile-nya menjadi konfigurasi untuk **7 vendor sekaligus** — dan memverifikasinya di
-simulasi sebelum deploy.
+- **Network Design and Simulation** — discrete-event simulation engine supporting L2/L3, MPLS, EVPN/VXLAN, BGP, OSPF, IS-IS, Segment Routing, QoS, and more
+- **GIS Planning** — real-world geographic context with elevation, DEM, land use, building footprints, climate, and terrain-aware propagation models
+- **Digital Twin** — live telemetry ingestion, streaming metrics, and what-if simulation against live infrastructure
+- **AI Assistant** — MCP-compatible, provider-agnostic AI that designs topologies, generates vendor configs, detects faults, and optimizes routing
+- **Telecom Validation** — end-to-end validation for fiber, wireless, optical, and IP/MPLS infrastructure from home networks to national backbone
 
-> **Satu intent → banyak vendor config**, terverifikasi di simulasi.
+One application. The complete network engineering lifecycle — from design, through simulation and validation, all the way to deployment planning, documentation, and monitoring integration.
 
-## 🚀 Fitur Inti
+---
 
-| | |
-|---|---|
-| 🌐 **Simulasi skala besar** | Engine DES deterministik (seeded), target ribuan–puluhan ribu node mode `sim` |
-| 🧩 **Multi-skenario** | Campus, ISP/FTTH, datacenter spine-leaf EVPN-VXLAN, backbone metro-E/DWDM, MPLS L3VPN, DCI SR-MPLS |
-| ⚙️ **Config-gen multi-vendor** | Cisco IOS/IOS-XR/NX-OS · Juniper Junos · Arista EOS · MikroTik RouterOS · VyOS · FRRouting · **ForgeOS** |
-| 🧠 **ForgeOS intent-based** | Satu intent YAML → konfigurasi banyak vendor + verifikasi simulasi |
-| 🖥️ **UI desktop-class** | Window manager + dock + glassmorphism ala macOS/Win11, kanvas topologi React Flow, ringan (<200MB idle) |
-| 🔌 **Realtime** | WebSocket untuk topologi, telemetry, dan konsol per-perangkat |
-| 🌍 **Bridge dunia nyata** | Node **Internet / Cloud** menjembatani simulasi ke **adaptor ethernet host / internet** — backend mendeteksi NIC sistem + status internet, lalu node di-bind ke adapter pilihan (NAT/bridge) |
+## One-Command Install
 
-## 🧱 Arsitektur
-
-```
-┌───────────────────────────────────────────────────────────────┐
-│  Frontend  React 18 + Vite + Tailwind + React Flow             │
-│  window manager · dock · kanvas topologi · konsol · config view│
-└───────────────▲───────────────────────────────▲───────────────┘
-       REST /api │                     WS /ws/*  │
-┌───────────────┴───────────────────────────────┴───────────────┐
-│  Backend   FastAPI (async)                                     │
-│   ├─ API §4 : projects · nodes · links · scenarios · simulate  │
-│   │           · configs                                        │
-│   ├─ engine : DES kernel (event queue · scheduler · runtimes)  │
-│   │           + emulation adaptor (containerlab/Docker)        │
-│   └─ config-gen : Jinja2 per-vendor + ForgeOS compiler         │
-└───────────────▲───────────────────────────────▲───────────────┘
-                │ PostgreSQL (topologi/config)   │ Redis (state/PubSub/queue)
-                └────────────────────────────────┘
+**Linux**
+```bash
+curl -fsSL https://install.netgeo.io | bash
 ```
 
-## 📂 Struktur Repositori
+**Docker**
+```bash
+docker run netgeo/community
+```
 
-| Folder | Isi |
+**Windows**
+```
+NetGeoSetup.exe
+```
+
+**macOS**
+```bash
+brew install netgeo
+```
+
+> NetGeo is designed to start in under 3 seconds and idle below 300 MB RAM, while remaining interactive with projects exceeding 100,000 simulated nodes.
+
+---
+
+## Platform Modules
+
+### Workspace
+Multi-project workspace with auto-save, version history, real-time team collaboration, offline mode, and cloud sync. Maximum three clicks to any primary feature.
+
+### Simulation Engine
+Full-stack discrete-event simulation (DES) supporting:
+
+| Layer | Protocols |
 |---|---|
-| [`backend/`](backend/) | FastAPI app + engine DES + service config-gen/sim (`pytest`: 20 hijau) |
-| [`frontend/`](frontend/) | UI React desktop-class (shell, kanvas, panel, store) |
-| [`config-gen/`](config-gen/) | Template Jinja2 7 vendor + skema & contoh intent **ForgeOS** |
-| [`network/devices/library/`](network/devices/library/) | Pustaka perangkat (router, switch, OLT/ONU, firewall, AP, optical) sebagai data |
-| [`infra/`](infra/) | Skema PostgreSQL, Redis, Docker Compose, CI |
-| [`scripts/`](scripts/) | Utilitas operasional — mis. `self-update.sh` (update dari aplikasi) |
+| Layer 2 | Ethernet, 802.1Q VLAN, STP, LACP |
+| Layer 3 | IPv4, IPv6, Static, RIP, OSPF, IS-IS, BGP |
+| MPLS | LDP, RSVP-TE, Segment Routing, L3VPN, L2VPN |
+| Overlay | EVPN, VXLAN, GRE, IPSec, PPPoE |
+| Services | NAT, DHCP, DNS, QoS, Multicast |
 
-## ⚡ Mulai Cepat
+Simulation parameters: latency, jitter, packet loss, queue depth, CPU/RAM consumption, and physical-layer impairments.
 
-### Prasyarat
+### Wireless Simulation
+| Technology | Parameters |
+|---|---|
+| Wi-Fi 4/5/6/6E/7 | RSSI, SNR, noise floor, interference, channel plan |
+| LTE / 5G NR | Coverage, capacity, handover, beamforming |
+| Microwave | Fresnel zone, rain fade, path loss, terrain profile |
+| LoRaWAN / ZigBee / BLE | Propagation, gateway planning |
+| Satellite | Link budget, elevation angle, latency |
 
-- **Git** + **Docker & Docker Compose**. Di Linux installer bisa **auto-pasang Docker**;
-  di **Windows/macOS** pakai **Docker Desktop** (jalankan dulu sebelum install).
-- Port **8090** bebas (atau set `HTTP_PORT`).
+Terrain-aware: DEM elevation, vegetation loss, building attenuation, earth curvature, weather.
 
-### Langkah cepat (direkomendasikan)
+### Optical Network
+- GPON and XGS-PON planning with fiber budget and splitter design
+- OTN, DWDM, CWDM with channel plan and amplifier sizing
+- OTDR simulation and fiber fault localization
+
+### GIS Module
+Online and offline maps with:
+- Digital elevation model (DEM)
+- Land use, building footprints, road and rail networks
+- Population density, coastline, river data
+- Climate and weather overlays
+- Earth curvature correction for long-haul wireless and microwave links
+
+### AI Assistant
+- Design network topologies from natural-language intent
+- Generate vendor-specific configurations automatically
+- Detect misconfigurations, routing anomalies, and coverage gaps
+- Optimize routing, capacity, and redundancy
+- Generate technical documentation and reports
+- Explain network concepts interactively
+
+MCP-compatible. Provider-agnostic — works with any LLM backend.
+
+### Device Library
+| Category | Devices |
+|---|---|
+| Routing | Router, L3 Switch, Firewall |
+| Switching | L2 Switch, Access Switch |
+| Wireless | AP, Controller, BTS, Microwave |
+| Optical | OLT, ONU, DWDM Transponder |
+| Compute | Server, Client, IoT |
+| WAN | SD-WAN CPE, Satellite Terminal |
+
+All devices are data-driven and extensible via the plugin system.
+
+### Vendor Support (Plugin Architecture)
+
+| Tier | Vendors |
+|---|---|
+| Routing/Switching | MikroTik RouterOS, Cisco IOS/IOS-XE/NX-OS, Juniper JunOS, Arista EOS, Nokia SR OS |
+| Enterprise/Campus | Ubiquiti, TP-Link Omada, Ruijie, Cambium, OpenWrt |
+| Telecom | Ericsson, Huawei, ZTE, Nokia |
+| Open | Linux Networking, FRRouting, VyOS |
+
+Every vendor is implemented as a sandboxed, signed plugin. New vendors can be added without modifying the core engine.
+
+### Report Generator
+Export to PDF, DOCX, HTML, Markdown, JSON, and YAML. Reports cover topology diagrams, device inventories, IP addressing tables, link budgets, RF coverage maps, and simulation results.
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Presentation Layer                                                  │
+│  Desktop (Tauri)  ·  Web Client  ·  CLI                             │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │  REST /api/v1   WebSocket   gRPC
+┌──────────────────────────────▼──────────────────────────────────────┐
+│  Application Layer           FastAPI (async, Python 3.13+)          │
+│  Workspace Manager · Project Manager · AI Assistant                  │
+│  Simulation Orchestrator · Device Manager · Plugin Manager           │
+│  Map Manager · Report Engine · Event Bus                            │
+└──────────┬─────────────────┬────────────────────┬───────────────────┘
+           │                 │                    │
+┌──────────▼──────┐  ┌───────▼──────┐  ┌─────────▼────────┐
+│  Engine Layer   │  │  Data Layer  │  │  Plugin Layer    │
+│  Routing Engine │  │  SQLite      │  │  Vendor Drivers  │
+│  Switching Eng  │  │  PostgreSQL  │  │  Protocol Mods   │
+│  Wireless Eng   │  │  Redis       │  │  AI Tools        │
+│  Optical Engine │  │  Object Stor │  │  Report Exports  │
+│  GIS Engine     │  └──────────────┘  └──────────────────┘
+│  Packet Engine  │
+│  Validation Eng │
+└─────────────────┘
+```
+
+### Backend Stack
+
+| Component | Technology |
+|---|---|
+| Language | Python 3.13+ |
+| Framework | FastAPI (async) |
+| Concurrency | asyncio, Celery/Dramatiq |
+| Realtime | WebSocket |
+| ORM | SQLAlchemy + Pydantic |
+| Testing | Pytest |
+
+### Frontend Stack
+
+| Component | Technology |
+|---|---|
+| Framework | React 18 + TypeScript |
+| Build | Vite |
+| State | Zustand |
+| Canvas | React Flow |
+| Styling | Tailwind CSS |
+
+### Desktop Runtime
+
+Tauri (primary) for minimal footprint and fast startup. Electron as fallback for environments that require it.
+
+### Infrastructure
+
+Docker + Docker Compose (single-node). Kubernetes optional for enterprise scale.
+
+---
+
+## Repository Structure
+
+| Directory | Contents |
+|---|---|
+| `backend/` | FastAPI application, simulation engine (DES kernel, packet engine, scheduler), API routes, services |
+| `frontend/` | React desktop-class UI — workspace shell, topology canvas, panels, real-time console |
+| `network/devices/library/` | Vendor-agnostic device library (routers, switches, OLT/ONU, firewalls, AP, optical transport) |
+| `infra/` | PostgreSQL schema, migrations, Redis config, Docker Compose files, CI config |
+| `scripts/` | Operational utilities — `self-update.sh` for in-app update flow |
+| `docs/` | Architecture docs, API reference, REBRAND_PLAN |
+| `NetGeo/` | Authoritative product specification documents (vision, PRD, architecture, roadmap) |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- **Git** + **Docker and Docker Compose**
+  - Linux: installer auto-installs Docker (Fedora, Ubuntu, Debian, RHEL, Arch)
+  - Windows/macOS: install Docker Desktop first
+- Port **8090** free (or set `HTTP_PORT`)
+
+### Install and Run
 
 ```bash
-# 1) Ambil sumbernya
-git clone https://github.com/suryaex/netforge.git
-cd netforge
+# 1. Clone
+git clone https://github.com/suryaex/netgeo.git
+cd netgeo
 
-# 2) Pasang & jalankan — auto: Docker, .env + secret, deteksi LAN, build, tunggu health
-./install.sh            # Windows (PowerShell):  .\install.ps1
+# 2. Install, build, and start
+./install.sh            # Linux/macOS
+.\install.ps1           # Windows PowerShell
 ```
 
-Installer mem-build + menjalankan seluruh stack (postgres · redis · backend FastAPI ·
-frontend Vite) di belakang satu gateway nginx, menunggu `/api/health`, lalu mencetak URL:
+The installer generates secrets, builds the full stack (PostgreSQL + Redis + FastAPI backend + React frontend) behind a single nginx gateway, waits for `/api/health`, and prints access URLs:
 
 ```
-On this machine     →  http://localhost:8090
-On the network      →  http://<LAN-IP>:8090     (buka dari HP/PC lain)
-API docs            →  http://<LAN-IP>:8090/docs
+On this machine  ->  http://localhost:8090
+On the network   ->  http://<LAN-IP>:8090
+API docs         ->  http://<LAN-IP>:8090/docs
 ```
 
-3. Buka URL di atas. Selesai.
+### Install Options
 
-> Port **8090** dipilih agar tidak bentrok dengan project saudara di host yang
-> sama (SecureOps `:80`, StorageHub `:8080`). Override: `HTTP_PORT=9000 ./install.sh`.
-
-### Daftar perintah
-
-| Perintah | Fungsi |
+| Command | Effect |
 |---|---|
-| `git clone https://github.com/suryaex/netforge.git && cd netforge` | Ambil sumber |
-| `./install.sh` | Pasang + build + start (dev, gateway LAN nginx `:8090`) |
-| `make install` | Sama seperti `./install.sh` (lewat Make) |
-| `./install.sh --prod` | Stack produksi (image immutable, nginx, scale) |
-| `./install.sh --rebuild` | Build ulang image dari nol (no cache) |
-| `./install.sh --no-build` | Start tanpa build ulang |
-| `./install.sh --down` | Stop stack |
-| `./install.sh --reset` | Stop + **HAPUS** semua data (volume) |
-| `./install.sh --tailscale` | Pasang + join Tailscale, pakai IP VPN-nya |
-| `./install.sh --public` | Deteksi IP publik & tambahkan ke CORS |
-| `HTTP_PORT=9000 ./install.sh` | Ganti port HTTP |
-| `.\install.ps1` | Versi Windows (PowerShell) |
-| `./uninstall.sh` · `./uninstall.sh --purge` | Uninstall · + hapus volume |
-| `make help` | Daftar target Make (`up`, `prod`, `down`, `logs`, `ps`, …) |
+| `./install.sh` | Build + start (dev stack, nginx LAN gateway on port 8090) |
+| `./install.sh --prod` | Production stack (immutable images, nginx, scale) |
+| `./install.sh --rebuild` | Force rebuild images (no cache) |
+| `./install.sh --no-build` | Start without rebuilding |
+| `./install.sh --down` | Stop the stack |
+| `./install.sh --reset` | Stop and DELETE all data (volumes) |
+| `./install.sh --tailscale` | Install + join Tailscale, use VPN IP |
+| `./install.sh --public` | Detect public IP and add to CORS |
+| `HTTP_PORT=9000 ./install.sh` | Override HTTP port |
+| `.\install.ps1 -Down` | Windows stop |
+| `./uninstall.sh` | Uninstall (keep data) |
+| `./uninstall.sh --purge` | Uninstall + delete all volumes |
+| `make help` | List all Make targets |
 
-### Manual (per komponen)
+### Manual (Component by Component)
 
 <details>
-<summary>Backend · Frontend · Docker Compose mentah</summary>
+<summary>Backend, Frontend, raw Docker Compose</summary>
 
 ```bash
 # Backend
 cd backend
-python3.12 -m venv .venv && source .venv/bin/activate
+python3.13 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000        # http://localhost:8000/docs
-pytest -q                                         # 20 passed
+uvicorn app.main:app --reload --port 8000    # http://localhost:8000/docs
+pytest -q
 
 # Frontend
 cd frontend
 npm install
-npm run dev                                       # http://localhost:5173
+npm run dev                                  # http://localhost:5173
 
-# Semuanya (Docker Compose mentah, tanpa gateway LAN)
-docker compose -f infra/docker-compose.yml up --build   # postgres + redis + backend + frontend
+# Full stack (raw Docker Compose, no LAN gateway)
+docker compose -f infra/docker-compose.yml up --build
 ```
 
 </details>
 
-### Contoh: satu intent → banyak vendor
-```bash
-cd backend
-python - <<'PY'
-from app.models import Node, Interface
-from app.services import configgen
-node = Node(id="n1", project_id="p1", name="PE1", nos="forgeos",
-    interfaces=[Interface(id="i1", node_id="n1", name="Gi0/0", ip=["10.0.0.1/24"])],
-    intent={"bgp":{"asn":65001,"router_id":"1.1.1.1",
-                   "neighbors":[{"ip":"10.0.0.2","remote_as":65002}]}})
-for v in ("ios","junos","eos","routeros","vyos","frr","forgeos"):
-    print(f"\n===== {v} =====\n{configgen.render(node, v)}")
-PY
-```
+---
 
-## 🔄 Update dari aplikasi
+## In-App Self-Update
 
-NetForge bisa **cek & pasang update langsung dari aplikasi** — ikon unduh di menu bar atas
-membandingkan versi yang berjalan dengan rilis terbaru di GitHub, lalu (opsional)
-menerapkannya: *pull → rebuild → restart*.
+NetGeo can check for and apply updates directly from the UI — the download icon in the top menu bar compares the running version against the latest GitHub release, then (optionally) pulls, rebuilds, and restarts.
 
-- `GET /api/update/check` — bandingkan versi (read-only)
-- `POST /api/update/apply` — jalankan upgrade (dijaga `UPDATE_TOKEN`; nonaktif bila kosong)
-- [`scripts/self-update.sh`](scripts/self-update.sh) — satu-satunya skrip yang dijalankan
-  backend: checkout tag rilis terbaru + `docker compose up -d --build`
+- `GET /api/update/check` — compare versions (read-only)
+- `POST /api/update/apply` — execute upgrade (requires `UPDATE_TOKEN`; disabled when empty)
+- `scripts/self-update.sh` — the single auditable script the backend executes: checkout latest tag + `docker compose up -d --build`
 
-Manual: `./scripts/self-update.sh --check` · `--apply` · `--watch`.
+Manual: `./scripts/self-update.sh --check` / `--apply` / `--watch`
 
-## 🗺️ Roadmap (ringkas)
+---
 
-- **MVP** — kanvas + DES dasar + config-gen + ForgeOS compiler (≤ ~1.000 node)
-- **v1** — emulasi containerlab, verifikasi intent, skenario besar (≤ ~10.000 node)
-- **v2** — sharding terdistribusi, digital twin, AI-assisted topology
+## Development Roadmap
 
-## 🤝 Kontribusi
+| Phase | Focus | Status |
+|---|---|---|
+| Phase 0 — Foundation | Vision, architecture, database schema, plugin SDK, API standard | Completed |
+| Phase 1 — Core Platform | Workspace, project manager, device library, canvas, map engine, simulation MVP | Alpha |
+| Phase 2 — Network Simulation | Routing, switching, wireless, optical, traffic generator, packet analyzer | Beta |
+| Phase 3 — Enterprise | Collaboration, RBAC, plugin marketplace, AI assistant, report engine, cloud sync | Planned |
+| Phase 4 — Telecom Planning | RF planning, GPON/fiber planning, microwave planning, capacity planning | Planned |
+| Phase 5 — Digital Twin | Live monitoring, streaming telemetry, predictive AI, what-if simulation | Planned |
+| Phase 6 — Ecosystem | Public SDK, plugin marketplace, vendor certification, enterprise support | Planned |
 
-Kontribusi memakai DCO & SemVer — buka issue / pull request di GitHub.
+**Success Metrics:** startup < 3 s, idle RAM < 300 MB, 1,000,000 simulated devices, 60 FPS canvas, cross-platform.
 
-## 📜 Lisensi
+---
 
-[Apache-2.0](LICENSE) © Muhammad Surya Ragasin — Politeknik Negeri Sriwijaya, D4 Teknik Telekomunikasi.
+## Target Users
+
+- Students and researchers
+- Network engineers and architects
+- ISPs and mobile operators
+- Data center and cloud engineers
+- Telecommunications regulators and government
+- Enterprise IT and operations teams
+
+---
+
+## Security
+
+- RBAC with role-based access control
+- Plugin sandbox and digital signature validation
+- Secret vault integration
+- Audit log for all simulation and configuration actions
+- OAuth2, API Key, JWT, and Personal Access Token authentication
+
+---
+
+## Contributing
+
+Contributions use DCO and SemVer. Open an issue or pull request at [github.com/suryaex/netgeo](https://github.com/suryaex/netgeo).
+
+---
+
+## License
+
+[Apache-2.0](LICENSE) (c) Muhammad Surya Ragasin — Politeknik Negeri Sriwijaya, D4 Teknik Telekomunikasi.

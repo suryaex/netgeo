@@ -99,5 +99,5 @@ super-spine yang sama. Dengan pola ini:
   paling sering di operasional DC nyata — worth dimodelkan sebagai failure mode khusus.
 - Oversubscription 2:1 itu **rata-rata jam sibuk**, bukan worst-case. DC AI/ML training
   modern menuntut 1:1 (non-blocking) karena GPU-to-GPU RDMA sangat sensitif terhadap
-  microburst drop — kalau NetForge mau dukung skenario AI fabric di masa depan, ini perlu
+  microburst drop — kalau NetGeo mau dukung skenario AI fabric di masa depan, ini perlu
   parameter oversubscription yang bisa diubah per-pod, bukan hardcoded.

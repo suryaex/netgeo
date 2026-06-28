@@ -1,4 +1,4 @@
-# NetForge — Migrasi Database
+# NetGeo — Migrasi Database
 
 Migrasi SQL bernomor (gaya `dbmate` / `migrate` / `sqitch`), tanpa lock-in ORM.
 Backend FastAPI boleh menjalankannya lewat runner pilihan atau langsung `psql`.
@@ -35,7 +35,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f 0001_init.down.sql
 ### Lewat dbmate (rekomendasi CI)
 
 ```bash
-export DATABASE_URL="postgres://netforge:secret@localhost:5432/netforge?sslmode=disable"
+export DATABASE_URL="postgres://netgeo:secret@localhost:5432/netgeo?sslmode=disable"
 dbmate --migrations-dir ./ up
 dbmate --migrations-dir ./ rollback
 ```

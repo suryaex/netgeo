@@ -1,10 +1,10 @@
 -- =============================================================================
 -- Migration 0001 — init (DOWN / rollback)
--- Membatalkan migrasi 0001. DESTRUKTIF: menghapus seluruh data NetForge.
+-- Membatalkan migrasi 0001. DESTRUKTIF: menghapus seluruh data NetGeo.
 -- Urutan drop memperhatikan dependensi FK (anak -> induk) lalu type & schema.
 -- =============================================================================
 BEGIN;
-SET search_path TO netforge, public;
+SET search_path TO netgeo, public;
 
 DROP VIEW  IF EXISTS v_project_topology;
 
@@ -30,6 +30,6 @@ DROP TYPE IF EXISTS nos_kind;
 DROP TYPE IF EXISTS node_kind;
 
 -- Schema dibiarkan (mungkin dipakai objek lain). Hapus manual bila perlu:
--- DROP SCHEMA IF EXISTS netforge CASCADE;
+-- DROP SCHEMA IF EXISTS netgeo CASCADE;
 
 COMMIT;

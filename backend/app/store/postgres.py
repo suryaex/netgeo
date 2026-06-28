@@ -51,7 +51,7 @@ from app.utils.ids import new_id
 
 # --- ORM (ringkas; DDL kanonik ada di infra/db/schema.sql) ------------------
 class Base(DeclarativeBase):
-    """Declarative base untuk model ORM NetForge."""
+    """Declarative base untuk model ORM NetGeo."""
 
 
 class ProjectRow(Base):

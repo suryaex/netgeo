@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# NetForge — one-shot Docker installer (mirrors StorageHub / SecureOps)
+# NetGeo — one-shot Docker installer (mirrors StorageHub / SecureOps)
 # Auto-installs Docker (resilient on Fedora/WSL), generates .env, detects the
 # LAN/Tailscale/public address, builds + starts the stack, opens the host
 # firewall for the entry port (LAN + VPN), waits for health, and prints the
@@ -18,7 +18,7 @@
 #   ./install.sh --public     # auto-detect public IP and add it to CORS
 # Env: HTTP_PORT=8090         (LAN/public HTTP entry — 8090 avoids SecureOps :80
 #                              and StorageHub :8080 on a shared host)
-#      PUBLIC_HOST=netforge.example.com   (public domain for CORS)
+#      PUBLIC_HOST=netgeo.example.com     (public domain for CORS)
 #      PUBLIC_IP=1.2.3.4                  (advertise a fixed public IP)
 #
 # Stack (infra/docker-compose.yml): postgres:5432 · redis:6379 ·
@@ -50,7 +50,7 @@ for a in "$@"; do case "$a" in
   -h|--help) sed -n '8,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 esac; done
 
-# Host HTTP port — 8090 so NetForge does NOT collide with SecureOps (:80)
+# Host HTTP port — 8090 so NetGeo does NOT collide with SecureOps (:80)
 # or StorageHub (:8080) on a shared host.
 HTTP_PORT="${HTTP_PORT:-8090}"
 DOCKER_SUDO=""
@@ -242,7 +242,7 @@ ts_ip() {
 }
 pub_ip() { curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || curl -fsS --max-time 5 https://ifconfig.me 2>/dev/null || true; }
 
-# Open the host firewall for the HTTP entry port so other devices reach NetForge
+# Open the host firewall for the HTTP entry port so other devices reach NetGeo
 # over the LAN *and* the VPN (tailscale0) interface. Without this, a healthy
 # stack still times out from a phone/PC because firewalld/ufw drops the SYN.
 # Best-effort and idempotent: handles firewalld (Fedora/RHEL), ufw (Debian/
@@ -274,6 +274,7 @@ open_firewall() {
 # mechanism the sibling apps rely on. Needs one UAC approval; no-op outside WSL,
 # outside mirrored mode, or if the rule already exists. (NAT-mode WSL would need a
 # netsh portproxy instead — out of scope; use --tailscale for remote access there.)
+# NetGeo uses the same pattern as sibling apps in the suite.
 WSL_VMCREATOR='{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'   # fixed WSL VM creator id
 setup_wsl_firewall() {
   is_wsl || return 0
@@ -287,18 +288,18 @@ setup_wsl_firewall() {
   powershell.exe -NoProfile -Command "if((Get-Content \$env:USERPROFILE\\.wslconfig -ErrorAction SilentlyContinue) -match 'networkingMode\\s*=\\s*mirrored'){exit 0}else{exit 1}" >/dev/null 2>&1 && mirrored=1
 
   if [ "$mirrored" = "1" ]; then
-    if powershell.exe -NoProfile -Command "if(Get-NetFirewallHyperVRule -Name 'NetForge-${port}' -ErrorAction SilentlyContinue){exit 0}else{exit 1}" >/dev/null 2>&1; then
+    if powershell.exe -NoProfile -Command "if(Get-NetFirewallHyperVRule -Name 'NetGeo-${port}' -ErrorAction SilentlyContinue){exit 0}else{exit 1}" >/dev/null 2>&1; then
       ok "Windows firewall already allows TCP ${port} into WSL (LAN ready)"; return 0
     fi
     info "WSL mirrored networking — adding a Windows firewall rule for TCP ${port} (approve the UAC prompt)…"
     local ps enc
-    ps="New-NetFirewallHyperVRule -Name 'NetForge-${port}' -DisplayName 'NetForge ${port} (WSL LAN)' -Direction Inbound -VMCreatorId '${WSL_VMCREATOR}' -Protocol TCP -LocalPorts ${port} -Action Allow -ErrorAction SilentlyContinue; New-NetFirewallRule -DisplayName 'NetForge ${port}' -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${port} -Profile Any -ErrorAction SilentlyContinue"
+    ps="New-NetFirewallHyperVRule -Name 'NetGeo-${port}' -DisplayName 'NetGeo ${port} (WSL LAN)' -Direction Inbound -VMCreatorId '${WSL_VMCREATOR}' -Protocol TCP -LocalPorts ${port} -Action Allow -ErrorAction SilentlyContinue; New-NetFirewallRule -DisplayName 'NetGeo ${port}' -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${port} -Profile Any -ErrorAction SilentlyContinue"
     enc="$(powershell.exe -NoProfile -Command "[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('${ps}'))" 2>/dev/null | tr -d '\r')"
     if [ -n "$enc" ] && powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-EncodedCommand','${enc}'" >/dev/null 2>&1; then
-      ok "Windows firewall rule added — NetForge reachable from the LAN on the host IP:${port}"
+      ok "Windows firewall rule added — NetGeo reachable from the LAN on the host IP:${port}"
     else
       warn "Could not add the Windows firewall rule automatically (UAC declined?). Run this in an elevated PowerShell:"
-      warn "  New-NetFirewallHyperVRule -Name 'NetForge-${port}' -DisplayName 'NetForge ${port}' -Direction Inbound -VMCreatorId '${WSL_VMCREATOR}' -Protocol TCP -LocalPorts ${port} -Action Allow"
+      warn "  New-NetFirewallHyperVRule -Name 'NetGeo-${port}' -DisplayName 'NetGeo ${port} (WSL LAN)' -Direction Inbound -VMCreatorId '${WSL_VMCREATOR}' -Protocol TCP -LocalPorts ${port} -Action Allow"
     fi
     return 0
   fi
@@ -309,15 +310,15 @@ setup_wsl_firewall() {
   [ -z "$wsl_ip" ] && { warn "WSL NAT mode but couldn't read eth0 IP — add a portproxy + open TCP ${port} on Windows manually."; return 0; }
   info "WSL NAT networking — forwarding Windows :${port} → WSL ${wsl_ip}:${port} (approve the UAC prompt)…"
   local ps enc
-  ps="netsh interface portproxy delete v4tov4 listenaddress=0.0.0.0 listenport=${port} 2>\$null | Out-Null; netsh interface portproxy add v4tov4 listenaddress=0.0.0.0 listenport=${port} connectaddress=${wsl_ip} connectport=${port}; New-NetFirewallRule -DisplayName 'NetForge ${port}' -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${port} -Profile Any -ErrorAction SilentlyContinue"
+  ps="netsh interface portproxy delete v4tov4 listenaddress=0.0.0.0 listenport=${port} 2>\$null | Out-Null; netsh interface portproxy add v4tov4 listenaddress=0.0.0.0 listenport=${port} connectaddress=${wsl_ip} connectport=${port}; New-NetFirewallRule -DisplayName 'NetGeo ${port}' -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${port} -Profile Any -ErrorAction SilentlyContinue"
   enc="$(powershell.exe -NoProfile -Command "[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('${ps}'))" 2>/dev/null | tr -d '\r')"
   if [ -n "$enc" ] && powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-EncodedCommand','${enc}'" >/dev/null 2>&1; then
-    ok "Windows portproxy + firewall set — NetForge reachable on the host LAN/VPN IP:${port}"
+    ok "Windows portproxy + firewall set — NetGeo reachable on the host LAN/VPN IP:${port}"
     warn "WSL's NAT IP can change after a reboot — re-run ./install.sh to refresh the portproxy."
   else
     warn "Could not set the portproxy automatically (UAC declined?). Run this in an elevated PowerShell:"
     warn "  netsh interface portproxy add v4tov4 listenaddress=0.0.0.0 listenport=${port} connectaddress=${wsl_ip} connectport=${port}"
-    warn "  New-NetFirewallRule -DisplayName 'NetForge ${port}' -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${port} -Profile Any"
+    warn "  New-NetFirewallRule -DisplayName 'NetGeo ${port}' -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${port} -Profile Any"
   fi
 }
 
@@ -360,9 +361,9 @@ if [ "$ACTION" = "reset" ]; then
 fi
 
 echo ""
-echo "  ╭───────────────────────────────────────────────╮"
-echo "  │  NetForge · network simulation & emulation     │"
-echo "  ╰───────────────────────────────────────────────╯"
+echo "  ╭────────────────────────────────────────────────────────╮"
+echo "  │  NetGeo · network simulation, GIS, digital twin & AI   │"
+echo "  ╰────────────────────────────────────────────────────────╯"
 echo ""
 
 ensure_docker
@@ -459,7 +460,7 @@ echo ""
 
 # ── 4. Done ──────────────────────────────────────────────────────────────────
 echo ""
-ok "NetForge is up!"
+ok "NetGeo is up!"
 echo ""
 echo -e "  ${GREEN}On this machine${NC}     →  http://localhost:${HTTP_PORT}"
 echo -e "  ${GREEN}On the network${NC}      →  http://${IP}:${HTTP_PORT}   (open from phone/other PCs)"
@@ -470,5 +471,5 @@ echo -e "  ${GREEN}Health${NC}              →  http://${IP}:${HTTP_PORT}/api/h
 echo ""
 echo "  TCP ${HTTP_PORT} is auto-opened in the host firewall; if a device still can't"
 echo "  reach it, check your router/cloud security group allows TCP ${HTTP_PORT}."
-echo "  Logs: $COMPOSE $CF logs -f   |   Stop: ./install.sh --down${PROD:+  (--prod)}"
+echo "  Logs: $COMPOSE $CF logs -f   |   Stop: ./install.sh --down${PROD:+  (--prod)}   |   https://github.com/suryaex/netgeo"
 echo ""

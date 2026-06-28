@@ -1,5 +1,5 @@
 {
-  "$schema": "netforge.device.v1",
+  "$schema": "netgeo.device.v1",
   "category": "optical-transport",
   "_notes": "DWDM/OTN. Dimodelkan kind='router' subcategory='optical-dwdm' (node transport L1/L0). Client-side = qsfp/sfp28/sfp grey optics; line-side = lambda DWDM (dimodelkan type 'qsfp' dengan tag dwdm-line).",
   "devices": [

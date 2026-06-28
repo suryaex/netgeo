@@ -1,5 +1,5 @@
 """Host network bridge — discover the machine's real ethernet adapters and
-internet reachability so a NetForge **cloud node** can attach the simulation to
+internet reachability so a NetGeo **cloud node** can attach the simulation to
 the outside world (LAN / internet), GNS3-cloud style.
 
 This module is read-only and side-effect free: it *reports* what the host has.

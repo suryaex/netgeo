@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# NetForge self-update — the single, auditable script the in-app updater runs.
+# NetGeo self-update — the single, auditable script the in-app updater runs.
 #
 # It pulls the latest released tag (or the configured branch), rebuilds the
 # Docker images, and restarts the stack. The backend never executes anything
@@ -11,18 +11,18 @@
 #   scripts/self-update.sh --watch     # poll for the trigger file, then --apply
 #
 # Env:
-#   GITHUB_REPO         owner/name to compare releases against (default: suryaex/netforge)
+#   GITHUB_REPO         owner/name to compare releases against (default: suryaex/netgeo)
 #   UPDATE_BRANCH       branch to fast-forward when no tag is targeted (default: main)
-#   UPDATE_TRIGGER_FILE sentinel written by the backend (default: /var/lib/netforge/update.request)
-#   UPDATE_STATUS_FILE  progress file the UI reads     (default: /var/lib/netforge/update.status)
+#   UPDATE_TRIGGER_FILE sentinel written by the backend (default: /var/lib/netgeo/update.request)
+#   UPDATE_STATUS_FILE  progress file the UI reads     (default: /var/lib/netgeo/update.status)
 #
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GITHUB_REPO="${GITHUB_REPO:-suryaex/netforge}"
+GITHUB_REPO="${GITHUB_REPO:-suryaex/netgeo}"
 UPDATE_BRANCH="${UPDATE_BRANCH:-main}"
-UPDATE_TRIGGER_FILE="${UPDATE_TRIGGER_FILE:-/var/lib/netforge/update.request}"
-UPDATE_STATUS_FILE="${UPDATE_STATUS_FILE:-/var/lib/netforge/update.status}"
+UPDATE_TRIGGER_FILE="${UPDATE_TRIGGER_FILE:-/var/lib/netgeo/update.request}"
+UPDATE_STATUS_FILE="${UPDATE_STATUS_FILE:-/var/lib/netgeo/update.status}"
 
 log()    { printf '[self-update] %s\n' "$*" >&2; }
 status() { # state, message

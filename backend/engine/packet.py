@@ -1,6 +1,6 @@
 """Packet primitive for the data-plane model.
 
-NetForge's DES kernel works at a configurable granularity. By default it does
+NetGeo's DES kernel works at a configurable granularity. By default it does
 *flow-aware packet-level* modelling: real ``Packet`` objects traverse links so
 latency/loss/MTU behave realistically, but the engine is free to coarsen to
 flow-level accounting for very large topologies (see engine/README.md →

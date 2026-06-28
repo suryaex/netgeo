@@ -1,4 +1,4 @@
-# NetForge — CI/CD (GitHub Actions)
+# NetGeo — CI/CD (GitHub Actions)
 
 Workflow di sini berada di area `infra/` (kepemilikan db-devops-architect).
 GitHub Actions hanya membaca workflow dari `.github/workflows/` di root repo,

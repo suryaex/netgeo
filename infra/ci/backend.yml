@@ -1,5 +1,5 @@
 # =============================================================================
-# NetForge CI — Backend (lint + test)
+# NetGeo CI — Backend (lint + test)
 # Salin/symlink ke .github/workflows/backend.yml di root repo (orchestrator).
 # =============================================================================
 name: backend-ci
@@ -18,12 +18,12 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: netforge
-          POSTGRES_PASSWORD: netforge
-          POSTGRES_DB: netforge
+          POSTGRES_USER: netgeo
+          POSTGRES_PASSWORD: netgeo
+          POSTGRES_DB: netgeo
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U netforge -d netforge"
+          --health-cmd "pg_isready -U netgeo -d netgeo"
           --health-interval 10s --health-timeout 5s --health-retries 5
       redis:
         image: redis:7-alpine
@@ -33,7 +33,7 @@ jobs:
           --health-interval 10s --health-timeout 3s --health-retries 5
 
     env:
-      DATABASE_URL: postgresql+asyncpg://netforge:netforge@localhost:5432/netforge
+      DATABASE_URL: postgresql+asyncpg://netgeo:netgeo@localhost:5432/netgeo
       REDIS_URL: redis://localhost:6379/0
 
     steps:
@@ -54,7 +54,7 @@ jobs:
 
       - name: Apply DB schema
         run: |
-          PGPASSWORD=netforge psql -h localhost -U netforge -d netforge \
+          PGPASSWORD=netgeo psql -h localhost -U netgeo -d netgeo \
             -v ON_ERROR_STOP=1 -f infra/db/migrations/0001_init.up.sql
 
       - name: Lint (ruff)

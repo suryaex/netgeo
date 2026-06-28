@@ -1,6 +1,6 @@
-# NetForge — Backend
+# NetGeo — Backend
 
-Backend NetForge: **FastAPI (async) + engine simulasi discrete-event**.
+Backend NetGeo: **FastAPI (async) + engine simulasi discrete-event**.
 Mengimplementasikan permukaan REST/WebSocket pada MASTER_SPEC §4 dan
 men-*generate* config multi-vendor (ForgeOS: satu intent → banyak NOS, §5).
 
@@ -94,7 +94,7 @@ uvicorn app.main:app --reload --port 8000
 ### Smoke test (import OK)
 
 ```bash
-python -c "from app.main import app; print('netforge backend imports OK')"
+python -c "from app.main import app; print('netgeo backend imports OK')"
 ```
 
 ### Test suite

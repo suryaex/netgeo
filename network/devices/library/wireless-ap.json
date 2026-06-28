@@ -1,5 +1,5 @@
 {
-  "$schema": "netforge.device.v1",
+  "$schema": "netgeo.device.v1",
   "category": "wireless-ap",
   "_notes": "Access Point WLAN. port 'wifi' = radio (speed_mbps = PHY rate agregat maks). Uplink eth/sfp ke switch (umumnya PoE-powered).",
   "devices": [

@@ -1,4 +1,4 @@
-# NetForge — developer convenience targets (compose files live in infra/).
+# NetGeo — developer convenience targets (compose files live in infra/).
 # `make help` lists everything.
 .PHONY: help install up prod down reset rebuild build logs ps backend frontend migrate clean
 
@@ -49,7 +49,7 @@ frontend:      ## Run frontend dev server
 migrate:       ## Apply SQL migrations into the running Postgres container (psql)
 	@for f in infra/db/migrations/*.up.sql; do \
 	  echo "==> applying $$f"; \
-	  $(DC) $(DEV) exec -T postgres psql -U netforge -d netforge -v ON_ERROR_STOP=1 < "$$f"; \
+	  $(DC) $(DEV) exec -T postgres psql -U netgeo -d netgeo -v ON_ERROR_STOP=1 < "$$f"; \
 	done
 
 clean:         ## Remove dangling images/build cache

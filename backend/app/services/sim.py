@@ -25,7 +25,7 @@ from engine import (
     SimulationConfig,
 )
 
-logger = logging.getLogger("netforge.sim")
+logger = logging.getLogger("netgeo.sim")
 
 _MBPS = 1_000_000  # Mbps -> bits/s
 

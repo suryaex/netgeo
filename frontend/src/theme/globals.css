@@ -2,7 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---- Root / desktop wallpaper -------------------------------------------- */
+/* ===========================================================================
+   NetGeo global stylesheet
+   Workspace-first IDE shell: the app owns layout + scrolling, not the page.
+   All colors derive from CSS variables written by theme/tokens.ts so the
+   Light / Dark / High-Contrast themes re-skin everything at once.
+   =========================================================================== */
+
 html,
 body,
 #root {
@@ -12,59 +18,79 @@ body,
 
 body {
   font-family: theme('fontFamily.sans');
-  color: var(--nf-ink, #f3f4f6);
+  color: var(--ng-fg, #edf0f7);
   background: radial-gradient(
-      120% 120% at 12% 0%,
-      var(--nf-bg-1, #141a2e) 0%,
-      var(--nf-bg-0, #0b1020) 60%
+      130% 130% at 10% 0%,
+      var(--ng-bg-1, #11151f) 0%,
+      var(--ng-bg-0, #0b0e16) 62%
     )
     fixed;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow: hidden; /* the OS-shell owns scrolling, not the page */
+  overflow: hidden;
 }
 
-/* ---- Reusable glass surface ---------------------------------------------- */
+/* ---- Reusable surfaces ---------------------------------------------------- */
 @layer components {
   .glass {
-    background: var(--nf-glass-bg, rgba(22, 27, 42, 0.55));
-    border: 1px solid var(--nf-glass-border, rgba(255, 255, 255, 0.08));
+    background: var(--ng-glass-bg, rgba(20, 25, 36, 0.62));
+    border: 1px solid var(--ng-glass-border, rgba(255, 255, 255, 0.08));
     backdrop-filter: blur(20px) saturate(160%);
     -webkit-backdrop-filter: blur(20px) saturate(160%);
   }
 
   .glass-strong {
-    background: var(--nf-glass-bg, rgba(22, 27, 42, 0.72));
+    background: var(--ng-surface, rgba(20, 25, 36, 0.72));
+    border: 1px solid var(--ng-glass-border, rgba(255, 255, 255, 0.08));
     backdrop-filter: blur(30px) saturate(180%);
     -webkit-backdrop-filter: blur(30px) saturate(180%);
   }
 
-  /* macOS traffic-light buttons */
-  .traffic {
-    @apply h-3 w-3 rounded-full transition-opacity duration-fast;
+  /* Solid docked panel surface (sidebars, inspector, bottom dock). */
+  .panel {
+    background: var(--ng-panel, #141925);
+    border-color: var(--ng-border, rgba(255, 255, 255, 0.08));
   }
 }
 
-/* ---- Scrollbars (thin, glass-friendly) ----------------------------------- */
+/* ---- Scrollbars (thin, theme-friendly) ------------------------------------ */
 @layer utilities {
-  .nf-scroll {
+  .ng-scroll {
     scrollbar-width: thin;
-    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+    scrollbar-color: var(--ng-fg-subtle, rgba(148, 163, 184, 0.4)) transparent;
   }
-  .nf-scroll::-webkit-scrollbar {
+  .ng-scroll::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  .nf-scroll::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.4);
+  .ng-scroll::-webkit-scrollbar-thumb {
+    background: var(--ng-fg-subtle, rgba(148, 163, 184, 0.4));
     border-radius: 8px;
   }
-  .nf-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(148, 163, 184, 0.6);
+  .ng-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--ng-fg-muted, rgba(148, 163, 184, 0.6));
   }
 }
 
-/* ---- React Flow theming overrides ---------------------------------------- */
+/* ---- High-contrast hardening ---------------------------------------------- */
+html.hc .glass,
+html.hc .glass-strong,
+html.hc .panel {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html.hc *:focus-visible {
+  outline: 2px solid #ffd400;
+  outline-offset: 2px;
+}
+
+/* Visible keyboard focus everywhere (accessibility). */
+:focus-visible {
+  outline: 2px solid var(--ng-primary, #2f6bff);
+  outline-offset: 1px;
+}
+
+/* ---- React Flow theming overrides ----------------------------------------- */
 .react-flow__attribution {
   display: none;
 }
@@ -75,35 +101,28 @@ body {
   width: 9px;
   height: 9px;
   border: 2px solid rgba(255, 255, 255, 0.7);
-  background: var(--nf-accent, #007aff);
+  background: var(--ng-primary, #2f6bff);
 }
-
-/* Controls: the base @xyflow style.css ships a light theme (white buttons with
-   dark glyphs) that renders as an out-of-place white sliver on our dark glass
-   shell. Re-skin the buttons to match the desktop UI. */
 .react-flow__controls {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   border-radius: 8px;
   overflow: hidden;
 }
 .react-flow__controls-button {
-  background: rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
+  background: var(--ng-surface-2, rgba(255, 255, 255, 0.06));
+  border-bottom: 1px solid var(--ng-border, rgba(255, 255, 255, 0.08));
+  color: var(--ng-fg, rgba(255, 255, 255, 0.85));
   width: 26px;
   height: 26px;
 }
 .react-flow__controls-button:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--ng-panel-2, rgba(255, 255, 255, 0.14));
 }
 .react-flow__controls-button svg {
-  fill: rgba(255, 255, 255, 0.85);
+  fill: var(--ng-fg, rgba(255, 255, 255, 0.85));
   max-width: 12px;
   max-height: 12px;
 }
-
-/* MiniMap: give the SVG a dark translucent surface and a soft viewport mask so
-   it reads as a panel rather than an empty black box on sparse topologies. */
 .react-flow__minimap {
   background: transparent;
 }
@@ -112,59 +131,53 @@ body {
 }
 
 /* ---- Leaflet map overrides ------------------------------------------------ */
-/* Custom label tooltip for device names on the map */
-.nf-map-label {
-  background: rgba(22, 27, 42, 0.85) !important;
-  border: 1px solid rgba(255,255,255,0.15) !important;
+.ng-map-label {
+  background: var(--ng-surface, rgba(22, 27, 42, 0.85)) !important;
+  border: 1px solid var(--ng-border-strong, rgba(255, 255, 255, 0.15)) !important;
   border-radius: 6px !important;
   padding: 2px 6px !important;
   backdrop-filter: blur(8px) !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
   white-space: nowrap !important;
+  color: var(--ng-fg) !important;
 }
-.nf-map-label::before {
-  border-top-color: rgba(255,255,255,0.15) !important;
+.ng-map-label::before {
+  border-top-color: var(--ng-border-strong, rgba(255, 255, 255, 0.15)) !important;
 }
-
-/* Map popup styling */
 .leaflet-popup-content-wrapper {
-  background: rgba(22, 27, 42, 0.9) !important;
-  border: 1px solid rgba(255,255,255,0.15) !important;
+  background: var(--ng-surface, rgba(22, 27, 42, 0.9)) !important;
+  border: 1px solid var(--ng-border-strong, rgba(255, 255, 255, 0.15)) !important;
   border-radius: 10px !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
   backdrop-filter: blur(16px) !important;
-  color: #f3f4f6 !important;
+  color: var(--ng-fg, #f3f4f6) !important;
 }
 .leaflet-popup-tip {
-  background: rgba(22, 27, 42, 0.9) !important;
+  background: var(--ng-surface, rgba(22, 27, 42, 0.9)) !important;
 }
 .leaflet-popup-close-button {
-  color: rgba(255,255,255,0.5) !important;
+  color: var(--ng-fg-muted, rgba(255, 255, 255, 0.5)) !important;
 }
 .leaflet-popup-close-button:hover {
-  color: #fff !important;
+  color: var(--ng-fg, #fff) !important;
 }
-
-/* Leaflet zoom control */
 .leaflet-control-zoom a {
-  background: rgba(22, 27, 42, 0.85) !important;
-  border-color: rgba(255,255,255,0.15) !important;
-  color: rgba(255,255,255,0.8) !important;
+  background: var(--ng-surface, rgba(22, 27, 42, 0.85)) !important;
+  border-color: var(--ng-border-strong, rgba(255, 255, 255, 0.15)) !important;
+  color: var(--ng-fg, rgba(255, 255, 255, 0.8)) !important;
   backdrop-filter: blur(8px) !important;
 }
 .leaflet-control-zoom a:hover {
-  background: rgba(0, 122, 255, 0.3) !important;
+  background: rgba(47, 107, 255, 0.3) !important;
   color: #fff !important;
 }
-
-/* Attribution */
 .leaflet-control-attribution {
-  background: rgba(22, 27, 42, 0.7) !important;
-  color: rgba(255,255,255,0.4) !important;
+  background: var(--ng-surface, rgba(22, 27, 42, 0.7)) !important;
+  color: var(--ng-fg-subtle, rgba(255, 255, 255, 0.4)) !important;
   font-size: 9px !important;
 }
 .leaflet-control-attribution a {
-  color: rgba(255,255,255,0.5) !important;
+  color: var(--ng-fg-muted, rgba(255, 255, 255, 0.5)) !important;
 }
 
 /* Respect reduced-motion preference for all decorative animation. */

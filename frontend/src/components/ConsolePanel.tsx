@@ -54,7 +54,7 @@ export function ConsolePanel({ win }: { win: WindowInstance }) {
         <span className={state === 'open' ? 'text-success' : 'text-warning'}>● {state}</span>
       </div>
 
-      <div ref={scrollRef} className="nf-scroll flex-1 overflow-auto px-3 py-2 leading-relaxed">
+      <div ref={scrollRef} className="ng-scroll flex-1 overflow-auto px-3 py-2 leading-relaxed">
         {lines.length === 0 ? (
           <p className="text-white/30">Connecting to {node?.nos.toUpperCase()} console…</p>
         ) : (

@@ -1,5 +1,5 @@
 /**
- * DeviceNode — custom React Flow node renderer for a NetForge device.
+ * DeviceNode — custom React Flow node renderer for a NetGeo device.
  * Shows kind-colored glyph, name, NOS badge, sim/emul mode, and a live status
  * ring. Handles on all four sides allow link creation in any direction.
  * Memoized: with thousands of nodes, re-rendering only changed nodes matters.

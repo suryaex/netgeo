@@ -1,5 +1,5 @@
 -- =============================================================================
--- NetForge — Skema PostgreSQL (Single Source of Truth untuk lapisan data)
+-- NetGeo — Skema PostgreSQL (Single Source of Truth untuk lapisan data)
 -- =============================================================================
 -- Selaras dengan MASTER_SPEC.md §4 (Model Data Inti).
 -- Target: PostgreSQL 16+.
@@ -26,8 +26,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";   -- gen_random_uuid()
 CREATE EXTENSION IF NOT EXISTS "citext";     -- case-insensitive email/username
 
 -- Skema khusus aplikasi (memisahkan dari objek bawaan public bila perlu).
-CREATE SCHEMA IF NOT EXISTS netforge;
-SET search_path TO netforge, public;
+CREATE SCHEMA IF NOT EXISTS netgeo;
+SET search_path TO netgeo, public;
 
 -- -----------------------------------------------------------------------------
 -- Enumerasi (mengacu langsung ke §4)
@@ -40,7 +40,7 @@ BEGIN
       ('router','switch','host','ap','olt','firewall','server');
   END IF;
 
-  -- Node.nos (network operating system). 'forgeos' = NOS deklaratif NetForge (§5).
+  -- Node.nos (network operating system). 'forgeos' = NOS deklaratif NetGeo (§5).
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'nos_kind') THEN
     CREATE TYPE nos_kind AS ENUM
       ('forgeos','ios','iosxr','nxos','junos','eos','routeros','vyos','sros','frr','vrp');
@@ -373,7 +373,7 @@ FROM project p;
 -- Seed minimal (opsional, untuk dev). Hapus di prod.
 -- =============================================================================
 -- INSERT INTO app_user (username, email, password_hash, display_name)
--- VALUES ('admin','admin@netforge.local','<argon2-hash>','NetForge Admin')
+-- VALUES ('admin','admin@netgeo.local','<argon2-hash>','NetGeo Admin')
 -- ON CONFLICT DO NOTHING;
 
 -- =============================================================================

@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# NetForge — one-shot installer for Windows (Docker, LAN-ready, single origin)
+# NetGeo — one-shot installer for Windows (Docker, LAN-ready, single origin)
 # The compose files live in infra/, so this wrapper invokes compose with the
 # right -f paths from the repo root.
 #
@@ -10,7 +10,7 @@
 #   .\install.ps1 -NoBuild   # start without rebuilding
 #   .\install.ps1 -Down      # stop the stack
 #   .\install.ps1 -Reset     # stop and DELETE all data (volumes)
-# Env: $env:HTTP_PORT (default 8090 — avoids SecureOps :80 / StorageHub :8080)
+# Env: $env:HTTP_PORT (default 8090 — avoids SecureOps :80 / StorageHub :8080 on shared host)
 # ─────────────────────────────────────────────────────────────────────────────
 [CmdletBinding()]
 param([switch]$Rebuild, [switch]$Down, [switch]$Reset, [switch]$NoBuild, [switch]$Prod)
@@ -23,7 +23,7 @@ function Ok($m)  { Write-Host "+ $m" -ForegroundColor Green }
 function Warn($m){ Write-Host "! $m" -ForegroundColor Yellow }
 function Fail($m){ Write-Host "x $m" -ForegroundColor Red; exit 1 }
 
-# Host HTTP port — 8090 so NetForge does not collide with SecureOps (:80) or
+# Host HTTP port — 8090 so NetGeo does not collide with SecureOps (:80) or
 # StorageHub (:8080) on a shared host.
 $HttpPort = if ($env:HTTP_PORT) { $env:HTTP_PORT } else { "8090" }
 $env:HTTP_PORT = $HttpPort
@@ -53,7 +53,7 @@ if ($Prod) {
 }
 function Invoke-Compose([string]$ArgString) { Invoke-Expression "$Compose $Cf $ArgString" }
 
-if ($Down)  { Info "Stopping NetForge…"; Invoke-Compose "down"; Ok "Stopped."; exit 0 }
+if ($Down)  { Info "Stopping NetGeo…"; Invoke-Compose "down"; Ok "Stopped."; exit 0 }
 if ($Reset) {
     Warn "This deletes ALL data (Postgres + Redis volumes)!"
     if ((Read-Host "Type 'yes' to continue") -eq "yes") { Invoke-Compose "down -v"; Ok "Reset done." } else { Write-Host "Aborted." }
@@ -61,9 +61,9 @@ if ($Reset) {
 }
 
 Write-Host ""
-Write-Host "  +-----------------------------------------------+"
-Write-Host "  |  NetForge - network simulation & emulation    |"
-Write-Host "  +-----------------------------------------------+"
+Write-Host "  +----------------------------------------------------------+"
+Write-Host "  |  NetGeo - network simulation, GIS, digital twin & AI   |"
+Write-Host "  +----------------------------------------------------------+"
 Write-Host ""
 Ok "Docker ready  ($Compose)"
 if ($Prod) { Ok "Production stack enabled (docker-compose.prod.yml)" }
@@ -147,7 +147,7 @@ if ($healthy) { Ok "Backend is healthy" } else { Warn "Backend not healthy yet �
 
 # ── 4. Done ──────────────────────────────────────────────────────────────────
 Write-Host ""
-Ok "NetForge is up!"
+Ok "NetGeo is up!"
 Write-Host ""
 Write-Host "  On this machine  ->  http://localhost:$HttpPort"                    -ForegroundColor Green
 Write-Host "  On the network   ->  http://${Ip}:$HttpPort        (phone/other PCs)" -ForegroundColor Green
@@ -155,6 +155,6 @@ Write-Host "  API docs         ->  http://${Ip}:$HttpPort/docs"                 
 Write-Host "  Health           ->  http://${Ip}:$HttpPort/api/health"            -ForegroundColor Green
 Write-Host ""
 Write-Host "  If other devices can't reach it, allow TCP port $HttpPort in Windows Firewall:"
-Write-Host "    New-NetFirewallRule -DisplayName 'NetForge' -Direction Inbound -LocalPort $HttpPort -Protocol TCP -Action Allow"
-Write-Host "  Logs: $Compose $Cf logs -f   |   Stop: .\install.ps1 -Down"
+Write-Host "    New-NetFirewallRule -DisplayName 'NetGeo' -Direction Inbound -LocalPort $HttpPort -Protocol TCP -Action Allow"
+Write-Host "  Logs: $Compose $Cf logs -f   |   Stop: .\install.ps1 -Down   |   https://github.com/suryaex/netgeo"
 Write-Host ""

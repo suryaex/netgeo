@@ -94,7 +94,7 @@ async def ws_console(ws: WebSocket, node_id: str):
     repo = get_repo()
     try:
         node = await repo.get_node(node_id)
-        await ws.send_json({"type": "banner", "text": f"{node.name} ({node.nos}) console — NetForge\n{node.name}> "})
+        await ws.send_json({"type": "banner", "text": f"{node.name} ({node.nos}) console — NetGeo\n{node.name}> "})
     except NotFound:
         # Node does not exist — send a clean error then close.
         # Suppress any send failure (client may have already disconnected).
@@ -128,7 +128,7 @@ def _handle_console(line: str) -> str:
     if line in ("?", "help"):
         return "available (stub): show version | show interfaces | ping <node>\n"
     if line.startswith("show version"):
-        return "NetForge ForgeOS, Version 0.1 — sim mode\n"
+        return "NetGeo ForgeOS, Version 0.1 — sim mode\n"
     if line.startswith("show interfaces"):
         return "(interfaces rendered from node model in a future build)\n"
     return f"% Unknown command: {line}\n"

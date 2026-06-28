@@ -1,6 +1,6 @@
 """Emulation adaptor layer — accurate NOS nodes backed by real containers.
 
-For nodes in ``mode="emul"`` NetForge runs an actual network OS image inside a
+For nodes in ``mode="emul"`` NetGeo runs an actual network OS image inside a
 container (via containerlab / Docker / Podman). The DES kernel still owns the
 *virtual clock and link model*; the adaptor owns the *node internals*. The two
 meet at the link boundary: packets leaving a sim node toward an emul node are

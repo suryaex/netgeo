@@ -1,9 +1,9 @@
 {
-  "name": "netforge-frontend",
+  "name": "netgeo-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "NetForge — desktop-class network simulation UI (React 18 + Vite + Tailwind + React Flow).",
+  "description": "NetGeo — network simulation, planning, GIS digital-twin & AI workspace (React 18 + Vite + Tailwind + React Flow + Leaflet).",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

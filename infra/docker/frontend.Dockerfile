@@ -1,5 +1,5 @@
 # =============================================================================
-# NetForge frontend image — React 18 + Vite, di-serve via nginx (prod)
+# NetGeo frontend image — React 18 + Vite, di-serve via nginx (prod)
 # Multi-arch (linux/amd64, linux/arm64). Build context = ../frontend.
 # =============================================================================
 

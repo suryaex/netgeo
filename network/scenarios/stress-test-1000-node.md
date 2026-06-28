@@ -15,7 +15,7 @@ discrete-event**, bukan uji containerlab/Docker.
 
 Ini bukan skenario "real-world" dalam arti operasional (tidak ada satu pun perusahaan yang
 men-deploy topologi sintetis fat-tree generik tanpa konteks bisnis) — tujuannya murni
-**stress-test engine NetForge**: apakah discrete-event core, storage topologi (PostgreSQL),
+**stress-test engine NetGeo**: apakah discrete-event core, storage topologi (PostgreSQL),
 state realtime (Redis), dan rendering frontend sanggup menangani skala ribuan node tanpa
 collapse. Ini skenario WAJIB ada di test-suite backend sebelum klaim "mendukung simulasi
 skala besar" di marketing/dokumentasi produk bisa dipertanggungjawabkan.
@@ -113,11 +113,11 @@ nyata dan akan jadi technical debt (file besar yang tak terpelihara) sejak hari 
 - Di operasional NOC nyata, monitoring system (mis. yang berbasis SNMP polling) untuk
   network sebesar ini **tidak polling semua node tiap detik** — mereka pakai tiered polling
   (interval lebih jarang untuk node non-kritikal, event-driven trap untuk yang kritikal).
-  NetForge sebaiknya mengadopsi filosofi yang sama untuk simulasi skala besar: **tidak semua
+  NetGeo sebaiknya mengadopsi filosofi yang sama untuk simulasi skala besar: **tidak semua
   node perlu "hidup" pada resolusi waktu yang sama**. Host endpoint (sim) bisa di-update jarang,
   switch/router core perlu resolusi tinggi.
 - "1000+ node" terdengar seperti angka marketing, tapi secara field-engineering ini **kecil**
   dibanding DC hyperscale nyata (puluhan ribu server per DC). Tujuan skenario ini adalah
-  membuktikan **engine NetForge punya headroom**, bukan mengklaim sudah setara hyperscaler.
+  membuktikan **engine NetGeo punya headroom**, bukan mengklaim sudah setara hyperscaler.
   Klaim yang jujur ke pengguna: "diuji hingga ~1300 node sintetis, performa nyata bergantung
   hardware host" — jangan over-promise di README utama produk.

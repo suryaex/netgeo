@@ -4,7 +4,7 @@ GET  /api/update/check   — read-only; compare running version with GitHub.
 GET  /api/update/status  — progress reported by scripts/self-update.sh.
 POST /api/update/apply   — trigger pull+rebuild+restart (guarded by UPDATE_TOKEN).
 
-NetForge has no auth layer yet, so the *mutating* endpoint requires a shared
+NetGeo has no auth layer yet, so the *mutating* endpoint requires a shared
 secret supplied via the ``X-Update-Token`` header and matched against
 ``settings.UPDATE_TOKEN``. With no token configured, applying is disabled.
 

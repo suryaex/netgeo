@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# NetForge — uninstaller (Docker stack)
+# NetGeo — uninstaller (Docker stack)
 #
 # Run before a major update or to switch versions.
 #
@@ -23,7 +23,7 @@ for a in "$@"; do case "$a" in
 esac; done
 
 if [[ "$ASSUME_YES" != "1" ]]; then
-  echo "This will stop and remove NetForge from this machine."
+  echo "This will stop and remove NetGeo from this machine."
   [[ "$PURGE" == "1" ]] && echo -e "${RED}--purge: the database (Postgres), Redis data and Docker volumes will be DELETED.${NC}"
   read -r -p "Type 'yes' to continue: " c; [[ "$c" == "yes" ]] || { echo "Aborted."; exit 0; }
 fi
@@ -39,7 +39,7 @@ if docker compose version >/dev/null 2>&1; then COMPOSE="docker compose"
 elif sudo docker compose version >/dev/null 2>&1; then COMPOSE="sudo docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then COMPOSE="docker-compose"; fi
 
-if [[ -z "$COMPOSE" ]]; then warn "Docker Compose not found — nothing to stop."; say "NetForge uninstall complete."; exit 0; fi
+if [[ -z "$COMPOSE" ]]; then warn "Docker Compose not found — nothing to stop."; say "NetGeo uninstall complete."; exit 0; fi
 
 DOWN_FLAGS="--remove-orphans"
 [[ "$PURGE" == "1" ]] && DOWN_FLAGS="$DOWN_FLAGS -v"
@@ -64,4 +64,4 @@ else
   say "Volumes kept (pgdata, redisdata). Use --purge to delete them."
 fi
 
-say "NetForge uninstall complete."
+say "NetGeo uninstall complete."

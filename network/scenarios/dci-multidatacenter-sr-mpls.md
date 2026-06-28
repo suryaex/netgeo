@@ -100,5 +100,5 @@ Skenario ini adalah "lapisan penghubung" antara skenario 1 (backbone fisik) dan 
 - **Latency DC-to-DC adalah constraint fisik yang tidak bisa "dioptimasi software".** Field
   engineer sering ditekan untuk "percepat replication", tapi kalau jarak DC-1 ke DC-3 adalah
   150km, RTT minimum murni propagasi cahaya dalam fiber sudah ~1.5ms one-way (~3ms RTT)
-  ditambah overhead OEO/router setiap hop — ini hukum fisika, bukan bug. NetForge sebaiknya
+  ditambah overhead OEO/router setiap hop — ini hukum fisika, bukan bug. NetGeo sebaiknya
   menampilkan **RTT teoretis minimum berbasis jarak** di UI supaya user tidak salah ekspektasi.

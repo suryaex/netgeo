@@ -1,5 +1,5 @@
 /**
- * OnboardingModal — first-run wizard that introduces NetForge's core workflow.
+ * OnboardingModal — first-run wizard that introduces NetGeo's core workflow.
  * Shown once after the very first login; state is persisted to localStorage.
  * Steps: Overview → Device Palette → Topology Canvas → Properties → Simulate.
  */
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
-const ONBOARDING_KEY = 'netforge.onboarding.done';
+const ONBOARDING_KEY = 'netgeo.onboarding.done';
 
 export function useOnboarding() {
   const [show, setShow] = useState(false);
@@ -45,9 +45,9 @@ const STEPS: Step[] = [
   {
     icon: Network,
     color: '#007AFF',
-    title: 'Welcome to NetForge',
+    title: 'Welcome to NetGeo',
     description:
-      'NetForge is a browser-based network simulation platform. Design, simulate, and generate configs for complex network topologies — all without physical hardware.',
+      'NetGeo is a browser-based network simulation platform. Design, simulate, and generate configs for complex network topologies — all without physical hardware.',
     hint: 'Let\'s take a quick tour of the interface.',
   },
   {

@@ -1,6 +1,6 @@
 /**
  * LoginPage — full-viewport glassmorphism login screen.
- * Matches the NetForge dark-glass design language: radial gradient background,
+ * Matches the NetGeo dark-glass design language: radial gradient background,
  * frosted card, Apple-blue accent. Credentials are validated by authStore.
  */
 import { useEffect, useState, useRef } from 'react';
@@ -62,7 +62,7 @@ export function LoginPage() {
             <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-accent shadow-lg shadow-accent/40">
               <Network className="h-7 w-7 text-white" />
             </div>
-            <h1 className="text-xl font-semibold text-white">NetForge</h1>
+            <h1 className="text-xl font-semibold text-white">NetGeo</h1>
             <p className="mt-1 text-sm text-white/50">Network Simulation Platform</p>
           </div>
 
@@ -151,13 +151,13 @@ export function LoginPage() {
             </button>
 
             <p className="text-center text-[11px] text-white/25">
-              Default credentials: <span className="text-white/40">admin / netforge</span>
+              Default credentials: <span className="text-white/40">admin / netgeo</span>
             </p>
           </form>
         </div>
 
         <p className="mt-6 text-center text-xs text-white/20">
-          NetForge v0.1 &mdash; Network Simulation Platform
+          NetGeo v0.1 &mdash; Network Simulation Platform
         </p>
       </div>
     </div>

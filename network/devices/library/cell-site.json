@@ -1,5 +1,5 @@
 {
-  "$schema": "netforge.device.v1",
+  "$schema": "netgeo.device.v1",
   "category": "cell-site",
   "_notes": "BTS / cell-site mobile. Dimodelkan kind='router' subcategory='cell-site' (node L2/L3 dengan backhaul IP). Radio Unit (RU/antena) diabstraksi sebagai port type 'wifi' (radio) untuk konsistensi enum §4; backhaul = eth/sfp ke aggregation.",
   "devices": [

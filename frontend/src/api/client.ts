@@ -1,5 +1,5 @@
 /**
- * REST client for the NetForge FastAPI backend (MASTER_SPEC §4).
+ * REST client for the NetGeo FastAPI backend (see NetGeo/09_API_STANDARD.md).
  * Thin axios wrapper: single base instance, JSON, error normalization, and
  * typed resource functions. The dev server proxies `/api` to the backend, so
  * we use a same-origin relative baseURL by default.

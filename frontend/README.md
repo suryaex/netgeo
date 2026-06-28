@@ -1,7 +1,7 @@
-# NetForge — Frontend (UI Desktop-class)
+# NetGeo — Frontend (UI Desktop-class)
 
 UI **desktop-class** ala macOS / Windows 11 untuk platform simulasi & emulasi
-jaringan **NetForge**. Window manager + dock + glassmorphism, canvas topologi
+jaringan **NetGeo**. Window manager + dock + glassmorphism, canvas topologi
 real-time (React Flow), panel properti, terminal console, dan config viewer —
 tetap **ringan** (target < 200 MB RAM idle, mulus di Linux).
 

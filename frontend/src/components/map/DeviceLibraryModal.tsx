@@ -132,7 +132,7 @@ export function DeviceLibraryModal() {
         </div>
 
         {/* Body */}
-        <div className="nf-scroll min-h-[280px] flex-1 overflow-auto p-6">
+        <div className="ng-scroll min-h-[280px] flex-1 overflow-auto p-6">
           {tab === 'library' && (
             <DeviceTypeList
               types={types}

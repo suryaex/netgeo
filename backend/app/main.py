@@ -1,10 +1,10 @@
-"""NetForge backend entrypoint.
+"""NetGeo backend entrypoint.
 
 FastAPI app assembling the §4 REST surface, the WebSocket endpoints, the shared
 error envelope, and CORS — mirroring the secureops/storagehub app factory style.
 
 Run:  uvicorn app.main:app --reload --port 8000
-Smoke: python -c "from app.main import app; print('netforge backend imports OK')"
+Smoke: python -c "from app.main import app; print('netgeo backend imports OK')"
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.APP_NAME,
         version=settings.APP_VERSION,
-        description="NetForge — open-source large-scale network simulation platform.",
+        description="NetGeo — open-source large-scale network simulation platform.",
         lifespan=lifespan,
     )
 

@@ -1,17 +1,17 @@
-# Scaling Guidelines — Analisis Skalabilitas Engine NetForge
+# Scaling Guidelines — Analisis Skalabilitas Engine NetGeo
 
 **Status**: estimasi field-engineering, BELUM divalidasi benchmark langsung terhadap
 `backend/engine/` (belum ada implementasi saat dokumen ditulis, 2026-06-23/24). Semua angka di
 sini adalah **target & batas atas yang masuk akal** berdasarkan pengalaman operasional
 container networking (FRRouting/BIRD di Docker, containerlab) dan discrete-event simulation
-pada umumnya — bukan hasil profiling kode NetForge yang sebenarnya. Tim backend **wajib**
+pada umumnya — bukan hasil profiling kode NetGeo yang sebenarnya. Tim backend **wajib**
 menjalankan benchmark nyata begitu engine ada, lalu mengoreksi dokumen ini.
 
 ---
 
 ## 1. Dua Mode Eksekusi — Karakteristik Berbeda Drastis
 
-NetForge punya 2 mode per-node (§4 MASTER_SPEC `Node.mode`): `sim` (model matematis ringan)
+NetGeo punya 2 mode per-node (§4 MASTER_SPEC `Node.mode`): `sim` (model matematis ringan)
 dan `emul` (container NOS nyata via containerlab/Docker/Podman). Keduanya **tidak bisa
 disamakan kapasitasnya** — gap-nya 1-2 orde magnitude.
 

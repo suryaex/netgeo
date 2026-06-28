@@ -1,5 +1,5 @@
 # =============================================================================
-# NetForge CI — Frontend (lint + typecheck + build)
+# NetGeo CI — Frontend (lint + typecheck + build)
 # Salin/symlink ke .github/workflows/frontend.yml di root repo (orchestrator).
 # =============================================================================
 name: frontend-ci

@@ -55,7 +55,7 @@ export function NodePalette() {
         </label>
       </div>
 
-      <div className="nf-scroll flex-1 space-y-5 overflow-auto p-2.5">
+      <div className="ng-scroll flex-1 space-y-5 overflow-auto p-2.5">
         {deviceCatalog.map((group) => {
           const devices = group.devices.filter(
             (d) =>
@@ -118,7 +118,7 @@ function PaletteCard({ device }: { device: DeviceTemplate }) {
         tabIndex={0}
         draggable
         onDragStart={(e) => {
-          e.dataTransfer.setData('application/netforge-device', device.key);
+          e.dataTransfer.setData('application/netgeo-device', device.key);
           e.dataTransfer.effectAllowed = 'copy';
         }}
         onKeyDown={(e) => {

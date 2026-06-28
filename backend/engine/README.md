@@ -1,7 +1,7 @@
-# NetForge — Engine Simulasi
+# NetGeo — Engine Simulasi
 
 Kernel **discrete-event simulation (DES)** + lapisan **adaptor emulasi** untuk
-NetForge. Mendukung visi MASTER_SPEC §1: *ribuan node* dengan model hybrid —
+NetGeo. Mendukung visi MASTER_SPEC §1: *ribuan node* dengan model hybrid —
 **sim** ringan (deterministik, cepat) ↔ **emul** akurat (NOS nyata via
 containerlab/Docker), dapat beralih per-node.
 

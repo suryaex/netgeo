@@ -221,7 +221,7 @@ function OsmTowerLayer() {
               permanent={false}
               direction="top"
               offset={[0, -8]}
-              className="nf-map-label"
+              className="ng-map-label"
             >
               <span style={{ color, fontWeight: 600, fontSize: 10 }}>
                 [{label}] {name}
@@ -374,7 +374,7 @@ function DeviceMarker({ device }: { device: MapDevice }) {
         }}
       >
         {/* Permanent name label above the dot */}
-        <Tooltip permanent direction="top" offset={[0, -14]} className="nf-map-label">
+        <Tooltip permanent direction="top" offset={[0, -14]} className="ng-map-label">
           <span style={{ color, fontWeight: 700, fontSize: 10 }}>
             {device.name}
           </span>

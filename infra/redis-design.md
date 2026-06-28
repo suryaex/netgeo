@@ -1,6 +1,6 @@
-# NetForge — Desain Pemakaian Redis
+# NetGeo — Desain Pemakaian Redis
 
-Redis adalah lapisan **state realtime + message bus + job queue** NetForge,
+Redis adalah lapisan **state realtime + message bus + job queue** NetGeo,
 mendampingi PostgreSQL (sumber-kebenaran persisten). MASTER_SPEC §2 menetapkan
 Redis untuk *state realtime* dan *job queue*.
 

@@ -1,5 +1,5 @@
 /**
- * Resilient WebSocket client for NetForge realtime channels:
+ * Resilient WebSocket client for NetGeo realtime channels:
  *   /ws/topology              — graph snapshots, node/link status, sim ticks
  *   /ws/console/{node_id}     — interactive device console stream
  *

@@ -1,7 +1,11 @@
 /**
- * NetForge — desktop-class glassmorphism design system.
- * Cohesive with secureops (Luminous Security) & storagehub: Apple-blue accent,
- * Inter type, backdrop-blur glass surfaces, class-based dark mode.
+ * NetGeo — design system Tailwind config.
+ * Identity: professional GIS workstation × modern IDE × creative workspace.
+ * Two color layers:
+ *   - Static brand palette (accent/success/warning/danger/info/node) for
+ *     domain components (canvas, badges).
+ *   - Theme-aware aliases (surface/panel/fg/primary/…) bound to CSS variables
+ *     written by theme/tokens.ts, so Light/Dark/High-Contrast re-skin instantly.
  * @type {import('tailwindcss').Config}
  */
 export default {
@@ -10,41 +14,57 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Segoe UI', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
         mono: ['JetBrains Mono', 'SF Mono', 'ui-monospace', 'Menlo', 'monospace'],
       },
       colors: {
-        // Apple-blue accent shared across the author's projects.
-        accent: {
-          DEFAULT: '#007AFF',
-          soft: '#3A93FF',
-          dark: '#0058BC',
+        // --- Theme-aware semantic aliases (CSS-variable backed) ---------------
+        surface: 'var(--ng-surface)',
+        'surface-2': 'var(--ng-surface-2)',
+        panel: 'var(--ng-panel)',
+        'panel-2': 'var(--ng-panel-2)',
+        hairline: 'var(--ng-border)',
+        'hairline-strong': 'var(--ng-border-strong)',
+        fg: 'var(--ng-fg)',
+        'fg-muted': 'var(--ng-fg-muted)',
+        'fg-subtle': 'var(--ng-fg-subtle)',
+        primary: {
+          DEFAULT: 'var(--ng-primary)',
+          fg: '#FFFFFF',
         },
-        success: { DEFAULT: '#34C759', dark: '#15803D' },
-        warning: { DEFAULT: '#FF9F0A', dark: '#9E3D00' },
-        danger: { DEFAULT: '#FF453A', dark: '#93000A' },
-        info: { DEFAULT: '#0891B2', dark: '#0E7490' },
+        secondary: { DEFAULT: 'var(--ng-secondary)', fg: '#FFFFFF' },
+
+        // --- Static brand palette (NetGeo geospatial blue) -------------------
+        accent: {
+          DEFAULT: '#2F6BFF',
+          soft: '#5C8AFF',
+          dark: '#1E4FCB',
+        },
+        success: { DEFAULT: '#27C28B', dark: '#15805C' },
+        warning: { DEFAULT: '#F5A623', dark: '#9E6300' },
+        danger: { DEFAULT: '#FF4D4F', dark: '#A01012' },
+        info: { DEFAULT: '#27B5C2', dark: '#0E7C88' },
         ink: {
-          DEFAULT: '#111827',
-          soft: '#6B7280',
-          muted: '#9CA3AF',
+          DEFAULT: '#101626',
+          soft: '#566076',
+          muted: '#8A93A6',
         },
         // Node-kind palette (also exported as CSS vars in theme/tokens.ts).
         node: {
-          router: '#007AFF',
-          switch: '#34C759',
-          host: '#8E8E93',
-          ap: '#5856D6',
-          olt: '#FF9F0A',
-          firewall: '#FF453A',
-          server: '#0891B2',
+          router: '#2F6BFF',
+          switch: '#27C28B',
+          host: '#8A93A6',
+          ap: '#7C5CFC',
+          olt: '#F5A623',
+          firewall: '#FF4D4F',
+          server: '#27B5C2',
         },
       },
       borderRadius: {
-        sm: '10px',
-        md: '16px',
-        lg: '22px',
-        xl: '28px',
+        sm: '8px',
+        md: '12px',
+        lg: '18px',
+        xl: '24px',
       },
       backdropBlur: {
         12: '12px',
@@ -52,11 +72,11 @@ export default {
         30: '30px',
       },
       boxShadow: {
-        glass: '0 8px 32px rgba(0,0,0,0.12)',
-        'glass-lg': '0 20px 60px rgba(0,0,0,0.22)',
-        soft: '0 2px 10px rgba(0,0,0,0.06)',
-        'window': '0 24px 70px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.12)',
-        'dock': '0 12px 40px rgba(0,0,0,0.25)',
+        glass: '0 8px 32px rgba(0,0,0,0.18)',
+        'glass-lg': '0 20px 60px rgba(0,0,0,0.28)',
+        soft: '0 2px 10px rgba(0,0,0,0.08)',
+        window: '0 24px 70px rgba(0,0,0,0.32), 0 2px 8px rgba(0,0,0,0.14)',
+        dock: '0 12px 40px rgba(0,0,0,0.28)',
       },
       transitionDuration: {
         fast: '120ms',
@@ -72,15 +92,15 @@ export default {
           from: { opacity: '0', transform: 'scale(0.96)' },
           to: { opacity: '1', transform: 'scale(1)' },
         },
-        'dock-bounce': {
-          '0%,100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-8px)' },
+        'slide-up': {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
         },
       },
       animation: {
         'fade-in': 'fade-in 180ms ease-out',
         'scale-in': 'scale-in 180ms ease-out',
-        'dock-bounce': 'dock-bounce 600ms ease-in-out',
+        'slide-up': 'slide-up 200ms ease-out',
       },
     },
   },

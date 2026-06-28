@@ -1,4 +1,4 @@
-"""Fixtures bersama untuk test backend NetForge.
+"""Fixtures bersama untuk test backend NetGeo.
 
 Catatan desain:
 - ``app.store.get_repo`` adalah singleton ber-``lru_cache`` (state hidup selama

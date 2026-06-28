@@ -1,5 +1,5 @@
 {
-  "$schema": "netforge.device.v1",
+  "$schema": "netgeo.device.v1",
   "category": "olt",
   "_notes": "OLT (Optical Line Terminal) = sisi sentral FTTH. port type 'gpon' membawa rate riil di speed_mbps (GPON 2488/1244, XGS-PON 9953 sim/burst). 1 port PON melayani 1 splitter tree (32/64/128 ONU).",
   "devices": [

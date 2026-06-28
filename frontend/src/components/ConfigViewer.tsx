@@ -1,7 +1,7 @@
 /**
  * ConfigViewer — shows generated config artifacts for a node (MASTER_SPEC §4
  * ConfigArtifact). Tabs per vendor/format, copy-to-clipboard, regenerate.
- * Demonstrates the ForgeOS "one intent → many target NOS" output (§5): the
+ * Demonstrates the NetGeo OS "one intent → many target NOS" output: the
  * same node can render IOS/Junos/RouterOS side by side.
  *
  * Heavy syntax highlighting is intentionally deferred (kept as a <pre> with
@@ -64,7 +64,7 @@ export function ConfigViewer({ win }: { win: WindowInstance }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-white/10 px-2 py-1.5">
-        <div className="nf-scroll flex flex-1 gap-1 overflow-x-auto">
+        <div className="ng-scroll flex flex-1 gap-1 overflow-x-auto">
           {artifacts.map((a, i) => (
             <button
               key={a.id}
@@ -95,7 +95,7 @@ export function ConfigViewer({ win }: { win: WindowInstance }) {
         </button>
       </div>
 
-      <div className="nf-scroll flex-1 overflow-auto bg-black/40 p-3">
+      <div className="ng-scroll flex-1 overflow-auto bg-black/40 p-3">
         {error ? (
           <p className="text-sm text-danger">{error}</p>
         ) : loading && artifacts.length === 0 ? (

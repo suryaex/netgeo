@@ -1,0 +1,17 @@
+
+flowchart LR
+A[Installer]
+A-->B{Platform}
+
+B-->C[Windows EXE/MSI]
+B-->D[Linux DEB/RPM]
+B-->E[macOS PKG]
+B-->F[Docker]
+
+C-->G[NetGeo Runtime]
+D-->G
+E-->G
+F-->G
+
+G-->H[Workspace Wizard]
+H-->I[Ready]

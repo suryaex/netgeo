@@ -1,7 +1,7 @@
-# NetForge — Infra (Database, Redis, DevOps)
+# NetGeo — Infra (Database, Redis, DevOps)
 
 Area ini milik **db-devops-architect**. Berisi lapisan data & deployment
-NetForge: skema PostgreSQL, migrasi, desain Redis, Docker Compose (dev + prod),
+NetGeo: skema PostgreSQL, migrasi, desain Redis, Docker Compose (dev + prod),
 image Docker, dan workflow CI/CD. Mengacu pada **MASTER_SPEC.md** (§2 stack,
 §4 model data).
 
@@ -87,7 +87,7 @@ Pembagian peran:
 ## Menjalankan — satu perintah (direkomendasikan)
 
 ```bash
-# Dari root repo netforge/ — install Docker bila perlu, build, start, tunggu health
+# Dari root repo netgeo/ — install Docker bila perlu, build, start, tunggu health
 ./install.sh
 ```
 
@@ -109,13 +109,13 @@ Uninstall: `./uninstall.sh` (`--purge` menghapus volume). Make: `make help`.
 ## Menjalankan — DEV (compose mentah)
 
 ```bash
-# Dari root repo netforge/ (tanpa gateway LAN — port di-expose langsung)
+# Dari root repo netgeo/ (tanpa gateway LAN — port di-expose langsung)
 docker compose -f infra/docker-compose.yml up -d
 
 # Layanan:
 #   frontend  http://localhost:5180   (Vite dev, hot-reload)
 #   backend   http://localhost:8000   (FastAPI --reload)
-#   postgres  localhost:5432          (netforge/netforge)
+#   postgres  localhost:5432          (netgeo/netgeo)
 #   redis     localhost:6379
 
 # Logs
@@ -131,7 +131,7 @@ kali kosong. Untuk database existing, jalankan migrasi:
 
 ```bash
 docker compose -f infra/docker-compose.yml exec -T postgres \
-  psql -U netforge -d netforge -v ON_ERROR_STOP=1 < infra/db/migrations/0001_init.up.sql
+  psql -U netgeo -d netgeo -v ON_ERROR_STOP=1 < infra/db/migrations/0001_init.up.sql
 ```
 
 ## Menjalankan — PROD
@@ -156,11 +156,11 @@ docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.prod \
 ```bash
 # Backup
 docker compose -f infra/docker-compose.prod.yml exec -T postgres \
-  pg_dump -U netforge -Fc netforge > netforge_$(date +%F).dump
+  pg_dump -U netgeo -Fc netgeo > netgeo_$(date +%F).dump
 
 # Restore (DESTRUKTIF — pastikan DB kosong/baru)
 docker compose -f infra/docker-compose.prod.yml exec -T postgres \
-  pg_restore -U netforge -d netforge --clean --if-exists < netforge_YYYY-MM-DD.dump
+  pg_restore -U netgeo -d netgeo --clean --if-exists < netgeo_YYYY-MM-DD.dump
 ```
 
 ## Keputusan & asumsi

@@ -1,5 +1,5 @@
 {
-  "$schema": "netforge.device.v1",
+  "$schema": "netgeo.device.v1",
   "category": "onu",
   "_notes": "ONU/ONT = sisi pelanggan FTTH. Dimodelkan kind='host' subcategory='onu' (lihat README §2). 1 port 'gpon' uplink ke splitter tree OLT; sisi LAN = eth/wifi ke perangkat user.",
   "devices": [

@@ -37,7 +37,7 @@ export function ScenariosPanel() {
     );
 
   return (
-    <ul className="nf-scroll h-full space-y-2 overflow-auto p-3">
+    <ul className="ng-scroll h-full space-y-2 overflow-auto p-3">
       {scenarios.map((sc) => (
         <li key={sc.id} className="rounded-md border border-white/10 bg-white/5 p-3">
           <div className="flex items-center justify-between">

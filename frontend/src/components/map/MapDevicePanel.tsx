@@ -61,7 +61,7 @@ export function MapDevicePanel() {
           </button>
         </div>
 
-        <div className="nf-scroll max-h-[calc(100vh-200px)] space-y-3 overflow-auto p-4">
+        <div className="ng-scroll max-h-[calc(100vh-200px)] space-y-3 overflow-auto p-4">
           {/* Name */}
           <Field label="Name">
             <input

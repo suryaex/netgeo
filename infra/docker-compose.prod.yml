@@ -1,5 +1,5 @@
 # =============================================================================
-# NetForge — Docker Compose (PRODUCTION)
+# NetGeo — Docker Compose (PRODUCTION)
 # Jalankan: docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.prod up -d
 #
 # Perbedaan vs dev:
@@ -14,22 +14,22 @@
 # mendukung linux/amd64 + linux/arm64.
 # =============================================================================
 
-name: netforge
+name: netgeo
 
 services:
   postgres:
     image: postgres:16-alpine
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-netforge}
+      POSTGRES_USER: ${POSTGRES_USER:-netgeo}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}
-      POSTGRES_DB: ${POSTGRES_DB:-netforge}
+      POSTGRES_DB: ${POSTGRES_DB:-netgeo}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/00_schema.sql:ro
     networks: [internal]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netforge} -d ${POSTGRES_DB:-netforge}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netgeo} -d ${POSTGRES_DB:-netgeo}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,7 +55,7 @@ services:
         limits: { cpus: "1.0", memory: 512m }
 
   backend:
-    image: ${BACKEND_IMAGE:-ghcr.io/netforge/backend:latest}
+    image: ${BACKEND_IMAGE:-ghcr.io/netgeo/backend:latest}
     build:
       context: ../backend
       dockerfile: ../infra/docker/backend.Dockerfile
@@ -63,7 +63,7 @@ services:
     environment:
       ENVIRONMENT: production
       APP_VERSION: ${APP_VERSION:-0.1}
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-netforge}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-netforge}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-netgeo}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-netgeo}
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY wajib diisi}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
@@ -87,7 +87,7 @@ services:
         limits: { cpus: "2.0", memory: 1g }
 
   frontend:
-    image: ${FRONTEND_IMAGE:-ghcr.io/netforge/frontend:latest}
+    image: ${FRONTEND_IMAGE:-ghcr.io/netgeo/frontend:latest}
     build:
       context: ../frontend
       dockerfile: ../infra/docker/frontend.Dockerfile

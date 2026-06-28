@@ -1,5 +1,5 @@
 # =============================================================================
-# NetForge — LAN gateway overlay (used by ./install.sh, the one-shot installer)
+# NetGeo — LAN gateway overlay (used by ./install.sh, the one-shot installer)
 # Jalankan: docker compose -f infra/docker-compose.yml -f infra/docker-compose.lan.yml up -d
 #
 # Menambah satu service `gateway` (nginx) di depan stack DEV agar seluruh app

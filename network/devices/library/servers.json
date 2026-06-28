@@ -1,5 +1,5 @@
 {
-  "$schema": "netforge.device.v1",
+  "$schema": "netgeo.device.v1",
   "category": "servers",
   "_notes": "Server/host compute. kind='server' (bare-metal/vm-host) atau host generik untuk traffic endpoint (iperf/ping). Server vm-host juga jadi platform untuk node mode='emul' (container NOS).",
   "devices": [

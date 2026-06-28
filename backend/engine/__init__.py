@@ -1,4 +1,4 @@
-"""NetForge simulation engine.
+"""NetGeo simulation engine.
 
 A hybrid network simulation core: a deterministic *discrete-event simulation*
 (DES) kernel for scale (thousands of nodes), plus a pluggable *emulation*

@@ -129,7 +129,7 @@ export function Window({ win, children, toolbar }: WindowProps) {
       </header>
 
       {/* Body */}
-      <div className="nf-scroll min-h-0 flex-1 overflow-auto">{children}</div>
+      <div className="ng-scroll min-h-0 flex-1 overflow-auto">{children}</div>
     </section>
   );
 }

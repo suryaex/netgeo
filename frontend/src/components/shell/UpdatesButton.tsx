@@ -1,5 +1,5 @@
 /**
- * UpdatesButton — menu-bar control that checks GitHub for a newer NetForge
+ * UpdatesButton — menu-bar control that checks GitHub for a newer NetGeo
  * release and lets an operator apply it (pull + rebuild + restart) from the app.
  *
  * The mutating call is guarded by a shared secret (UPDATE_TOKEN on the backend);

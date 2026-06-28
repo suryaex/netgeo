@@ -1,5 +1,5 @@
 # =============================================================================
-# NetForge CI — Build & push image multi-arch (amd64 + arm64) ke GHCR.
+# NetGeo CI — Build & push image multi-arch (amd64 + arm64) ke GHCR.
 # Salin/symlink ke .github/workflows/images.yml di root repo (orchestrator).
 # =============================================================================
 name: build-images
@@ -43,7 +43,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/netforge-${{ matrix.name }}
+          images: ghcr.io/${{ github.repository_owner }}/netgeo-${{ matrix.name }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}

@@ -1,6 +1,6 @@
 """In-app self-update service.
 
-Lets an operator update NetForge *from the running app*: check whether a newer
+Lets an operator update NetGeo *from the running app*: check whether a newer
 release exists on GitHub, then apply it (pull + rebuild + restart) via the
 committed, auditable ``scripts/self-update.sh`` — never arbitrary code.
 
@@ -73,7 +73,7 @@ def _get_json(url: str) -> object:
         url,
         headers={
             "Accept": "application/vnd.github+json",
-            "User-Agent": "netforge-updater",
+            "User-Agent": "netgeo-updater",
         },
     )
     with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:  # noqa: S310

@@ -106,10 +106,10 @@ local-pref, MED, prefix-list/AS-path filter) dan **skala control-plane** (jumlah
 
 - **Full-mesh iBGP itu O(n²)** — untuk ISP dengan >5-10 PE router, route reflector atau
   confederation BUKAN opsional, itu kebutuhan dasar. Banyak training lab keliru mengajarkan
-  full-mesh untuk semua skala; NetForge sebaiknya **flag warning** kalau user membuat
+  full-mesh untuk semua skala; NetGeo sebaiknya **flag warning** kalau user membuat
   full-mesh iBGP di topologi >8 node tanpa RR — good catch untuk fitur UX validasi desain.
 - **BGP convergence di internet nyata itu LAMBAT** dibanding IGP — best-path re-selection
   setelah event besar (mis. upstream major outage) bisa makan puluhan detik hingga menit
   karena BGP path-hunting (mencoba banyak rute alternatif sebelum stabil), beda jauh dari
   OSPF/IS-IS yang konvergen dalam hitungan detik. Simulasi yang membuat BGP "instan" akan
-  memberikan ekspektasi keliru ke pengguna baru yang belajar dari NetForge.
+  memberikan ekspektasi keliru ke pengguna baru yang belajar dari NetGeo.

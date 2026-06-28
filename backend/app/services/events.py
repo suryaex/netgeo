@@ -24,7 +24,7 @@ import logging
 from functools import lru_cache
 from typing import Any, AsyncGenerator, AsyncIterator
 
-logger = logging.getLogger("netforge.events")
+logger = logging.getLogger("netgeo.events")
 
 # A project_id sentinel meaning "events not scoped to a single project".
 GLOBAL = "*"

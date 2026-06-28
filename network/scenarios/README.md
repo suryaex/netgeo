@@ -1,4 +1,4 @@
-# network/scenarios/ — Katalog Skenario Skala Besar NetForge
+# network/scenarios/ — Katalog Skenario Skala Besar NetGeo
 
 **Pemilik area:** `network-backbone-datacenter-advisor` (lihat `MASTER_SPEC.md` §3).
 **Fokus:** skenario topologi skala besar (backbone, datacenter, ISP, DCI) + analisis kemampuan
@@ -85,7 +85,7 @@ namun **lintas-area dengan `backend-network-sim-architect`** — orchestrator to
 - Semua angka kapasitas (jumlah node sim vs emul, RAM per container, dst.) di
   `scaling-guidelines.md` adalah **estimasi field-engineering** berbasis pengalaman operasional
   router/switch carrier-grade dan container networking (FRRouting di Docker/containerlab),
-  **bukan hasil benchmark langsung terhadap codebase NetForge** (karena `backend/engine/`
+  **bukan hasil benchmark langsung terhadap codebase NetGeo** (karena `backend/engine/`
   belum berisi implementasi saat dokumen ini ditulis — 2026-06-23). Tim backend wajib
   memvalidasi ulang dengan benchmark nyata begitu engine berjalan, dan melaporkan delta-nya.
 - Topologi geografis (kota, jarak fiber) bersifat **representatif Indonesia** (Jakarta–Surabaya–

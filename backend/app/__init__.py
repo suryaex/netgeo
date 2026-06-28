@@ -1,1 +1,1 @@
-"""NetForge backend application package (FastAPI + simulation engine)."""
+"""NetGeo backend application package (FastAPI + simulation engine)."""

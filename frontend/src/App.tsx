@@ -1,5 +1,5 @@
 /**
- * App — the NetForge desktop shell composition.
+ * App — the NetGeo desktop shell composition.
  * Layout: full-viewport "desktop" with a glass MenuBar (top), the floating
  * window manager (WindowHost), and the Dock (bottom). On first mount it:
  *   - applies the persisted theme,
@@ -120,7 +120,7 @@ export default function App() {
       {/* Desktop surface — windows float here (topology) or full map view */}
       <main
         className="absolute inset-x-0 bottom-0 top-9"
-        aria-label="NetForge desktop"
+        aria-label="NetGeo desktop"
       >
         {viewMode === 'map' ? (
           <MapView />

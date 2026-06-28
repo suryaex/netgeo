@@ -1,5 +1,5 @@
 /**
- * NetForge shared data model — mirrors MASTER_SPEC §4 exactly.
+ * NetGeo shared data model — mirrors the backend API contract exactly.
  * These types are the contract between frontend and the FastAPI backend.
  * Keep field names in sync with the backend Pydantic schemas.
  */

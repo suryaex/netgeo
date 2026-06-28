@@ -19,7 +19,7 @@ from app.services.events import get_bus
 from app.store import MemoryRepository
 from app.store import NotFound
 
-logger = logging.getLogger("netforge.notify")
+logger = logging.getLogger("netgeo.notify")
 
 
 async def _publish_plan(repo: MemoryRepository, project_id: str) -> None:

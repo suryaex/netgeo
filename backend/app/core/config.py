@@ -1,7 +1,7 @@
 """Application configuration loaded from environment variables.
 
 Mirrors the secureops/storagehub settings style (pydantic-settings + a cached
-``settings`` singleton) so the three projects share a baseline. NetForge adds
+``settings`` singleton) so the three projects share a baseline. NetGeo adds
 Redis (realtime state / job queue) and engine knobs.
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     )
 
     # App
-    APP_NAME: str = "NetForge"
+    APP_NAME: str = "NetGeo"
     APP_VERSION: str = "0.1"
     ENVIRONMENT: str = "development"
     SECRET_KEY: str = "change-me"
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api"
 
     # Database (PostgreSQL per MASTER_SPEC §2; async driver)
-    DATABASE_URL: str = "postgresql+asyncpg://netforge:netforge@localhost:5432/netforge"
+    DATABASE_URL: str = "postgresql+asyncpg://netgeo:netgeo@localhost:5432/netgeo"
 
     # Redis — realtime state, pub/sub for WS fan-out, job queue
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -49,14 +49,14 @@ class Settings(BaseSettings):
 
     # In-app self-update (see app/services/updater.py + scripts/self-update.sh).
     # GITHUB_REPO is the "owner/name" slug whose releases we compare against.
-    GITHUB_REPO: str = "suryaex/netforge"
+    GITHUB_REPO: str = "suryaex/netgeo"
     UPDATE_BRANCH: str = "main"
-    # Shared secret required to call POST /api/update/apply (NetForge has no auth
+    # Shared secret required to call POST /api/update/apply (NetGeo has no auth
     # layer yet). Leave blank to DISABLE applying updates from the app.
     UPDATE_TOKEN: str = ""
     # Sentinel + status files exchanged with the host-side scripts/self-update.sh.
-    UPDATE_TRIGGER_FILE: str = "/var/lib/netforge/update.request"
-    UPDATE_STATUS_FILE: str = "/var/lib/netforge/update.status"
+    UPDATE_TRIGGER_FILE: str = "/var/lib/netgeo/update.request"
+    UPDATE_STATUS_FILE: str = "/var/lib/netgeo/update.status"
     # When "1" the backend may run scripts/self-update.sh itself (needs the repo +
     # docker socket mounted). Otherwise it only drops the trigger file for a
     # host-side watcher to pick up — the safer default in containers.

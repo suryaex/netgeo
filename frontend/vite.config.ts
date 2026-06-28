@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
-// NetForge dev server. Proxies REST + WS to the FastAPI backend so the
+// NetGeo dev server. Proxies REST + WS to the FastAPI backend so the
 // browser talks to a single origin (avoids CORS in dev, keeps prod parity).
 const BACKEND = process.env.VITE_BACKEND_ORIGIN ?? 'http://localhost:8000';
 

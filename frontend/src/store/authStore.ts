@@ -7,11 +7,11 @@ import { create } from 'zustand';
 
 /** Built-in credentials. Format: username:password pairs. */
 const BUILTIN_USERS: Record<string, string> = {
-  admin: 'netforge',
+  admin: 'netgeo',
   demo: 'demo123',
 };
 
-const SESSION_KEY = 'netforge.session';
+const SESSION_KEY = 'netgeo.session';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -48,7 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({ username }));
       set({ isAuthenticated: true, username, loginError: null });
     } else {
-      set({ loginError: 'Incorrect username or password. Try admin / netforge.' });
+      set({ loginError: 'Incorrect username or password. Try admin / netgeo.' });
     }
     return valid;
   },

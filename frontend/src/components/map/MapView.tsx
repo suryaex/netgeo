@@ -47,11 +47,15 @@ import {
   type OsmTower,
 } from '@/services/osmService';
 import { MAP_TILES, type TileLayerConfig } from '@/config/mapTiles';
+import { GIS_LAYERS } from '@/config/gisLayers';
 import { MapToolbar } from './MapToolbar';
 import { MapDevicePanel } from './MapDevicePanel';
 import { MapOnboardingModal } from './MapOnboardingModal';
 import { MapLayerSwitcher } from './MapLayerSwitcher';
+import { GisLayerPanel } from './GisLayerPanel';
 import { DeviceLibraryModal } from './DeviceLibraryModal';
+import { Layers as LayersIcon } from 'lucide-react';
+import { cn } from '@/lib/cn';
 
 // Prevent default marker icon 404 errors in Vite. We use CircleMarker, not Marker.
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)['_getIconUrl'];
@@ -629,6 +633,53 @@ function BaseTiles() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* GIS overlay tiles — renders every visible tile-backed GIS layer in order    */
+/* -------------------------------------------------------------------------- */
+function GisOverlayTiles() {
+  const gisLayers = useMapStore((s) => s.gisLayers);
+  return (
+    <>
+      {GIS_LAYERS.filter((l) => l.kind === 'tile').map((layer) => {
+        const state = gisLayers[layer.id];
+        if (!state?.visible || !layer.tileUrl) return null;
+        return (
+          <TileLayer
+            key={`gis-${layer.id}`}
+            url={layer.tileUrl}
+            attribution={layer.attribution ?? ''}
+            opacity={state.opacity}
+            maxZoom={layer.maxZoom ?? 19}
+            {...(layer.subdomains ? { subdomains: layer.subdomains } : {})}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* GIS layer panel toggle (top-right, above the gradient legend)               */
+/* -------------------------------------------------------------------------- */
+function GisLayerToggle() {
+  const open = useMapStore((s) => s.gisPanelOpen);
+  const togglePanel = useMapStore((s) => s.toggleGisPanel);
+  return (
+    <button
+      onClick={() => togglePanel()}
+      aria-label="Toggle GIS layers"
+      aria-pressed={open}
+      title="GIS layers"
+      className={cn(
+        'pointer-events-auto absolute right-4 top-16 z-[1001] grid h-9 w-9 place-items-center rounded-lg border border-white/15 shadow-glass backdrop-blur transition-colors',
+        open ? 'bg-accent/25 text-accent' : 'bg-black/55 text-white/70 hover:text-white',
+      )}
+    >
+      <LayersIcon className="h-4 w-4" />
+    </button>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* UISP-style Weak↔Strong gradient legend (top-right)                          */
 /* -------------------------------------------------------------------------- */
 function GradientLegend() {
@@ -665,6 +716,7 @@ export function MapView() {
   const showOnboarding = useMapStore((s) => s.showOnboarding);
   const deviceLibraryOpen = useMapStore((s) => s.deviceLibraryOpen);
   const devById = useMapStore((s) => s.devices);
+  const towersVisible = useMapStore((s) => s.gisLayers['util-tower']?.visible ?? false);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -678,13 +730,16 @@ export function MapView() {
         {/* Layer-aware basemap — Satellite / Street / Hybrid (see MapLayerSwitcher) */}
         <BaseTiles />
 
+        {/* GIS overlay tiles — terrain/transportation layers stacked on basemap */}
+        <GisOverlayTiles />
+
         <ZoomControl position="bottomright" />
 
         {/* Map interaction */}
         <MapEventHandler />
 
-        {/* OSM existing telecom towers — fetched from Overpass API */}
-        <OsmTowerLayer />
+        {/* OSM existing telecom towers — gated by the GIS "Telecom Towers" layer */}
+        {towersVisible && <OsmTowerLayer />}
 
         {/* Links — rendered before devices so devices appear on top */}
         {links.map((link) => {
@@ -707,6 +762,8 @@ export function MapView() {
       <MapDevicePanel />
       <SignalLegend />
       <GradientLegend />
+      <GisLayerToggle />
+      <GisLayerPanel />
       <ToolHint />
       <WeatherBar />
       <MapLayerSwitcher />

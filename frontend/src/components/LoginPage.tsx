@@ -30,10 +30,11 @@ export function LoginPage() {
     e.preventDefault();
     if (!username.trim() || !password) return;
     setLoading(true);
-    // Tiny artificial delay so the button state is visible.
-    await new Promise((r) => setTimeout(r, 320));
-    login(username.trim(), password);
-    setLoading(false);
+    try {
+      await login(username.trim(), password);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -151,7 +152,7 @@ export function LoginPage() {
             </button>
 
             <p className="text-center text-[11px] text-white/25">
-              Default credentials: <span className="text-white/40">admin / netgeo</span>
+              Sign in with your NetGeo account
             </p>
           </form>
         </div>

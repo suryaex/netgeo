@@ -27,6 +27,7 @@ import { useWindowStore } from '@/store/windowStore';
 import { useTopologyStore } from '@/store/topologyStore';
 import { useAuthStore } from '@/store/authStore';
 import { useTopologyChannel } from '@/hooks/useTopologyChannel';
+import { useCollaboration } from '@/hooks/useCollaboration';
 import { applyTheme } from '@/theme/tokens';
 
 export default function App() {
@@ -50,7 +51,7 @@ export default function App() {
   // Bootstrap: pick the first project and select it as the active workspace.
   const { data: projects } = useQuery({
     queryKey: ['projects'],
-    queryFn: projectsApi.list,
+    queryFn: () => projectsApi.list(),
     staleTime: 60_000,
     retry: 1,
     enabled: isAuthenticated,
@@ -92,6 +93,9 @@ export default function App() {
 
   // Realtime channel (auto-reconnect) — only when a project is active.
   const conn = useTopologyChannel(isAuthenticated, projectId);
+
+  // Realtime collaboration presence (gated behind VITE_COLLAB until backend ready).
+  useCollaboration(isAuthenticated, projectId);
 
   // Open the default workspace once.
   // Topology is opened first so it receives the lowest z-index; palette and

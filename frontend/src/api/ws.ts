@@ -8,6 +8,8 @@
  * Kept dependency-free (no socket.io) to stay within the lightweight budget.
  */
 
+import { getToken, notifyUnauthorized } from './token';
+
 type Listener<T> = (event: T) => void;
 
 export interface RealtimeOptions {
@@ -25,6 +27,18 @@ function wsUrl(path: string): string {
   if (base) return base.replace(/\/$/, '') + path;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${proto}//${location.host}${path}`;
+}
+
+/**
+ * Append the bearer token as a query param (AUTH_CONTRACT §4) — browsers can't
+ * set the Authorization header on the WS upgrade. Read at connect time so each
+ * reconnect picks up a refreshed token. No-op when unauthenticated.
+ */
+function withToken(url: string): string {
+  const t = getToken();
+  if (!t) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}token=${encodeURIComponent(t)}`;
 }
 
 export class RealtimeChannel<TEvent> {
@@ -53,7 +67,7 @@ export class RealtimeChannel<TEvent> {
 
   private open(): void {
     this.emitState(this.attempt === 0 ? 'connecting' : 'reconnecting');
-    const sock = new WebSocket(wsUrl(this.path));
+    const sock = new WebSocket(withToken(wsUrl(this.path)));
     this.ws = sock;
 
     sock.onopen = () => {
@@ -74,8 +88,16 @@ export class RealtimeChannel<TEvent> {
       }
     };
 
-    sock.onclose = () => {
+    sock.onclose = (ev) => {
       this.stopHeartbeat();
+      // 4401 = server rejected the token (AUTH_CONTRACT §4). Don't reconnect-
+      // loop against a dead session — tear it down and bounce to login.
+      if (ev.code === 4401) {
+        this.closedByUser = true;
+        this.emitState('closed');
+        notifyUnauthorized();
+        return;
+      }
       if (this.closedByUser) {
         this.emitState('closed');
         return;
@@ -149,4 +171,12 @@ export function topologyChannel(projectId?: string | null) {
 /** Factory: per-node console channel. */
 export function consoleChannel(nodeId: string) {
   return new RealtimeChannel<import('./types').ConsoleEvent>(`/ws/console/${nodeId}`);
+}
+
+/** Factory: realtime-collaboration channel (presence + CRDT op-log) per project.
+ *  Scoped by `?project=<id>` like the topology channel. Backed by the backend
+ *  `/ws/collab` presence broadcaster (backend/app/api/ws.py). */
+export function collabChannel(projectId?: string | null) {
+  const qs = projectId ? `?project=${encodeURIComponent(projectId)}` : '';
+  return new RealtimeChannel<import('./types').PresenceEvent>(`/ws/collab${qs}`);
 }

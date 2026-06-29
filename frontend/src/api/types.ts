@@ -167,6 +167,52 @@ export type ConsoleEvent =
   | { type: 'error'; node_id?: string; text: string }
   | { type: 'closed'; node_id: string; reason?: string };
 
+/* -------------------------------------------------------------------------- */
+/* Realtime collaboration (presence + CRDT op-log) — /ws/collab               */
+/* -------------------------------------------------------------------------- */
+
+/** A connected collaborator's presence record. */
+export interface Peer {
+  id: string;
+  name: string;
+  /** Stable accent color (hex) derived from the peer id for avatars/cursors. */
+  color: string;
+  /** Last known pointer position, in canvas coords or map lat/lng. */
+  cursor?: { x: number; y: number } | { lat: number; lng: number } | null;
+  /** Currently selected entity id (node/link/device), for shared highlight. */
+  selection?: string | null;
+  /** Epoch ms of the last frame from this peer (for stale eviction). */
+  lastSeen: number;
+}
+
+/**
+ * A single CRDT-style operation in the shared op-log. Carries a Lamport
+ * timestamp + actor so a future CRDT merge layer (e.g. Yjs/Automerge) can be
+ * dropped in without changing the transport. This is scaffolding: today the
+ * server is still authoritative via /ws/topology; ops let presence-driven
+ * intent ride the same channel.
+ */
+export interface CrdtOp {
+  id: string;
+  actor: string;
+  /** Lamport clock for causal ordering across peers. */
+  lamport: number;
+  /** Target entity: "node:<id>", "link:<id>", "device:<id>". */
+  entity: string;
+  field?: string;
+  value?: unknown;
+  ts: number;
+}
+
+/** Frames over /ws/collab. */
+export type PresenceEvent =
+  | { type: 'presence.sync'; peers: Peer[] }
+  | { type: 'presence.join'; peer: Peer }
+  | { type: 'presence.leave'; peer_id: string }
+  | { type: 'presence.cursor'; peer_id: string; cursor: Peer['cursor'] }
+  | { type: 'presence.selection'; peer_id: string; selection: string | null }
+  | { type: 'crdt.op'; op: CrdtOp };
+
 /** Simulation lifecycle. */
 export type SimState = 'idle' | 'running' | 'paused' | 'stepping';
 

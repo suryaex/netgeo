@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useWindowStore } from '@/store/windowStore';
 import { SimulationBar } from '@/components/SimulationBar';
 import { UpdatesButton } from '@/components/shell/UpdatesButton';
+import { PresenceBar } from '@/components/shell/PresenceBar';
 import { cn } from '@/lib/cn';
 
 interface MenuBarProps {
@@ -102,6 +103,9 @@ export function MenuBar({ projectName, conn }: MenuBarProps) {
 
       {/* Right-side controls */}
       <div className="flex items-center gap-1.5">
+        {/* Live collaborators (hidden when alone) */}
+        <PresenceBar />
+
         {/* Connection status */}
         <div
           className={cn(

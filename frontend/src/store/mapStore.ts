@@ -12,6 +12,22 @@ import { create } from 'zustand';
 import type { LosStatus } from '@/services/signalSim';
 import type { MapTileKey } from '@/config/mapTiles';
 import { DEFAULT_TILE } from '@/config/mapTiles';
+import { GIS_LAYERS } from '@/config/gisLayers';
+
+/** Per-layer runtime state for the GIS layer tree (visibility + opacity). */
+export interface GisLayerState {
+  visible: boolean;
+  opacity: number;
+}
+
+/** Seed the layer state map from the registry's declared defaults. */
+function initialGisLayers(): Record<string, GisLayerState> {
+  const out: Record<string, GisLayerState> = {};
+  for (const l of GIS_LAYERS) {
+    out[l.id] = { visible: l.defaultVisible, opacity: l.defaultOpacity };
+  }
+  return out;
+}
 
 export type MapTool = 'select' | 'ap' | 'cpe' | 'tower' | 'measure';
 export type MapDeviceKind = 'ap' | 'cpe' | 'tower';
@@ -107,11 +123,14 @@ interface MapState {
   deviceLibraryOpen: boolean; // device-type library modal visibility
   rainRate: number;     // mm/hr (0 = clear sky)
   checkingLos: boolean; // async LOS check in progress
+  gisLayers: Record<string, GisLayerState>; // GIS layer tree state (05_MAP_ENGINE)
+  gisPanelOpen: boolean;      // GIS layer panel visibility
 
   // selectors
   deviceList: () => MapDevice[];
   linkList: () => MapLink[];
   selectedDevice: () => MapDevice | null;
+  isGisLayerVisible: (id: string) => boolean;
 
   // mutations
   addDevice: (d: Omit<MapDevice, 'id'>) => string;
@@ -127,6 +146,9 @@ interface MapState {
   setRainRate: (rate: number) => void;
   setCheckingLos: (v: boolean) => void;
   updateLinkLos: (linkId: string, los: LosStatus, obstructionDb: number) => void;
+  toggleGisLayer: (id: string) => void;
+  setGisLayerOpacity: (id: string, opacity: number) => void;
+  toggleGisPanel: (open?: boolean) => void;
 
   /** Rebuild all links (fast, synchronous FSPL only). */
   rebuildLinks: () => void;
@@ -149,6 +171,8 @@ export const useMapStore = create<MapState>((set, get) => ({
   deviceLibraryOpen: false,
   rainRate: 0,
   checkingLos: false,
+  gisLayers: initialGisLayers(),
+  gisPanelOpen: false,
 
   deviceList: () => Array.from(get().devices.values()),
   linkList: () => Array.from(get().links.values()),
@@ -156,6 +180,7 @@ export const useMapStore = create<MapState>((set, get) => ({
     const id = get().selectedDeviceId;
     return id ? (get().devices.get(id) ?? null) : null;
   },
+  isGisLayerVisible: (id) => get().gisLayers[id]?.visible ?? false,
 
   addDevice: (d) => {
     const id = nextId(d.kind);
@@ -210,6 +235,24 @@ export const useMapStore = create<MapState>((set, get) => ({
     get().rebuildLinks();
   },
   setCheckingLos: (checkingLos) => set({ checkingLos }),
+
+  toggleGisLayer: (id) =>
+    set((s) => {
+      const cur = s.gisLayers[id];
+      if (!cur) return {};
+      return { gisLayers: { ...s.gisLayers, [id]: { ...cur, visible: !cur.visible } } };
+    }),
+
+  setGisLayerOpacity: (id, opacity) =>
+    set((s) => {
+      const cur = s.gisLayers[id];
+      if (!cur) return {};
+      const clamped = Math.min(1, Math.max(0, opacity));
+      return { gisLayers: { ...s.gisLayers, [id]: { ...cur, opacity: clamped } } };
+    }),
+
+  toggleGisPanel: (open) =>
+    set((s) => ({ gisPanelOpen: open ?? !s.gisPanelOpen })),
 
   updateLinkLos: (linkId, los, obstructionDb) =>
     set((s) => {

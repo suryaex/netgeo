@@ -4,7 +4,7 @@
  * typed resource functions. The dev server proxies `/api` to the backend, so
  * we use a same-origin relative baseURL by default.
  */
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import type {
   ConfigArtifact,
   HostInterface,
@@ -16,6 +16,14 @@ import type {
   SimulateRequest,
   Topology,
 } from './types';
+import {
+  isEnvelope,
+  type ApiErrorBody,
+  type Page,
+  type PageMeta,
+  type PageParams,
+} from './envelope';
+import { getToken, notifyUnauthorized } from './token';
 
 export const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
@@ -29,27 +37,131 @@ export const http = axios.create({
 export interface ApiError {
   status: number;
   message: string;
+  /** Machine-readable code from the envelope `error.code`, when present. */
+  code?: string | number;
   detail?: unknown;
 }
 
+/**
+ * Module-augment AxiosResponse so the unwrapping interceptor can stash the
+ * envelope `meta` block (pagination) without a separate request. Read it via
+ * {@link fetchPage} rather than reaching for `res.meta` directly.
+ */
+declare module 'axios' {
+  // Type parameters must mirror axios's own `AxiosResponse<T = any, D = any>`
+  // declaration verbatim, otherwise TS2428 ("identical type parameters").
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  interface AxiosResponse<T = any, D = any> {
+    /** Envelope meta (NetGeo/09 §Response Format). Undefined for bare bodies. */
+    meta?: PageMeta;
+  }
+}
+
+/**
+ * Request interceptor: attach the bearer token (AUTH_CONTRACT §3) to every
+ * outgoing request. `/auth/login` runs before a token exists, so the header is
+ * simply omitted then.
+ */
+http.interceptors.request.use((config) => {
+  const t = getToken();
+  if (t) {
+    config.headers = config.headers ?? {};
+    (config.headers as Record<string, string>).Authorization = `Bearer ${t}`;
+  }
+  return config;
+});
+
+/**
+ * Success interceptor: transparently unwrap the NetGeo envelope.
+ *  - `{ success:false, error }` → reject with a normalized {@link ApiError}
+ *    even on HTTP 200 (defensive: some gateways wrap errors with a 200).
+ *  - `{ success:true, data, meta }` → replace `res.data` with `data`, stash
+ *    `meta` on the response so existing `.then(r => r.data)` callers are
+ *    untouched.
+ *  - bare payloads → passed through verbatim (tolerant migration).
+ */
 http.interceptors.response.use(
-  (res) => res,
-  (err: AxiosError<{ detail?: unknown }>) => {
+  (res) => {
+    if (isEnvelope(res.data)) {
+      const env = res.data;
+      if (env.success === false) {
+        const body = (env.error ?? {}) as ApiErrorBody;
+        const apiError: ApiError = {
+          status: res.status,
+          message: body.message ?? 'Request failed',
+          code: body.code,
+          detail: body.detail ?? body,
+        };
+        return Promise.reject(apiError);
+      }
+      res.meta = env.meta;
+      res.data = env.data;
+    }
+    return res;
+  },
+  (err: AxiosError<{ detail?: unknown; error?: ApiErrorBody; message?: string }>) => {
+    const data = err.response?.data;
+    const envError = data?.error;
+    // A 401 on an authenticated request means the session is dead (expired or
+    // revoked) — tear it down so the app falls back to the login screen. We
+    // only fire when a token was actually attached, so a failed login attempt
+    // (no token yet) keeps its inline error instead of bouncing the UI.
+    const url = err.config?.url ?? '';
+    if (err.response?.status === 401 && getToken() && !url.includes('/auth/login')) {
+      notifyUnauthorized();
+    }
     const apiError: ApiError = {
       status: err.response?.status ?? 0,
       message:
-        (typeof err.response?.data?.detail === 'string' && err.response.data.detail) ||
+        envError?.message ||
+        (typeof data?.detail === 'string' ? data.detail : undefined) ||
+        data?.message ||
         err.message ||
         'Network error',
-      detail: err.response?.data?.detail,
+      code: envError?.code,
+      detail: envError?.detail ?? data?.detail ?? data,
     };
     return Promise.reject(apiError);
   },
 );
 
+/**
+ * Fetch a paginated resource, returning both the rows and the envelope `meta`
+ * (total/limit/offset/cursor). Use this for list views that render pagination;
+ * plain list helpers below still return just the rows for convenience.
+ */
+export async function fetchPage<T>(
+  url: string,
+  params?: PageParams,
+  config?: AxiosRequestConfig,
+): Promise<Page<T>> {
+  const res = await http.get<T>(url, { ...config, params });
+  return { data: res.data, meta: res.meta ?? {} };
+}
+
+/* ------------------------------- Auth ------------------------------------ */
+/** Login/identity endpoints — see docs/security/AUTH_CONTRACT.md. */
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+export interface CurrentUser {
+  username: string;
+  role: string;
+}
+export const authApi = {
+  login: (username: string, password: string) =>
+    http.post<LoginResponse>('/auth/login', { username, password }).then((r) => r.data),
+  me: () => http.get<CurrentUser>('/auth/me').then((r) => r.data),
+};
+
 /* ----------------------------- Projects ---------------------------------- */
 export const projectsApi = {
-  list: () => http.get<Project[]>('/projects').then((r) => r.data),
+  list: (params?: PageParams) =>
+    http.get<Project[]>('/projects', { params }).then((r) => r.data),
+  /** Paginated variant — returns rows + envelope meta for list views. */
+  listPage: (params?: PageParams) => fetchPage<Project[]>('/projects', params),
   get: (id: string) => http.get<Project>(`/projects/${id}`).then((r) => r.data),
   create: (body: Partial<Project>) => http.post<Project>('/projects', body).then((r) => r.data),
   topology: (id: string) =>

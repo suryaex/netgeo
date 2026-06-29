@@ -101,6 +101,49 @@ class RateLimitMiddleware:
 
 
 # ---------------------------------------------------------------------------
+# Security response headers
+# ---------------------------------------------------------------------------
+
+# Static headers applied to every response. HSTS is added conditionally below
+# because it must only be sent over HTTPS (settings.ENABLE_HSTS).
+_SECURITY_HEADERS: list[tuple[bytes, bytes]] = [
+    (b"x-content-type-options", b"nosniff"),
+    (b"x-frame-options", b"DENY"),
+    (b"referrer-policy", b"no-referrer"),
+    (b"cross-origin-opener-policy", b"same-origin"),
+]
+
+
+class SecurityHeadersMiddleware:
+    """Inject hardening headers on every HTTP response (pure ASGI, no deps).
+
+    Wires up the previously-unused ``ENABLE_HSTS`` setting and adds the baseline
+    headers (anti-MIME-sniffing, clickjacking, referrer leakage) recommended by
+    OWASP. WebSocket scopes are passed through untouched.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message: dict) -> None:
+            if message["type"] == "http.response.start":
+                headers = message.setdefault("headers", [])
+                headers.extend(_SECURITY_HEADERS)
+                if settings.ENABLE_HSTS:
+                    headers.append(
+                        (b"strict-transport-security", b"max-age=31536000; includeSubDomains")
+                    )
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
+# ---------------------------------------------------------------------------
 # Admin user initialisation helper
 # ---------------------------------------------------------------------------
 
@@ -154,6 +197,9 @@ def create_app() -> FastAPI:
 
     # RB-14: in-process rate limiter (outermost middleware so it runs before auth)
     app.add_middleware(RateLimitMiddleware)
+
+    # RB-09: baseline security response headers (+ HSTS when ENABLE_HSTS=1)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # RB-09: tightened CORS — explicit methods and headers instead of wildcards
     app.add_middleware(

@@ -1,14 +1,16 @@
 # NetGeo backend — runtime dependencies (MASTER_SPEC §2)
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-pydantic==2.9.2
-pydantic-settings==2.5.2
-jinja2==3.1.4
-networkx==3.3
+# Pins reflect the security-patched, test-verified runtime (65/65 passing).
+fastapi==0.138.0
+starlette==1.3.1        # pinned: avoids multipart DoS CVE-2024-47874 in <0.40
+uvicorn[standard]==0.49.0
+pydantic==2.13.4
+pydantic-settings==2.14.2
+jinja2==3.1.6           # security: sandbox-escape CVE-2024-56326 / CVE-2025-27516
+networkx==3.6.1
 redis==5.0.8
 sqlalchemy[asyncio]==2.0.35
 asyncpg==0.29.0
-python-multipart==0.0.18
+python-multipart==0.0.18  # security: >=0.0.18 fixes DoS CVE-2024-53981
 pyyaml==6.0.2
 websockets==13.0.1
 psutil==6.0.0          # host NIC discovery for cloud/internet bridge nodes

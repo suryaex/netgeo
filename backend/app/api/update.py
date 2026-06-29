@@ -17,6 +17,7 @@ the blocking work never starves the event loop.
 """
 from __future__ import annotations
 
+import hmac
 import logging
 
 from fastapi import APIRouter, Header, HTTPException, status
@@ -59,7 +60,9 @@ def update_apply(x_update_token: str | None = Header(default=None)) -> dict:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Applying updates from the app is disabled (set UPDATE_TOKEN).",
         )
-    if x_update_token != settings.UPDATE_TOKEN:
+    # Constant-time compare so the token cannot be recovered byte-by-byte via a
+    # response-timing side channel (consistent with core.security's hmac usage).
+    if x_update_token is None or not hmac.compare_digest(x_update_token, settings.UPDATE_TOKEN):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid update token.",

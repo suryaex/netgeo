@@ -1,4 +1,12 @@
 -- =============================================================================
+-- NetGeo — Skema PostgreSQL  [LEGACY / DIBEKUKAN]
+-- =============================================================================
+-- ⚠️ LEGACY: file ini adalah model "topologi sederhana" (MASTER_SPEC §4) dan
+-- BUKAN lagi sumber kebenaran. Skema otoritatif = migrasi berurutan di
+-- infra/db/postgres/migrations/ (NetGeo Enterprise ERD). Lihat infra/db/README.md.
+-- File ini TIDAK lagi di-bootstrap oleh docker-compose; dipertahankan hanya
+-- sebagai acuan DDL untuk backend store legacy hingga store dipindah ke skema baru.
+-- =============================================================================
 -- NetGeo — Skema PostgreSQL (Single Source of Truth untuk lapisan data)
 -- =============================================================================
 -- Selaras dengan MASTER_SPEC.md §4 (Model Data Inti).

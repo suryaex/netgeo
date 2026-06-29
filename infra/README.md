@@ -23,9 +23,14 @@ infra/
 │   ├── nginx.conf            ← SPA fallback + reverse-proxy /api & /ws (prod)
 │   └── nginx.lan.conf        ← gateway dev: proxy / -> Vite, /api & /ws -> backend
 ├── db/
-│   ├── schema.sql            ← skema penuh (sumber-kebenaran, idempotent)
-│   ├── ERD.md                ← entity-relationship diagram (Mermaid + as-text)
-│   └── migrations/           ← migrasi SQL bernomor (0001 up/down + README)
+│   ├── README.md             ← OTORITATIF: keputusan skema + cara migrasi (baca dulu)
+│   ├── postgres/             ← ✅ tree migrasi OTORITATIF (0001_core..0005) + runner
+│   │   ├── migrations/       ←   0001..0005 up/down (NetGeo Enterprise ERD)
+│   │   ├── migrate.sh        ←   runner psql (up/down/status)
+│   │   └── bootstrap.sh      ←   apply berurutan saat first-boot container
+│   ├── schema.sql            ← 🗄️ LEGACY (model MASTER_SPEC §4, bukan lagi bootstrap)
+│   ├── ERD.md                ← entity-relationship diagram legacy (Mermaid + as-text)
+│   └── migrations/           ← 🗄️ LEGACY: 0001_init up/down + README
 ├── redis-design.md           ← state realtime, pub/sub WS, job queue
 └── ci/                       ← GitHub Actions (backend, frontend, images)
 ```
@@ -126,13 +131,20 @@ docker compose -f infra/docker-compose.yml down            # data tetap (volume)
 docker compose -f infra/docker-compose.yml down -v         # HAPUS data (hati-hati)
 ```
 
-Schema otomatis di-bootstrap dari `db/schema.sql` saat volume Postgres pertama
-kali kosong. Untuk database existing, jalankan migrasi:
+Schema otomatis di-bootstrap dari tree migrasi **otoritatif**
+(`db/postgres/migrations/`, dijalankan berurutan oleh `db/postgres/bootstrap.sh`)
+saat volume Postgres pertama kali kosong. Untuk database existing, jalankan
+migrasi via `make migrate` atau runner-nya:
 
 ```bash
-docker compose -f infra/docker-compose.yml exec -T postgres \
-  psql -U netgeo -d netgeo -v ON_ERROR_STOP=1 < infra/db/migrations/0001_init.up.sql
+make migrate                                   # apply 0001..0005 ke container
+# atau, lokal:
+DATABASE_URL=postgres://netgeo:netgeo@localhost:5432/netgeo \
+  infra/db/postgres/migrate.sh up
 ```
+
+Detail keputusan rekonsiliasi dua tree + flag mismatch backend: lihat
+[`db/README.md`](db/README.md).
 
 ## Menjalankan — PROD
 

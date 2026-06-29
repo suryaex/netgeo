@@ -46,8 +46,8 @@ backend:       ## Run backend locally (needs Postgres + Redis + venv)
 frontend:      ## Run frontend dev server
 	cd frontend && npm run dev
 
-migrate:       ## Apply SQL migrations into the running Postgres container (psql)
-	@for f in infra/db/migrations/*.up.sql; do \
+migrate:       ## Apply authoritative SQL migrations into the running Postgres container (psql)
+	@for f in infra/db/postgres/migrations/*.up.sql; do \
 	  echo "==> applying $$f"; \
 	  $(DC) $(DEV) exec -T postgres psql -U netgeo -d netgeo -v ON_ERROR_STOP=1 < "$$f"; \
 	done

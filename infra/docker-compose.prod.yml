@@ -26,7 +26,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-netgeo}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/00_schema.sql:ro
+      # Bootstrap dari migrasi OTORITATIF (lihat infra/db/README.md §4).
+      # Sub-dir mount mencegah entrypoint menjalankan file *.down.sql.
+      - ./db/postgres/bootstrap.sh:/docker-entrypoint-initdb.d/00_bootstrap.sh:ro
+      - ./db/postgres/migrations:/docker-entrypoint-initdb.d/migrations:ro
     networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netgeo} -d ${POSTGRES_DB:-netgeo}"]

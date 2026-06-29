@@ -26,8 +26,12 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Bootstrap skema saat volume pertama kali kosong.
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/00_schema.sql:ro
+      # Bootstrap skema saat volume pertama kali kosong: jalankan migrasi
+      # OTORITATIF (infra/db/postgres/migrations) berurutan via bootstrap.sh.
+      # Migrasi di-mount di sub-dir agar entrypoint TIDAK ikut menjalankan
+      # file *.down.sql (entrypoint hanya memproses file di level atas).
+      - ./db/postgres/bootstrap.sh:/docker-entrypoint-initdb.d/00_bootstrap.sh:ro
+      - ./db/postgres/migrations:/docker-entrypoint-initdb.d/migrations:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U netgeo -d netgeo"]
       interval: 10s

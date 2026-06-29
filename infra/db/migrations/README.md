@@ -1,4 +1,15 @@
-# NetGeo — Migrasi Database
+# NetGeo — Migrasi Database (LEGACY)
+
+> ⚠️ **LEGACY / DIBEKUKAN.** Tree ini (`infra/db/migrations/` + `infra/db/schema.sql`)
+> adalah model "topologi sederhana" `MASTER_SPEC §4` (`app_user`, `project`,
+> `node`, `iface`, `link`, ...). Tree **otoritatif** sekarang ada di
+> **`infra/db/postgres/migrations/`** (skema NetGeo Enterprise per
+> `NetGeo/08_DATABASE_AND_ERD.md`). Lihat **`infra/db/README.md`** untuk
+> keputusan rekonsiliasi dan cara menjalankan.
+>
+> Tree ini hanya dipertahankan karena `backend/app/store/postgres.py` +
+> `app/models/schemas.py` masih menargetkan nama tabel/kolom legacy ini. Jangan
+> mencampur kedua tree dalam satu database.
 
 Migrasi SQL bernomor (gaya `dbmate` / `migrate` / `sqitch`), tanpa lock-in ORM.
 Backend FastAPI boleh menjalankannya lewat runner pilihan atau langsung `psql`.

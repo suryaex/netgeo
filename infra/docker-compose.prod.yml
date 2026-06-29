@@ -73,6 +73,10 @@ services:
       ENABLE_HSTS: "true"
       EMULATION_BACKEND: ${EMULATION_BACKEND:-null}
     networks: [internal]
+    volumes:
+      # Shared update-state dir (trigger/status) for the host-side update watcher
+      # — see scripts/self-update.sh and install.sh. Docker socket stays out.
+      - ${NETGEO_STATE_DIR:-/var/lib/netgeo}:/var/lib/netgeo
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
       interval: 15s

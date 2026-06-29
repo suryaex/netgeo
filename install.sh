@@ -16,6 +16,7 @@
 #   ./install.sh --reset      # stop and DELETE all data (volumes)
 #   ./install.sh --tailscale  # install + join Tailscale, use its VPN IP
 #   ./install.sh --public     # auto-detect public IP and add it to CORS
+#   ./install.sh --no-updater # skip the in-app "Update & restart" host watcher
 # Env: HTTP_PORT=8090         (LAN/public HTTP entry — 8090 avoids SecureOps :80
 #                              and StorageHub :8080 on a shared host)
 #      PUBLIC_HOST=netgeo.example.com     (public domain for CORS)
@@ -40,15 +41,19 @@ warn()  { echo -e "${YELLOW}!${NC} $*"; }
 err()   { echo -e "${RED}✗${NC} $*" >&2; }
 
 # ── Args ─────────────────────────────────────────────────────────────────────
-ACTION="up"; PROD=0; TAILSCALE=0; PUBLIC_DETECT=0
+ACTION="up"; PROD=0; TAILSCALE=0; PUBLIC_DETECT=0; UPDATER=1
 for a in "$@"; do case "$a" in
   --down) ACTION="down" ;; --reset) ACTION="reset" ;;
   --rebuild) ACTION="rebuild" ;; --no-build) ACTION="nobuild" ;;
   --prod) PROD=1 ;;
   --tailscale) TAILSCALE=1 ;;
   --public) PUBLIC_DETECT=1 ;;
+  --no-updater) UPDATER=0 ;;
   -h|--help) sed -n '8,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 esac; done
+
+# Shared state dir for the in-app update watcher (trigger/status/install.flags).
+STATE_DIR="${NETGEO_STATE_DIR:-/var/lib/netgeo}"
 
 # Host HTTP port — 8090 so NetGeo does NOT collide with SecureOps (:80)
 # or StorageHub (:8080) on a shared host.
@@ -61,6 +66,55 @@ DEV_CF="infra/docker-compose.yml"
 LAN_CF="infra/docker-compose.lan.yml"
 PROD_CF="infra/docker-compose.prod.yml"
 ENV_FILE="infra/.env.prod"   # only used for --prod
+
+# Persist how we deployed + install the host-side update watcher, so the
+# dashboard's update action can pull + rebuild + restart the stack on its own.
+# Skipped when re-invoked by the watcher itself (NETGEO_SKIP_WATCHER=1) to avoid
+# restarting the very service that is running the update.
+setup_updater_watcher() {
+  [ "${NETGEO_SKIP_WATCHER:-0}" = "1" ] && return 0
+  [ "$UPDATER" = "1" ] || { info "Skipping update watcher (--no-updater)"; return 0; }
+
+  local repo_dir flags="" src unit
+  repo_dir="$(pwd)"
+  sudo mkdir -p "$STATE_DIR" 2>/dev/null || mkdir -p "$STATE_DIR" 2>/dev/null || true
+
+  # Record the deployment-shaping flags + env so the watcher's re-run matches.
+  [ "$PROD" = "1" ]          && flags="$flags --prod"
+  [ "$TAILSCALE" = "1" ]     && flags="$flags --tailscale"
+  [ "$PUBLIC_DETECT" = "1" ] && flags="$flags --public"
+  flags="${flags# }"
+  { echo "$flags" | sudo tee "$STATE_DIR/install.flags" >/dev/null; } 2>/dev/null \
+    || echo "$flags" > "$STATE_DIR/install.flags" 2>/dev/null || true
+  {
+    printf 'HTTP_PORT=%s\n' "$HTTP_PORT"
+    [ -n "${PUBLIC_HOST:-}" ] && printf 'PUBLIC_HOST=%s\n' "$PUBLIC_HOST"
+    [ -n "${PUBLIC_IP:-}" ]   && printf 'PUBLIC_IP=%s\n' "$PUBLIC_IP"
+  } | { sudo tee "$STATE_DIR/install.env" >/dev/null 2>&1 || cat > "$STATE_DIR/install.env" 2>/dev/null; } || true
+
+  if ! command -v systemctl >/dev/null 2>&1; then
+    warn "systemd not found — in-app updates need a watcher. Run it on the host:"
+    warn "  bash ${repo_dir}/scripts/self-update.sh --watch"
+    return 0
+  fi
+  src="${repo_dir}/scripts/netgeo-updater.service"
+  [ -f "$src" ] || { warn "Updater unit template missing (${src}) — skipping."; return 0; }
+
+  unit="/etc/systemd/system/netgeo-updater.service"
+  info "Installing update watcher service (netgeo-updater)…"
+  if sed "s|__REPO_DIR__|${repo_dir}|g" "$src" | sudo tee "$unit" >/dev/null 2>&1; then
+    sudo systemctl daemon-reload >/dev/null 2>&1 || true
+    if sudo systemctl enable --now netgeo-updater.service >/dev/null 2>&1; then
+      ok "Update watcher active — the dashboard can pull + rebuild + restart."
+    else
+      warn "Could not enable netgeo-updater.service. Start it manually:"
+      warn "  sudo systemctl enable --now netgeo-updater.service"
+    fi
+  else
+    warn "Could not write ${unit} (need sudo). In-app updates will queue but not run."
+    warn "Run on host instead:  bash ${repo_dir}/scripts/self-update.sh --watch"
+  fi
+}
 
 is_wsl() { grep -qiE 'microsoft|wsl' /proc/version 2>/dev/null; }
 
@@ -457,6 +511,9 @@ for _ in $(seq 1 60); do
 done
 echo ""
 [ "$HEALTHY" = "1" ] || warn "Backend not healthy yet — check logs: $COMPOSE $CF logs -f backend"
+
+# Enable the in-app "download + reinstall" update flow (host-side watcher).
+setup_updater_watcher
 
 # ── 4. Done ──────────────────────────────────────────────────────────────────
 echo ""

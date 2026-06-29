@@ -81,6 +81,11 @@ services:
       - "8000:8000"
     volumes:
       - ../backend:/app          # hot-reload source
+      # Shared update-state dir: the in-app update action writes a trigger here,
+      # picked up by the host-side watcher (scripts/self-update.sh --watch,
+      # installed by install.sh) which pulls + rebuilds + restarts. Keeps the
+      # docker socket OUT of the backend container.
+      - ${NETGEO_STATE_DIR:-/var/lib/netgeo}:/var/lib/netgeo
     # --reload untuk dev (override CMD image).
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     depends_on:

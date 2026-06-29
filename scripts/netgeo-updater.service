@@ -1,0 +1,29 @@
+# NetGeo in-app update watcher (host-side).
+#
+# Runs scripts/self-update.sh --watch on the HOST, where git + docker live, so
+# the dashboard's update action can pull + rebuild + restart the whole stack
+# without ever mounting the docker socket into the backend container.
+#
+# install.sh installs a path-resolved copy of this unit to
+# /etc/systemd/system/netgeo-updater.service and enables it. To install it
+# manually, replace __REPO_DIR__ with the absolute path to this repo, then:
+#   sudo cp scripts/netgeo-updater.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now netgeo-updater.service
+[Unit]
+Description=NetGeo in-app update watcher
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__REPO_DIR__
+ExecStart=/usr/bin/env bash __REPO_DIR__/scripts/self-update.sh --watch
+Restart=always
+RestartSec=10
+Environment=GITHUB_REPO=suryaex/netgeo
+Environment=UPDATE_BRANCH=main
+Environment=NETGEO_STATE_DIR=/var/lib/netgeo
+
+[Install]
+WantedBy=multi-user.target

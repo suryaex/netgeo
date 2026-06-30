@@ -69,13 +69,13 @@ Package:
 
 One Command
 
-curl -fsSL https://install.netgeo.io | bash
+curl -fsSL https://raw.githubusercontent.com/suryaex/netgeo/main/bootstrap.sh | bash
 
 ---
 
 ## macOS
 
-brew install netgeo
+curl -fsSL https://raw.githubusercontent.com/suryaex/netgeo/main/bootstrap.sh | bash
 
 PKG installer tersedia.
 

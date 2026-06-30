@@ -33,25 +33,22 @@ One application. The complete network engineering lifecycle — from design, thr
 
 ## One-Command Install
 
-**Linux**
+**Linux / macOS** — clones the repo and runs the installer:
 ```bash
-curl -fsSL https://install.netgeo.io | bash
+curl -fsSL https://raw.githubusercontent.com/suryaex/netgeo/main/bootstrap.sh | bash
+```
+Pass installer flags through after `--`, e.g. the production stack:
+```bash
+curl -fsSL https://raw.githubusercontent.com/suryaex/netgeo/main/bootstrap.sh | bash -s -- --prod
 ```
 
-**Docker**
-```bash
-docker run netgeo/community
+**Windows** (PowerShell) — clone, then run the installer:
+```powershell
+git clone https://github.com/suryaex/netgeo.git; cd netgeo; .\install.ps1
 ```
 
-**Windows**
-```
-NetGeoSetup.exe
-```
-
-**macOS**
-```bash
-brew install netgeo
-```
+> Prefer to inspect before running? Use the manual steps in [Quick Start](#quick-start)
+> (`git clone` + `./install.sh`) — the one-liner above does exactly that.
 
 > NetGeo is designed to start in under 3 seconds and idle below 300 MB RAM, while remaining interactive with projects exceeding 100,000 simulated nodes.
 

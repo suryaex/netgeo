@@ -1,0 +1,294 @@
+"""Interfaces and link attachments — the physical layer of the netstack.
+
+Realism model per egress interface:
+
+- **Serialization**: a frame occupies the transmitter for ``size*8/bandwidth``
+  seconds; frames queue behind it (FIFO within a class).
+- **Queueing/QoS**: two egress queues — priority (DSCP >= 40, e.g. EF/CS6
+  control traffic) and best-effort. Priority is always drained first. Each
+  queue has a bounded depth; overflow is a **tail drop**.
+- **Propagation**: fixed one-way delay plus optional uniform jitter drawn from
+  the simulation's seeded RNG (deterministic).
+- **Loss**: independent per-frame drop probability, same RNG.
+- **MTU**: frames whose L3 payload exceeds the link MTU are dropped
+  (routers send ICMP frag-needed upstream — handled at the device layer).
+
+All transmission state lives here so devices only decide *what* to send and
+*where*; the physics is uniform for every device type.
+"""
+from __future__ import annotations
+
+from collections import deque
+from dataclasses import dataclass, field
+from ipaddress import IPv4Address, IPv4Interface
+from typing import TYPE_CHECKING, Optional
+
+from engine.events import EventType, SimEvent
+from engine.netstack.addr import MacAddr
+from engine.netstack.frames import EthernetFrame, Ipv4Packet
+
+if TYPE_CHECKING:  # pragma: no cover
+    from engine.netstack.device import Device
+    from engine.netstack.network import Network
+
+PRIORITY_DSCP_THRESHOLD = 40  # CS5 and above ride the priority queue
+
+
+@dataclass(slots=True)
+class IfaceCounters:
+    rx_frames: int = 0
+    tx_frames: int = 0
+    rx_bytes: int = 0
+    tx_bytes: int = 0
+    drops_queue: int = 0
+    drops_loss: int = 0
+    drops_mtu: int = 0
+    drops_down: int = 0
+
+    def as_dict(self) -> dict:
+        return {
+            "rx_frames": self.rx_frames,
+            "tx_frames": self.tx_frames,
+            "rx_bytes": self.rx_bytes,
+            "tx_bytes": self.tx_bytes,
+            "drops": {
+                "queue": self.drops_queue,
+                "loss": self.drops_loss,
+                "mtu": self.drops_mtu,
+                "down": self.drops_down,
+            },
+        }
+
+
+class Interface:
+    """A device port. Owns addressing, VLAN config and the egress queue."""
+
+    __slots__ = (
+        "name",
+        "device",
+        "mac",
+        "ips",
+        "vlan_mode",
+        "access_vlan",
+        "trunk_vlans",
+        "enabled",
+        "attachment",
+        "counters",
+        "_queue_be",
+        "_queue_prio",
+        "_transmitting",
+        "queue_depth",
+        # STP per-port state (used when the owning device is a Switch)
+        "stp_state",
+        "stp_role",
+    )
+
+    def __init__(
+        self,
+        name: str,
+        device: "Device",
+        mac: MacAddr,
+        ips: list[IPv4Interface] | None = None,
+        queue_depth: int = 64,
+    ) -> None:
+        self.name = name
+        self.device = device
+        self.mac = mac
+        self.ips: list[IPv4Interface] = ips or []
+        self.vlan_mode: str = "access"          # access | trunk
+        self.access_vlan: int = 1
+        self.trunk_vlans: set[int] | None = None  # None = allow all
+        self.enabled: bool = True
+        self.attachment: Optional[LinkAttachment] = None
+        self.counters = IfaceCounters()
+        self._queue_be: deque[EthernetFrame] = deque()
+        self._queue_prio: deque[EthernetFrame] = deque()
+        self._transmitting = False
+        self.queue_depth = queue_depth
+        self.stp_state: str = "forwarding"       # forwarding | blocking | learning
+        self.stp_role: str = "designated"        # root | designated | blocked
+
+    # ----- addressing ----------------------------------------------------
+    @property
+    def ip(self) -> IPv4Interface | None:
+        return self.ips[0] if self.ips else None
+
+    def has_ip(self, addr: IPv4Address) -> bool:
+        return any(i.ip == addr for i in self.ips)
+
+    @property
+    def qualified_name(self) -> str:
+        return f"{self.device.name}:{self.name}"
+
+    # ----- link state -----------------------------------------------------
+    @property
+    def is_up(self) -> bool:
+        return (
+            self.enabled
+            and self.attachment is not None
+            and self.attachment.up
+        )
+
+    def peer(self) -> Optional["Interface"]:
+        return self.attachment.peer(self) if self.attachment else None
+
+    # ----- VLAN helpers ----------------------------------------------------
+    def vlan_allows(self, vlan: int) -> bool:
+        if self.vlan_mode == "access":
+            return vlan == self.access_vlan
+        return self.trunk_vlans is None or vlan in self.trunk_vlans
+
+    # ----- egress path ------------------------------------------------------
+    def transmit(self, net: "Network", frame: EthernetFrame) -> None:
+        """Enqueue a frame for transmission out of this interface."""
+        att = self.attachment
+        if att is None or not self.is_up:
+            self.counters.drops_down += 1
+            net.record_drop("link_down")
+            return
+
+        # MTU check on the L3 payload (L2 headers don't count against MTU).
+        if isinstance(frame.payload, Ipv4Packet) and frame.payload.wire_size > att.mtu:
+            self.counters.drops_mtu += 1
+            net.record_drop("mtu_exceeded")
+            self.device.on_mtu_drop(net, self, frame)
+            return
+
+        queue = (
+            self._queue_prio
+            if _frame_priority(frame) >= PRIORITY_DSCP_THRESHOLD
+            else self._queue_be
+        )
+        if len(self._queue_be) + len(self._queue_prio) >= self.queue_depth:
+            self.counters.drops_queue += 1
+            net.record_drop("queue_overflow")
+            net.capture.record(net.now, att.id, self.qualified_name, "drop", frame)
+            return
+
+        queue.append(frame)
+        if not self._transmitting:
+            self._start_next(net)
+
+    def _start_next(self, net: "Network") -> None:
+        frame = None
+        if self._queue_prio:
+            frame = self._queue_prio.popleft()
+        elif self._queue_be:
+            frame = self._queue_be.popleft()
+        if frame is None:
+            self._transmitting = False
+            return
+
+        att = self.attachment
+        assert att is not None
+        self._transmitting = True
+        ser = att.serialization_delay(frame.size_bytes)
+        self.counters.tx_frames += 1
+        self.counters.tx_bytes += frame.size_bytes
+        net.capture.record(net.now, att.id, self.qualified_name, "tx", frame)
+
+        # TX completes after serialization — then the next queued frame starts
+        # and this frame begins propagating toward the peer.
+        net.scheduler.schedule_after(
+            ser,
+            SimEvent(
+                time=0.0,
+                type=EventType.PACKET_TX,
+                handler=lambda _ctx, _ev, f=frame: self._tx_done(net, f),
+            ),
+        )
+
+    def _tx_done(self, net: "Network", frame: EthernetFrame) -> None:
+        att = self.attachment
+        # Keep the pipe busy with whatever queued up meanwhile.
+        self._transmitting = False
+        if att is not None and (self._queue_prio or self._queue_be):
+            self._start_next(net)
+
+        if att is None or not att.up:
+            self.counters.drops_down += 1
+            net.record_drop("link_down")
+            return
+
+        # Random loss (deterministic via seeded RNG).
+        if att.loss > 0.0 and net.rng.random() < att.loss:
+            self.counters.drops_loss += 1
+            net.record_drop("link_loss")
+            net.capture.record(net.now, att.id, self.qualified_name, "drop", frame)
+            return
+
+        delay = att.delay
+        if att.jitter > 0.0:
+            delay += net.rng.uniform(0.0, att.jitter)
+
+        peer = att.peer(self)
+        net.scheduler.schedule_after(
+            delay,
+            SimEvent(
+                time=0.0,
+                type=EventType.PACKET_RX,
+                handler=lambda _ctx, _ev, f=frame, p=peer: p._deliver(net, f),
+            ),
+        )
+
+    # ----- ingress path -------------------------------------------------------
+    def _deliver(self, net: "Network", frame: EthernetFrame) -> None:
+        if not self.enabled:
+            self.counters.drops_down += 1
+            net.record_drop("iface_down")
+            return
+        self.counters.rx_frames += 1
+        self.counters.rx_bytes += frame.size_bytes
+        if self.attachment is not None:
+            net.capture.record(
+                net.now, self.attachment.id, self.qualified_name, "rx", frame
+            )
+        self.device.on_frame(net, self, frame)
+
+    # ----- introspection ---------------------------------------------------
+    def brief(self) -> dict:
+        return {
+            "name": self.name,
+            "mac": str(self.mac),
+            "ips": [str(i) for i in self.ips],
+            "vlan_mode": self.vlan_mode,
+            "access_vlan": self.access_vlan,
+            "up": self.is_up,
+            "stp": {"state": self.stp_state, "role": self.stp_role},
+            "counters": self.counters.as_dict(),
+        }
+
+
+def _frame_priority(frame: EthernetFrame) -> int:
+    p = frame.payload
+    if isinstance(p, Ipv4Packet):
+        return p.dscp
+    return 48  # L2 control (ARP/BPDU) rides the priority queue
+
+
+@dataclass(slots=True)
+class LinkAttachment:
+    """The medium between two interfaces (full duplex, symmetric)."""
+
+    id: str
+    a: Interface
+    b: Interface
+    bandwidth_bps: float = 1_000_000_000.0
+    delay: float = 0.000_1        # one-way propagation, seconds
+    jitter: float = 0.0           # max extra uniform delay, seconds
+    loss: float = 0.0             # per-frame drop probability
+    mtu: int = 1500
+    up: bool = True
+    kind: str = "copper"          # copper | fiber | wireless | virtual
+
+    def __post_init__(self) -> None:
+        self.a.attachment = self
+        self.b.attachment = self
+
+    def peer(self, iface: Interface) -> Interface:
+        return self.b if iface is self.a else self.a
+
+    def serialization_delay(self, size_bytes: int) -> float:
+        if self.bandwidth_bps <= 0:
+            return 0.0
+        return (size_bytes * 8) / self.bandwidth_bps

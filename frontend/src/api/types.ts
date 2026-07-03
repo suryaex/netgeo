@@ -161,8 +161,8 @@ export type TopologyEvent =
 
 /** Console frames over /ws/console/{node_id}. */
 export type ConsoleEvent =
-  | { type: 'banner'; node_id?: string; text: string }
-  | { type: 'output'; node_id: string; data: string }
+  | { type: 'banner'; node_id?: string; text: string; prompt?: string }
+  | { type: 'output'; node_id: string; data: string; prompt?: string }
   | { type: 'prompt'; node_id: string; prompt: string }
   | { type: 'error'; node_id?: string; text: string }
   | { type: 'closed'; node_id: string; reason?: string };

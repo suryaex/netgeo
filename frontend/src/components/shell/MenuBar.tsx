@@ -4,8 +4,10 @@
  * theme toggle, signed-in user avatar, and a clock.
  */
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, Map, Moon, Network, Settings2, Sun, Wifi, WifiOff } from 'lucide-react';
+import { LogOut, Map, Moon, Network, Settings2, Sun, Wand2, Wifi, WifiOff } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ConnState } from '@/api/ws';
+import { labApi } from '@/api/client';
 import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 import { useWindowStore } from '@/store/windowStore';
@@ -27,9 +29,19 @@ export function MenuBar({ projectName, conn }: MenuBarProps) {
   const username = useAuthStore((s) => s.username);
   const logout = useAuthStore((s) => s.logout);
   const toggleApp = useWindowStore((s) => s.toggleApp);
+  const projectId = useUiStore((s) => s.projectId);
+  const queryClient = useQueryClient();
   const [clock, setClock] = useState(() => new Date());
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // One-click auto-addressing wizard: /30s on router links, /24s per LAN,
+  // host gateways — then refresh the topology so the canvas shows the plan.
+  const autoAddress = useMutation({
+    mutationFn: () => labApi.autoAddress(projectId!),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['topology', projectId] }),
+  });
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 30_000);
@@ -103,6 +115,22 @@ export function MenuBar({ projectName, conn }: MenuBarProps) {
 
       {/* Right-side controls */}
       <div className="flex items-center gap-1.5">
+        {/* Auto-address wizard */}
+        <button
+          onClick={() => projectId && autoAddress.mutate()}
+          disabled={!projectId || autoAddress.isPending}
+          aria-label="Auto-assign IP addressing"
+          title="Auto-address: assign IPv4 plan to the whole topology"
+          className={cn(
+            'grid h-7 w-7 place-items-center rounded-md transition-colors',
+            autoAddress.isPending
+              ? 'animate-pulse text-accent'
+              : 'text-white/60 hover:bg-white/10 hover:text-white',
+          )}
+        >
+          <Wand2 className="h-4 w-4" />
+        </button>
+
         {/* Live collaborators (hidden when alone) */}
         <PresenceBar />
 

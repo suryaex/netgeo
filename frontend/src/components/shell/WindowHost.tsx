@@ -11,6 +11,7 @@ import { NodePalette } from '@/components/NodePalette';
 import { PropertiesPanel } from '@/components/PropertiesPanel';
 import { ConsolePanel } from '@/components/ConsolePanel';
 import { ConfigViewer } from '@/components/ConfigViewer';
+import { DiagnosticsPanel } from '@/components/DiagnosticsPanel';
 import { ScenariosPanel } from '@/components/ScenariosPanel';
 import { SettingsPanel } from '@/components/SettingsPanel';
 
@@ -28,6 +29,8 @@ function WindowBody({ win }: { win: WindowInstance }) {
       return <ConfigViewer win={win} />;
     case 'scenarios':
       return <ScenariosPanel />;
+    case 'diagnostics':
+      return <DiagnosticsPanel />;
     case 'settings':
       return <SettingsPanel />;
     default:

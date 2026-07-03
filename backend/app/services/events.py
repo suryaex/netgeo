@@ -31,12 +31,20 @@ GLOBAL = "*"
 
 
 class _Subscriber:
-    """A single connected client's event queue, optionally project-scoped."""
+    """A single connected client's event queue, optionally project-scoped.
 
-    __slots__ = ("queue", "project_id")
+    The subscriber remembers the event loop it was created on. Publishers may
+    run on a *different* loop (Starlette's TestClient gives every request its
+    own portal loop, while the WebSocket keeps a long-lived one) — waking the
+    queue must then go through ``call_soon_threadsafe`` or the consumer never
+    sees the event.
+    """
+
+    __slots__ = ("queue", "project_id", "loop")
 
     def __init__(self, project_id: str | None, maxsize: int) -> None:
         self.project_id = project_id
+        self.loop = asyncio.get_running_loop()
         self.queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=maxsize)
 
     def offer(self, event: dict[str, Any]) -> None:
@@ -47,6 +55,21 @@ class _Subscriber:
                 self.queue.get_nowait()  # evict oldest
         with contextlib.suppress(asyncio.QueueFull):
             self.queue.put_nowait(event)
+
+    def offer_any_loop(self, event: dict[str, Any]) -> None:
+        """Enqueue from whichever loop/thread the publisher is on."""
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        if running is self.loop:
+            self.offer(event)
+            return
+        try:
+            self.loop.call_soon_threadsafe(self.offer, event)
+        except RuntimeError:
+            # Subscriber's loop already closed — it is being torn down.
+            pass
 
 
 class TopologyBus:
@@ -60,13 +83,13 @@ class TopologyBus:
         """Fan an event out to all matching subscribers. Safe to call from sync
         request handlers — it never awaits."""
         delivered = 0
-        for sub in self._subs:
+        for sub in tuple(self._subs):
             if (
                 sub.project_id is None
                 or project_id is None
                 or sub.project_id == project_id
             ):
-                sub.offer(event)
+                sub.offer_any_loop(event)
                 delivered += 1
         if delivered:
             logger.debug("event %s -> %d subs", event.get("type"), delivered)

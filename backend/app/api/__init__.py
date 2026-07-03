@@ -17,6 +17,7 @@ from app.api import (
     auth,
     configs,
     device_types,
+    lab,
     links,
     nodes,
     projects,
@@ -50,3 +51,4 @@ api_router.include_router(update.router, dependencies=_require_auth)   # RB-05
 api_router.include_router(signal.router, dependencies=_require_auth)
 api_router.include_router(device_types.router, dependencies=_require_auth)
 api_router.include_router(wireless.router, dependencies=_require_auth)
+api_router.include_router(lab.router, dependencies=_require_auth)

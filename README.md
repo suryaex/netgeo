@@ -60,17 +60,27 @@ git clone https://github.com/suryaex/netgeo.git; cd netgeo; .\install.ps1
 Multi-project workspace with auto-save, version history, real-time team collaboration, offline mode, and cloud sync. Maximum three clicks to any primary feature.
 
 ### Simulation Engine
-Full-stack discrete-event simulation (DES) supporting:
+Deterministic, packet-level discrete-event simulation (`backend/engine/netstack`).
+**Implemented and tested today:**
 
-| Layer | Protocols |
-|---|---|
-| Layer 2 | Ethernet, 802.1Q VLAN, STP, LACP |
-| Layer 3 | IPv4, IPv6, Static, RIP, OSPF, IS-IS, BGP |
-| MPLS | LDP, RSVP-TE, Segment Routing, L3VPN, L2VPN |
-| Overlay | EVPN, VXLAN, GRE, IPSec, PPPoE |
-| Services | NAT, DHCP, DNS, QoS, Multicast |
+| Layer | Implemented (v0.3) | Roadmap |
+|---|---|---|
+| Layer 2 | Ethernet, ARP, MAC learning, 802.1Q VLAN (access/trunk), STP (root election + blocking) | LACP, LLDP |
+| Layer 3 | IPv4, longest-prefix routing, static routes, full ICMP semantics (echo, TTL-exceeded, unreachable, frag-needed) | IPv6, RIP |
+| Dynamic routing | OSPFv2 (hello/adjacency/LSA flooding/SPF/dead-timer failover), BGP-4 (sessions, AS-path, best path, hold timer) | IS-IS, route reflectors |
+| Services | NAT44 (PAT), DHCP (full DORA), DNS, stateless ACL/firewall, priority QoS queues | MPLS/SR, EVPN/VXLAN, IPSec |
+| Link realism | serialization by bandwidth, propagation delay, seeded jitter, loss probability, bounded queues with tail drop, MTU enforcement | corruption models |
 
-Simulation parameters: latency, jitter, packet loss, queue depth, CPU/RAM consumption, and physical-layer impairments.
+Every frame is captured per link (built-in packet inspector), every run is
+bit-for-bit reproducible for a given seed, and each device exposes a live
+CLI (Cisco-like or MikroTik-like) over its real tables: `show ip route`,
+`show ip ospf neighbor`, `show ip bgp summary`, `ping`, `traceroute`,
+`conf t`, and more.
+
+Diagnostics API: `POST /api/lab/{project}/ping | traceroute | cli`,
+`GET /api/lab/{project}/captures | tables/{node}`, and a one-click
+`POST /api/lab/{project}/auto-address` wizard (/30s on router links, /24s per
+LAN, host gateways).
 
 ### Wireless Simulation
 | Technology | Parameters |
@@ -196,7 +206,7 @@ Docker + Docker Compose (single-node). Kubernetes optional for enterprise scale.
 
 | Directory | Contents |
 |---|---|
-| `backend/` | FastAPI application, simulation engine (DES kernel, packet engine, scheduler), API routes, services |
+| `backend/` | FastAPI application, simulation engine (`engine/netstack`: L2/L3/OSPF/BGP/DHCP/DNS/NAT/ACL + per-device CLI; `engine/`: DES kernel & scheduler), API routes, services |
 | `frontend/` | React desktop-class UI — workspace shell, topology canvas, panels, real-time console |
 | `network/devices/library/` | Vendor-agnostic device library (routers, switches, OLT/ONU, firewalls, AP, optical transport) |
 | `infra/` | PostgreSQL schema, migrations, Redis config, Docker Compose files, CI config |

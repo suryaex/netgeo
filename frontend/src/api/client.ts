@@ -202,6 +202,83 @@ export const simApi = {
   stop: (projectId: string) => http.post(`/simulate/${projectId}/stop`).then((r) => r.data),
 };
 
+/* ------------------------------ Live lab ---------------------------------- */
+/**
+ * Packet-level diagnostics against the project's living lab (backend
+ * `app/api/lab.py`). Ping/traceroute run through the discrete-event engine;
+ * captures/tables expose the live per-link frames and per-device state.
+ */
+export interface PingResult {
+  src: string;
+  dst: string;
+  sent: number;
+  received: number;
+  loss_pct: number;
+  rtts_ms: number[];
+  min_ms: number | null;
+  avg_ms: number | null;
+  max_ms: number | null;
+  errors: string[];
+}
+
+export interface TracerouteHop {
+  hop: number;
+  address: string | null;
+  rtt_ms: number | null;
+}
+export interface TracerouteResult {
+  src: string;
+  dst: string;
+  reached: boolean;
+  hops: TracerouteHop[];
+}
+
+export interface CaptureRecord {
+  t: number;
+  link_id: string;
+  iface: string;
+  dir: 'tx' | 'rx' | 'drop';
+  frame_id: number;
+  size: number;
+  info: string;
+  layers: Record<string, Record<string, unknown>>;
+}
+
+export interface CliResult {
+  node: string;
+  output: string;
+  prompt: string;
+}
+
+export const labApi = {
+  ping: (projectId: string, src: string, dst: string, count = 4) =>
+    http
+      .post<PingResult>(`/lab/${projectId}/ping`, { src, dst, count })
+      .then((r) => r.data),
+  traceroute: (projectId: string, src: string, dst: string) =>
+    http
+      .post<TracerouteResult>(`/lab/${projectId}/traceroute`, { src, dst })
+      .then((r) => r.data),
+  cli: (projectId: string, node: string, command: string) =>
+    http
+      .post<CliResult>(`/lab/${projectId}/cli`, { node, command })
+      .then((r) => r.data),
+  captures: (projectId: string, linkId?: string, limit = 200) =>
+    http
+      .get<{ records: CaptureRecord[] }>(`/lab/${projectId}/captures`, {
+        params: { link_id: linkId, limit },
+      })
+      .then((r) => r.data.records),
+  tables: (projectId: string, nodeRef: string) =>
+    http
+      .get<Record<string, unknown>>(`/lab/${projectId}/tables/${nodeRef}`)
+      .then((r) => r.data),
+  autoAddress: (projectId: string) =>
+    http
+      .post<{ nodes_updated: number }>(`/lab/${projectId}/auto-address`)
+      .then((r) => r.data),
+};
+
 /* ----------------------------- Config-gen -------------------------------- */
 export const configsApi = {
   generate: (nodeId: string, vendor?: string) =>

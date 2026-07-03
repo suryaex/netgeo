@@ -13,6 +13,7 @@ export type WindowKind =
   | 'console'
   | 'config'
   | 'scenarios'
+  | 'diagnostics'
   | 'settings';
 
 export interface Rect {
@@ -90,6 +91,8 @@ function getDefaultRect(kind: WindowKind): Rect {
       return { x: 300, y: 140, w: 680, h: 520 };
     case 'scenarios':
       return { x: 360, y: 180, w: 560, h: 460 };
+    case 'diagnostics':
+      return { x: 280, y: 160, w: 720, h: 480 };
     case 'settings':
       return { x: 240, y: 120, w: 680, h: 500 };
   }

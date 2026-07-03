@@ -19,8 +19,10 @@ import time
 import uuid
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi.concurrency import run_in_threadpool
 
 from app.api.deps import get_current_user_ws
+from app.services import netlab as netlab_service
 from app.services.events import get_bus
 from app.services import wireless as wsvc
 from app.store import get_repo
@@ -135,8 +137,12 @@ async def ws_console(
     node_id: str,
     token: str | None = Query(default=None),
 ):
-    """A simulated device console. Echoes a banner then relays line input to a
-    (stub) command handler. Real emul-mode attaches this to the container PTY.
+    """A simulated device console backed by the live packet-level lab.
+
+    Commands run through :class:`engine.netstack.cli.CliSession` against the
+    project's lab (same network the diagnostics endpoints use), so ``show ip
+    route``, ``ping`` etc. reflect real simulated state. Real emul-mode will
+    attach this to the container PTY instead.
 
     Authentication: ``?token=<jwt>`` query parameter required.
     The node_id path param is validated against the repo after auth so that
@@ -157,12 +163,6 @@ async def ws_console(
     repo = get_repo()
     try:
         node = await repo.get_node(node_id)
-        await ws.send_json(
-            {
-                "type": "banner",
-                "text": f"{node.name} ({node.nos}) console — NetGeo\n{node.name}> ",
-            }
-        )
     except NotFound:
         with contextlib.suppress(Exception):
             await ws.send_json({"type": "error", "text": "node not found"})
@@ -171,6 +171,32 @@ async def ws_console(
         return
     except WebSocketDisconnect:
         return
+
+    async def _session():
+        """(Re)acquire the CLI session against the current topology snapshot.
+
+        The lab manager fingerprints the topology, so this is a cheap lookup
+        when nothing changed and a transparent rebuild after any edit.
+        """
+        topo = await repo.topology(node.project_id)
+        lab = await run_in_threadpool(netlab_service.get_lab_manager().get, topo)
+        return lab.session_for(node_id)
+
+    try:
+        session = await _session()
+    except Exception:
+        logger.exception("console lab build failed for node=%s", node_id)
+        session = None
+
+    prompt = session.prompt if session else f"{node.name}> "
+    with contextlib.suppress(WebSocketDisconnect, Exception):
+        await ws.send_json(
+            {
+                "type": "banner",
+                "text": f"{node.name} ({node.nos}) console — NetGeo\nType ? for help.\n",
+                "prompt": prompt,
+            }
+        )
 
     try:
         while True:
@@ -184,8 +210,18 @@ async def ws_console(
                     cmd = str(payload.get("data", ""))
             except Exception:
                 pass
+            try:
+                session = await _session()
+                if session is None:
+                    output, prompt = "% node not present in lab\n", f"{node.name}> "
+                else:
+                    output = await run_in_threadpool(session.execute, cmd)
+                    prompt = session.prompt
+            except Exception:
+                logger.exception("console command failed for node=%s", node_id)
+                output = "% internal error executing command\n"
             await ws.send_json(
-                {"type": "output", "node_id": node_id, "data": _handle_console(cmd)}
+                {"type": "output", "node_id": node_id, "data": output, "prompt": prompt}
             )
     except WebSocketDisconnect:
         return
@@ -313,12 +349,3 @@ async def ws_collab(
         )
 
 
-def _handle_console(line: str) -> str:
-    line = line.strip()
-    if line in ("?", "help"):
-        return "available (stub): show version | show interfaces | ping <node>\n"
-    if line.startswith("show version"):
-        return "NetGeo ForgeOS, Version 0.1 — sim mode\n"
-    if line.startswith("show interfaces"):
-        return "(interfaces rendered from node model in a future build)\n"
-    return f"% Unknown command: {line}\n"

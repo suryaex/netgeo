@@ -4,6 +4,7 @@
  * Glass pill with a subtle hover magnify (transform scale, GPU-friendly).
  */
 import {
+  Activity,
   Network,
   PanelRightOpen,
   SlidersHorizontal,
@@ -26,6 +27,7 @@ const ITEMS: DockItem[] = [
   { kind: 'palette', title: 'Device Palette', icon: PanelRightOpen },
   { kind: 'properties', title: 'Properties', icon: SlidersHorizontal },
   { kind: 'console', title: 'Console', icon: TerminalSquare },
+  { kind: 'diagnostics', title: 'Diagnostics', icon: Activity },
   { kind: 'config', title: 'Config Viewer', icon: FileCode2 },
   { kind: 'scenarios', title: 'Scenarios', icon: ListChecks },
   { kind: 'settings', title: 'Settings', icon: Settings2 },

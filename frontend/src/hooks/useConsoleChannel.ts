@@ -21,6 +21,8 @@ export function useConsoleChannel(nodeId: string | null): ConsoleSession {
   const [prompt, setPrompt] = useState<string>('');
   const [state, setState] = useState<ConnState>('connecting');
   const channelRef = useRef<ReturnType<typeof consoleChannel> | null>(null);
+  const promptRef = useRef('');
+  promptRef.current = prompt;
 
   useEffect(() => {
     if (!nodeId) return;
@@ -37,10 +39,12 @@ export function useConsoleChannel(nodeId: string | null): ConsoleSession {
     const offMsg = channel.onMessage((ev: ConsoleEvent) => {
       if (ev.type === 'output') {
         append(ev.data);
+        if (ev.prompt) setPrompt(ev.prompt);
       } else if (ev.type === 'banner' || ev.type === 'error') {
         // Backend greets with a `banner` (carrying the device prompt) and
         // reports failures via `error`; both are plain text to display.
         append(ev.text);
+        if (ev.type === 'banner' && ev.prompt) setPrompt(ev.prompt);
       } else if (ev.type === 'prompt') {
         setPrompt(ev.prompt);
       } else if (ev.type === 'closed') {
@@ -59,6 +63,11 @@ export function useConsoleChannel(nodeId: string | null): ConsoleSession {
   }, [nodeId]);
 
   const send = useCallback((cmd: string) => {
+    // Local echo, terminal-style: show the prompt + typed command immediately.
+    setLines((prev) => {
+      const next = prev.concat(`${promptRef.current} ${cmd}`.trimStart());
+      return next.length > MAX_LINES ? next.slice(next.length - MAX_LINES) : next;
+    });
     channelRef.current?.send({ type: 'input', data: cmd });
   }, []);
 

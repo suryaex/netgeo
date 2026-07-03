@@ -29,11 +29,39 @@ STATE_DIR="${NETGEO_STATE_DIR:-/var/lib/netgeo}"
 UPDATE_TRIGGER_FILE="${UPDATE_TRIGGER_FILE:-${STATE_DIR}/update.request}"
 UPDATE_STATUS_FILE="${UPDATE_STATUS_FILE:-${STATE_DIR}/update.status}"
 
+# Run privileged steps directly when already root (the watcher runs as root);
+# otherwise fall back to sudo for interactive/manual runs.
+SUDO=""; [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1 && SUDO="sudo"
+
 log()    { printf '[self-update] %s\n' "$*" >&2; }
+
+# Make sure the state dir (trigger + status files) exists and is writable by
+# the invoking user. Manual runs happen as a regular user while the dir lives
+# under /var/lib, so escalate once here instead of failing on every write.
+ensure_state_dir() {
+  local dir; dir="$(dirname "$UPDATE_STATUS_FILE")"
+  [ -d "$dir" ] || mkdir -p "$dir" 2>/dev/null || $SUDO mkdir -p "$dir" || return 1
+  if [ ! -w "$dir" ]; then
+    $SUDO chgrp "$(id -gn)" "$dir" 2>/dev/null || true
+    $SUDO chmod g+rwx "$dir" 2>/dev/null || true
+    [ -w "$dir" ] || $SUDO chown "$(id -un)" "$dir" 2>/dev/null || true
+  fi
+  # Pre-existing root-owned status file blocks the redirect even when the dir
+  # itself is writable — hand it to the invoking user.
+  if [ -e "$UPDATE_STATUS_FILE" ] && [ ! -w "$UPDATE_STATUS_FILE" ]; then
+    $SUDO chown "$(id -un)" "$UPDATE_STATUS_FILE" 2>/dev/null || true
+  fi
+  [ -w "$dir" ]
+}
+
 status() { # state, message
-  mkdir -p "$(dirname "$UPDATE_STATUS_FILE")" 2>/dev/null || true
-  printf '{"state":"%s","message":"%s","at":%s}\n' "$1" "${2:-}" "$(date +%s)" \
-    > "$UPDATE_STATUS_FILE" 2>/dev/null || true
+  local line
+  line="$(printf '{"state":"%s","message":"%s","at":%s}' "$1" "${2:-}" "$(date +%s)")"
+  if ensure_state_dir 2>/dev/null && { [ ! -e "$UPDATE_STATUS_FILE" ] || [ -w "$UPDATE_STATUS_FILE" ]; }; then
+    printf '%s\n' "$line" > "$UPDATE_STATUS_FILE"
+  elif [ -n "$SUDO" ]; then
+    printf '%s\n' "$line" | $SUDO tee "$UPDATE_STATUS_FILE" >/dev/null 2>&1 || true
+  fi
 }
 
 latest_tag() {
@@ -66,7 +94,9 @@ fetch_source() {
 
   status "updating" "Fetching latest source"
   log "Fetching from origin…"
-  if ! git fetch --tags --prune origin >&2; then
+  # --force: release tags may be re-pointed upstream (history hygiene); a plain
+  # fetch rejects those with "would clobber existing tag" and aborts the update.
+  if ! git fetch --tags --force --prune origin >&2; then
     status "error" "git fetch failed — check network / credentials"; return 1
   fi
   local tag

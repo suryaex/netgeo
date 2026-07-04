@@ -425,4 +425,8 @@ class EthernetFrame:
                     out["dns"] = {"op": app.op, "qname": app.qname, "answer": app.answer}
                 elif app is not None and hasattr(app, "summary"):
                     out["app"] = {"info": app.summary()}
+            elif l4 is not None and hasattr(l4, "summary"):
+                # Control-plane payloads defined outside this module
+                # (OSPF/VRRP/...) show up generically in the inspector.
+                out["data"] = {"info": l4.summary()}
         return out

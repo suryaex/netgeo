@@ -17,6 +17,8 @@ Node ``intent`` fields understood by the builder (all optional):
     static_routes6: [{"prefix": "::/0", "next_hop": "2001:db8::1",
                       "iface": null}]
     ipv6_ra: {"enabled": true, "interval": 30}   # routers: advertise /64s
+    vrrp: [{"iface": "eth0", "vrid": 10, "vip": "192.168.1.254",
+            "priority": 120, "adv_interval": 1.0, "preempt": true}]
     ospf: {"enabled": true, "router_id": "1.1.1.1", "hello": 10}
     bgp: {"asn": 65001, "router_id": "1.1.1.1",
           "neighbors": [{"ip": "10.0.0.2", "asn": 65002}],
@@ -46,6 +48,7 @@ from engine.netstack.routing import AclRule, DhcpPool, Firewall, Router
 from engine.netstack.switching import Switch
 from engine.netstack.protocols.bgp import BgpProcess
 from engine.netstack.protocols.ospf import OspfProcess
+from engine.netstack.protocols.vrrp import VrrpProcess
 
 logger = logging.getLogger("netgeo.netlab")
 
@@ -176,6 +179,20 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
     if ra_cfg.get("enabled"):
         dev.enable_ra(interval=float(ra_cfg.get("interval", 30.0)))
 
+    for v in intent.get("vrrp") or []:
+        try:
+            VrrpProcess(
+                dev,
+                iface_name=str(v["iface"]),
+                vrid=int(v["vrid"]),
+                vip=IPv4Address(v["vip"]),
+                priority=int(v.get("priority", 100)),
+                adv_interval=float(v.get("adv_interval", 1.0)),
+                preempt=bool(v.get("preempt", True)),
+            )
+        except (KeyError, ValueError) as exc:
+            logger.warning("%s: bad vrrp config %r: %s", dev.name, v, exc)
+
     ospf_cfg = intent.get("ospf") or {}
     if ospf_cfg.get("enabled"):
         OspfProcess(
@@ -243,15 +260,18 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
 
 def _settle_time(net: Network) -> float:
     """Sim-seconds to run at build so protocols converge before first use."""
-    has_bgp = has_ospf = False
+    has_bgp = has_ospf = has_vrrp = False
     for dev in net.devices.values():
         for proc in getattr(dev, "processes", []):
             has_bgp |= getattr(proc, "proto", "") == "bgp"
             has_ospf |= getattr(proc, "proto", "") == "ospf"
+            has_vrrp |= getattr(proc, "proto", "") == "vrrp"
     if has_bgp or has_ospf:
         return 65.0
     if any(isinstance(d, Switch) for d in net.devices.values()):
         return 12.0
+    if has_vrrp:
+        return 6.0  # master-down interval (~4s) + first adverts
     return 1.0
 
 

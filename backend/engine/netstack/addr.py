@@ -123,6 +123,14 @@ def ipv6_multicast_mac(group: IPv6Address) -> MacAddr:
     )
 
 
+def ipv4_multicast_mac(group: IPv4Address) -> MacAddr:
+    """01:00:5e + low 23 bits — Ethernet mapping of an IPv4 multicast group."""
+    low = int(group) & 0x7FFFFF
+    return MacAddr(
+        "01:00:5e:" + ":".join(f"{(low >> (8 * i)) & 0xFF:02x}" for i in range(2, -1, -1))
+    )
+
+
 def parse_ip_interface6(value: str) -> IPv6Interface:
     """``"2001:db8::1/64"`` -> IPv6Interface. Bare addresses get /128."""
     if "/" not in value:
@@ -153,5 +161,6 @@ __all__ = [
     "link_local_for",
     "slaac_address",
     "solicited_node",
+    "ipv4_multicast_mac",
     "ipv6_multicast_mac",
 ]

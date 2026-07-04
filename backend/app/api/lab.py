@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 
 from app.api.deps import repo, translate_not_found
@@ -245,21 +246,61 @@ async def lab_captures(
     project_id: str,
     link_id: str | None = None,
     limit: int = 100,
+    filter: str | None = None,
     r: MemoryRepository = Depends(repo),
 ):
+    """Capture records, optionally narrowed by a Wireshark-style display
+    filter (NG-CAP-02), e.g. ``icmp && ip.addr==10.0.0.1``."""
     topo = await _topo(r, project_id)
 
     def work():
+        from engine.netstack.filterlang import compile_filter
+
+        try:
+            predicate = compile_filter(filter or "")
+        except ValueError as exc:
+            raise SimulationError(f"bad display filter: {exc}") from exc
         lab = _lab_for(topo)
-        records = lab.net.capture.records(link_id=link_id, limit=min(limit, 1000))
+        records = lab.net.capture.records(link_id=link_id, limit=1000)
+        rows = [rec.as_dict() for rec in records]
+        if filter:
+            rows = [row for row in rows if predicate(row)]
+        rows = rows[-min(limit, 1000):]
         return {
             "project_id": project_id,
             "link_id": link_id,
-            "count": len(records),
-            "records": [rec.as_dict() for rec in records],
+            "filter": filter,
+            "count": len(rows),
+            "records": rows,
         }
 
     return await run_in_threadpool(work)
+
+
+@router.get("/{project_id}/pcapng")
+async def lab_pcapng(
+    project_id: str,
+    link_id: str | None = None,
+    r: MemoryRepository = Depends(repo),
+):
+    """Export captured frames as a real .pcapng (NG-CAP-01) — opens in
+    Wireshark/tshark with native protocol decode."""
+    topo = await _topo(r, project_id)
+
+    def work():
+        from engine.netstack.pcapng import write_pcapng
+
+        lab = _lab_for(topo)
+        records = lab.net.capture.records(link_id=link_id, limit=1000)
+        return write_pcapng(records)
+
+    data = await run_in_threadpool(work)
+    name = f"netgeo-{project_id[:8]}{('-' + link_id[:8]) if link_id else ''}.pcapng"
+    return Response(
+        content=data,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
 
 
 @router.get("/{project_id}/tables/{node_ref}")
@@ -299,6 +340,8 @@ async def lab_tables(project_id: str, node_ref: str, r: MemoryRepository = Depen
                 out["ospf_neighbors"] = proc.neighbor_rows()
             elif proto == "bgp":
                 out["bgp_peers"] = proc.summary_rows()
+            elif proto == "vrrp":
+                out.setdefault("vrrp", []).append(proc.status_row())
         return out
 
     return await run_in_threadpool(work)

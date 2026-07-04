@@ -62,6 +62,10 @@ class Device:
         self.nos = nos
         self.interfaces: dict[str, Interface] = {}
         self.powered_on = True
+        # Extra L2/L3 identities this device answers to — e.g. a VRRP master
+        # owns the virtual MAC 00:00:5e:00:01:xx and the virtual IP.
+        self.mac_aliases: set[str] = set()
+        self.ip_aliases: set[IPv4Address] = set()
 
     # ----- construction ----------------------------------------------------
     def add_interface(self, iface: Interface) -> Interface:
@@ -83,7 +87,9 @@ class Device:
 
     # ----- helpers ---------------------------------------------------------------
     def owns_ip(self, addr: IPv4Address) -> bool:
-        return any(i.has_ip(addr) for i in self.interfaces.values())
+        return addr in self.ip_aliases or any(
+            i.has_ip(addr) for i in self.interfaces.values()
+        )
 
     def owns_ip6(self, addr: IPv6Address) -> bool:
         return any(i.has_ip6(addr) for i in self.interfaces.values())

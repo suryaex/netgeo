@@ -308,6 +308,24 @@ class CliSession:
                     f"{p['neighbor']:<16} {p['remote_as']:<7} {p['state']:<13} {p['prefixes_received']}"
                 )
             return "\n".join(rows) + "\n"
+        if low.startswith("show vrrp") or low.startswith("show standby"):
+            procs = [
+                p for p in getattr(dev, "processes", [])
+                if getattr(p, "proto", "") == "vrrp"
+            ]
+            if not procs:
+                return "% VRRP is not running\n"
+            # ios-like operators expect HSRP's "standby" vocabulary.
+            title = "Standby" if low.startswith("show standby") else "VRRP"
+            rows = [f"{title} brief",
+                    "Interface  Grp  Prio  State    Virtual IP       Virtual MAC"]
+            for p in procs:
+                r = p.status_row()
+                rows.append(
+                    f"{r['iface']:<10} {r['vrid']:<4} {r['priority']:<5} "
+                    f"{r['state']:<8} {r['vip']:<16} {r['vmac']}"
+                )
+            return "\n".join(rows) + "\n"
         if low.startswith("show ip nat translations"):
             if not isinstance(dev, Router):
                 return "% Not a router\n"
@@ -404,6 +422,19 @@ class CliSession:
             arp = getattr(dev, "arp_table", {})
             for n, (ip, (mac, ifname)) in enumerate(sorted(arp.items())):
                 rows.append(f"{n}  {str(ip):<15} {mac:<20} {ifname}")
+            return "\n".join(rows) + "\n"
+        if low == "/interface vrrp print":
+            procs = [
+                p for p in getattr(dev, "processes", [])
+                if getattr(p, "proto", "") == "vrrp"
+            ]
+            rows = ["#  INTERFACE  VRID  PRIORITY  STATE    V-IP"]
+            for n, p in enumerate(procs):
+                r = p.status_row()
+                rows.append(
+                    f"{n}  {r['iface']:<10} {r['vrid']:<5} {r['priority']:<9} "
+                    f"{r['state']:<8} {r['vip']}"
+                )
             return "\n".join(rows) + "\n"
         if low == "/interface print":
             rows = ["#  NAME       MTU   MAC-ADDRESS        RUNNING"]

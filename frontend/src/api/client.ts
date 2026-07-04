@@ -330,12 +330,25 @@ export const labApi = {
     http
       .post<CliResult>(`/lab/${projectId}/cli`, { node, command })
       .then((r) => r.data),
-  captures: (projectId: string, linkId?: string, limit = 200) =>
+  captures: (projectId: string, linkId?: string, limit = 200, filter?: string) =>
     http
       .get<{ records: CaptureRecord[] }>(`/lab/${projectId}/captures`, {
-        params: { link_id: linkId, limit },
+        params: { link_id: linkId, limit, filter: filter || undefined },
       })
       .then((r) => r.data.records),
+  /** Download the capture as a real .pcapng (opens in Wireshark). */
+  downloadPcapng: async (projectId: string, linkId?: string) => {
+    const resp = await http.get<Blob>(`/lab/${projectId}/pcapng`, {
+      params: { link_id: linkId },
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(resp.data as unknown as Blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `netgeo-${projectId.slice(0, 8)}.pcapng`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
   tables: (projectId: string, nodeRef: string) =>
     http
       .get<Record<string, unknown>>(`/lab/${projectId}/tables/${nodeRef}`)

@@ -24,6 +24,7 @@ class CaptureRecord:
     size: int
     info: str             # human summary line
     layers: dict          # structured layer dict for the inspector
+    wire: bytes = b""     # synthesized on-wire bytes (pcapng export, NG-CAP-01)
 
     def as_dict(self) -> dict:
         return {
@@ -58,6 +59,15 @@ class CaptureManager:
         if buf is None:
             buf = deque(maxlen=self.per_link_limit)
             self._buffers[link_id] = buf
+        # Wire bytes are synthesized *now* (like the layers snapshot) because
+        # forwarding mutates packets in place — TTL/NAT edits after delivery
+        # must not rewrite history.
+        from engine.netstack.pcapng import frame_bytes
+
+        try:
+            wire = frame_bytes(frame)
+        except Exception:  # never let export cosmetics break the sim
+            wire = bytes(frame.size_bytes)
         buf.append(
             CaptureRecord(
                 time=time,
@@ -68,6 +78,7 @@ class CaptureManager:
                 size=frame.size_bytes,
                 info=frame.summary(),
                 layers=frame.layers(),
+                wire=wire,
             )
         )
         self.total_records += 1

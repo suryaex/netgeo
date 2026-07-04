@@ -335,9 +335,11 @@ class Router(L3Device):
     def on_frame(self, net: "Network", iface: Interface, frame: EthernetFrame) -> None:
         if not self.powered_on:
             return
-        if frame.dst_mac not in (iface.mac, BROADCAST_MAC) and not MacAddr(
-            frame.dst_mac
-        ).is_multicast:
+        if (
+            frame.dst_mac not in (iface.mac, BROADCAST_MAC)
+            and frame.dst_mac not in self.mac_aliases
+            and not MacAddr(frame.dst_mac).is_multicast
+        ):
             return
 
         payload = frame.payload
@@ -376,6 +378,14 @@ class Router(L3Device):
             return
 
         self._forward(net, iface, pkt)
+
+    def _handle_arp(self, net: "Network", iface: Interface, arp: ArpPacket) -> None:
+        super()._handle_arp(net, iface, arp)
+        if arp.op == "request":
+            # A VRRP master answers for the virtual IP with the virtual MAC.
+            for proc in self.processes:
+                if getattr(proc, "proto", "") == "vrrp":
+                    proc.on_arp_request(net, iface, arp)
 
     # ----- forwarding pipeline --------------------------------------------------------
     def _forward(self, net: "Network", in_iface: Interface, pkt: Ipv4Packet) -> None:
@@ -445,6 +455,11 @@ class Router(L3Device):
         if pkt.proto == PROTO_OSPF:
             for proc in self.processes:
                 if getattr(proc, "proto", "") == "ospf":
+                    proc.on_packet(net, iface, pkt)
+            return
+        if pkt.proto == 112:  # VRRP
+            for proc in self.processes:
+                if getattr(proc, "proto", "") == "vrrp":
                     proc.on_packet(net, iface, pkt)
             return
         if pkt.proto == PROTO_TCP and isinstance(pkt.payload, TcpSegment):

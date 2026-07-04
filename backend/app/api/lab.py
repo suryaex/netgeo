@@ -42,6 +42,19 @@ class CliRequest(_Body):
     command: str
 
 
+class ModeRequest(_Body):
+    mode: str                   # "realtime" | "simulation"
+
+
+class StepRequest(_Body):
+    events: int | None = None       # dispatch at most N events
+    duration: float | None = None   # or advance the clock this many sim-seconds
+
+
+class SeekRequest(_Body):
+    seq: int                    # ledger cursor (0 = pristine lab)
+
+
 async def _topo(r: MemoryRepository, project_id: str):
     try:
         return await r.topology(project_id)
@@ -54,11 +67,12 @@ def _lab_for(topo):
 
 
 def _resolve_dst(lab: netlab.Lab, ref: str) -> str:
-    """Accept a literal IPv4 or a node reference (use its first address)."""
+    """Accept a literal IPv4/IPv6 or a node reference (first address wins,
+    IPv4 preferred for backward compatibility)."""
     import ipaddress
 
     try:
-        ipaddress.IPv4Address(ref)
+        ipaddress.ip_address(ref)
         return ref
     except ValueError:
         pass
@@ -67,7 +81,10 @@ def _resolve_dst(lab: netlab.Lab, ref: str) -> str:
         ips = dev.all_ips()
         if ips:
             return str(ips[0].ip)
-    raise NotFound(f"cannot resolve destination '{ref}' to an IPv4 address")
+        ips6 = dev.all_ips6()
+        if ips6:
+            return str(ips6[0].ip)
+    raise NotFound(f"cannot resolve destination '{ref}' to an IP address")
 
 
 @router.post("/{project_id}/ping")
@@ -77,8 +94,13 @@ async def lab_ping(project_id: str, body: PingRequest, r: MemoryRepository = Dep
     def work():
         lab = _lab_for(topo)
         dst = _resolve_dst(lab, body.dst)
-        report = lab.net.ping(body.src, dst, count=min(body.count, 50))
-        return report.as_dict()
+        report = lab.do_ping(body.src, dst, count=min(body.count, 50))
+        return {
+            **report.as_dict(),
+            "ident": report.ident,
+            "done": report.done,
+            "mode": lab.mode,
+        }
 
     try:
         return await run_in_threadpool(work)
@@ -97,8 +119,8 @@ async def lab_traceroute(
     def work():
         lab = _lab_for(topo)
         dst = _resolve_dst(lab, body.dst)
-        report = lab.net.traceroute(body.src, dst, max_hops=min(body.max_hops, 32))
-        return report.as_dict()
+        report = lab.do_traceroute(body.src, dst, max_hops=min(body.max_hops, 32))
+        return {**report.as_dict(), "mode": lab.mode}
 
     try:
         return await run_in_threadpool(work)
@@ -114,10 +136,10 @@ async def lab_cli(project_id: str, body: CliRequest, r: MemoryRepository = Depen
 
     def work():
         lab = _lab_for(topo)
-        session = lab.session_for(body.node)
-        if session is None:
+        output = lab.do_cli(body.node, body.command)
+        if output is None:
             raise NotFound(f"node '{body.node}' not found in lab")
-        output = session.execute(body.command)
+        session = lab.session_for(body.node)
         return {"node": body.node, "output": output, "prompt": session.prompt}
 
     try:
@@ -146,7 +168,73 @@ async def lab_ledger(
         return {
             "hash": led.hash(),
             "total": led.seq,
+            "mode": lab.mode,
+            "sim_time": round(lab.net.now, 9),
+            "pending_events": len(lab.net.scheduler.queue),
             "records": led.tail(from_seq, min(limit, 2000), type_prefix, node),
+        }
+
+    return await run_in_threadpool(work)
+
+
+@router.post("/{project_id}/mode")
+async def lab_mode(project_id: str, body: ModeRequest, r: MemoryRepository = Depends(repo)):
+    """Switch realtime <-> simulation mode (NG-SIM-01, PT parity)."""
+    if body.mode not in ("realtime", "simulation"):
+        raise SimulationError("mode must be 'realtime' or 'simulation'")
+    topo = await _topo(r, project_id)
+
+    def work():
+        lab = _lab_for(topo)
+        lab.do_mode(body.mode)
+        return {"project_id": project_id, "mode": lab.mode, "seq": lab.net.ledger.seq}
+
+    return await run_in_threadpool(work)
+
+
+@router.post("/{project_id}/step")
+async def lab_step(project_id: str, body: StepRequest, r: MemoryRepository = Depends(repo)):
+    """Advance the simulation: N events (default 1) or a sim-time slice."""
+    topo = await _topo(r, project_id)
+
+    def work():
+        lab = _lab_for(topo)
+        if body.duration is not None:
+            dispatched = lab.do_run(until=lab.net.now + max(0.0, body.duration))
+        else:
+            dispatched = lab.do_run(
+                until=None, max_events=max(1, min(body.events or 1, 100_000))
+            )
+        led = lab.net.ledger
+        return {
+            "project_id": project_id,
+            "dispatched": dispatched,
+            "seq": led.seq,
+            "sim_time": round(lab.net.now, 9),
+            "pending_events": len(lab.net.scheduler.queue),
+            "records": led.tail(led.seq - dispatched, min(dispatched, 500)),
+        }
+
+    return await run_in_threadpool(work)
+
+
+@router.post("/{project_id}/seek")
+async def lab_seek(project_id: str, body: SeekRequest, r: MemoryRepository = Depends(repo)):
+    """Move the ledger cursor to event ``seq`` — step-back included.
+
+    Determinism makes this cheap: the lab is rebuilt and the stimulus journal
+    replayed with the scheduler capped at the target event (NG-SIM-01)."""
+    topo = await _topo(r, project_id)
+
+    def work():
+        lab = netlab.get_lab_manager().seek(topo, body.seq)
+        return {
+            "project_id": project_id,
+            "mode": lab.mode,
+            "seq": lab.net.ledger.seq,
+            "hash": lab.net.ledger.hash(),
+            "sim_time": round(lab.net.now, 9),
+            "pending_events": len(lab.net.scheduler.queue),
         }
 
     return await run_in_threadpool(work)
@@ -193,8 +281,15 @@ async def lab_tables(project_id: str, node_ref: str, r: MemoryRepository = Depen
                 {"ip": str(ip), "mac": str(mac), "iface": ifname}
                 for ip, (mac, ifname) in sorted(arp.items())
             ]
+        nd = getattr(dev, "nd_cache", None)
+        if nd is not None:
+            out["neighbors6"] = [
+                {"ip": str(ip), "mac": str(mac), "iface": ifname}
+                for ip, (mac, ifname) in sorted(nd.items(), key=lambda kv: str(kv[0]))
+            ]
         if hasattr(dev, "route_table_rows"):
             out["routes"] = dev.route_table_rows()
+            out["routes6"] = dev.route_table_rows6()
             out["nat"] = dev.nat_rows()
         if hasattr(dev, "mac_table_rows"):
             out["mac_table"] = dev.mac_table_rows()

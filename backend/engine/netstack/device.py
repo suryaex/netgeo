@@ -10,22 +10,33 @@ accounting), DHCP client and DNS stub resolver.
 from __future__ import annotations
 
 import logging
-from ipaddress import IPv4Address, IPv4Interface
+from ipaddress import IPv4Address, IPv4Interface, IPv6Address, IPv6Interface, IPv6Network
 from typing import TYPE_CHECKING, Callable, Optional
 
 from engine.events import EventType, SimEvent
-from engine.netstack.addr import BROADCAST_MAC, MacAddr
+from engine.netstack.addr import (
+    ALL_ROUTERS_V6,
+    BROADCAST_MAC,
+    MacAddr,
+    ipv6_multicast_mac,
+    slaac_address,
+    solicited_node,
+)
 from engine.netstack.frames import (
     ETH_ARP,
     ETH_IPV4,
+    ETH_IPV6,
     PROTO_ICMP,
+    PROTO_ICMPV6,
     PROTO_UDP,
     ArpPacket,
     DhcpMessage,
     DnsMessage,
     EthernetFrame,
     IcmpMessage,
+    Icmpv6Message,
     Ipv4Packet,
+    Ipv6Packet,
     UdpSegment,
 )
 from engine.netstack.iface import Interface
@@ -67,12 +78,22 @@ class Device:
     def on_mtu_drop(self, net: "Network", iface: Interface, frame: EthernetFrame) -> None:
         """Hook: an egress frame exceeded the link MTU (routers send ICMP)."""
 
+    def on_start(self, net: "Network") -> None:
+        """Hook: the network started — kick off periodic/bootstrap behaviour."""
+
     # ----- helpers ---------------------------------------------------------------
     def owns_ip(self, addr: IPv4Address) -> bool:
         return any(i.has_ip(addr) for i in self.interfaces.values())
 
+    def owns_ip6(self, addr: IPv6Address) -> bool:
+        return any(i.has_ip6(addr) for i in self.interfaces.values())
+
     def all_ips(self) -> list[IPv4Interface]:
         return [ip for i in self.interfaces.values() for ip in i.ips]
+
+    def all_ips6(self) -> list[IPv6Interface]:
+        """Global/ULA v6 addresses (link-locals excluded)."""
+        return [ip for i in self.interfaces.values() for ip in i.ips6]
 
     def summary(self) -> dict:
         return {
@@ -94,6 +115,10 @@ class L3Device(Device):
         self._arp_pending: dict[IPv4Address, list[Ipv4Packet]] = {}
         # next-hop ip -> request attempts so far
         self._arp_attempts: dict[IPv4Address, int] = {}
+        # IPv6 neighbor cache — same shape and pending machinery as ARP.
+        self.nd_cache: dict[IPv6Address, tuple[MacAddr, str]] = {}
+        self._nd_pending: dict[IPv6Address, list[Ipv6Packet]] = {}
+        self._nd_attempts: dict[IPv6Address, int] = {}
 
     # ----- egress: IP -> frame -----------------------------------------------
     def egress_for(self, dst: IPv4Address) -> tuple[Interface, IPv4Address] | None:
@@ -256,6 +281,208 @@ class L3Device(Device):
     def on_no_route(self, net: "Network", packet: Ipv4Packet) -> None:
         """Hook: no route for a locally-originated/forwarded packet."""
 
+    # ==================== IPv6: egress + neighbor discovery ====================
+    def egress_for6(self, dst: IPv6Address) -> tuple[Interface, IPv6Address] | None:
+        """(egress iface, next-hop) for ``dst``; None = no route.
+
+        Base implementation: connected prefixes, plus any-iface fallback for
+        link-local/multicast destinations (every port owns a link-local).
+        """
+        for iface in self.interfaces.values():
+            for ip in iface.ips6:
+                if dst in ip.network:
+                    return iface, dst
+        if dst.is_link_local or dst.is_multicast:
+            for iface in self.interfaces.values():
+                if iface.ips6 or iface.slaac:
+                    return iface, dst
+            first = next(iter(self.interfaces.values()), None)
+            if first is not None:
+                return first, dst
+        return None
+
+    def send_ip6(self, net: "Network", packet: Ipv6Packet) -> None:
+        route = self.egress_for6(packet.dst)
+        if route is None:
+            net.record_drop("no_route6")
+            self.on_no_route6(net, packet)
+            return
+        iface, next_hop = route
+        self._resolve_and_send6(net, iface, next_hop, packet)
+
+    def _resolve_and_send6(
+        self, net: "Network", iface: Interface, next_hop: IPv6Address, packet: Ipv6Packet
+    ) -> None:
+        if packet.dst.is_multicast:
+            iface.transmit(
+                net,
+                EthernetFrame(
+                    src_mac=iface.mac,
+                    dst_mac=ipv6_multicast_mac(packet.dst),
+                    ethertype=ETH_IPV6,
+                    payload=packet,
+                ),
+            )
+            return
+        if next_hop == packet.dst and self.owns_ip6(packet.dst):
+            return  # to-self; nothing to put on the wire
+        cached = self.nd_cache.get(next_hop)
+        if cached is not None:
+            mac, iface_name = cached
+            out = self.interfaces.get(iface_name, iface)
+            out.transmit(
+                net,
+                EthernetFrame(
+                    src_mac=out.mac, dst_mac=mac, ethertype=ETH_IPV6, payload=packet
+                ),
+            )
+            return
+
+        pending = self._nd_pending.setdefault(next_hop, [])
+        if len(pending) >= ARP_MAX_PENDING:
+            net.record_drop("nd_queue_full")
+            return
+        first_request = not pending
+        pending.append(packet)
+        if first_request:
+            self._nd_attempts[next_hop] = 1
+            self._send_ns(net, iface, next_hop)
+            self._schedule_nd_timeout(net, iface, next_hop)
+
+    def _send_ns(self, net: "Network", iface: Interface, target: IPv6Address) -> None:
+        group = solicited_node(target)
+        iface.transmit(
+            net,
+            EthernetFrame(
+                src_mac=iface.mac,
+                dst_mac=ipv6_multicast_mac(group),
+                ethertype=ETH_IPV6,
+                payload=Ipv6Packet(
+                    src=iface.link_local.ip,
+                    dst=group,
+                    proto=PROTO_ICMPV6,
+                    hop_limit=255,
+                    payload=Icmpv6Message(
+                        type=135, target=target, ll_addr=str(iface.mac)
+                    ),
+                ),
+            ),
+        )
+
+    def _schedule_nd_timeout(
+        self, net: "Network", iface: Interface, next_hop: IPv6Address
+    ) -> None:
+        net.scheduler.schedule_after(
+            ARP_TIMEOUT,
+            SimEvent(
+                time=0.0,
+                type=EventType.TIMER,
+                handler=lambda _c, _e, ip=next_hop, i=iface: self._nd_timeout(net, i, ip),
+                node_id=self.node_id,
+            ),
+        )
+
+    def _nd_timeout(self, net: "Network", iface: Interface, ip: IPv6Address) -> None:
+        if ip not in self._nd_pending or ip in self.nd_cache:
+            return
+        attempts = self._nd_attempts.get(ip, 1)
+        if attempts < ARP_RETRIES:
+            self._nd_attempts[ip] = attempts + 1
+            self._send_ns(net, iface, ip)
+            self._schedule_nd_timeout(net, iface, ip)
+            return
+        stale = self._nd_pending.pop(ip, None)
+        self._nd_attempts.pop(ip, None)
+        if stale:
+            for _pkt in stale:
+                net.record_drop("nd_timeout")
+
+    def _nd_learn(self, net: "Network", iface: Interface, addr: IPv6Address, ll: str) -> None:
+        self.nd_cache[addr] = (MacAddr(ll), iface.name)
+        self._nd_attempts.pop(addr, None)
+        queued = self._nd_pending.pop(addr, None)
+        if not queued:
+            return
+        mac, iface_name = self.nd_cache[addr]
+        out = self.interfaces.get(iface_name)
+        if out is None:
+            return
+        for pkt in queued:
+            out.transmit(
+                net,
+                EthernetFrame(
+                    src_mac=out.mac, dst_mac=mac, ethertype=ETH_IPV6, payload=pkt
+                ),
+            )
+
+    # ----- ICMPv6 ingress (NDP + echo + errors) --------------------------------
+    def _handle_icmpv6(
+        self, net: "Network", iface: Interface, pkt: Ipv6Packet, icmp: Icmpv6Message
+    ) -> None:
+        if icmp.type == 135:  # neighbor solicitation
+            if icmp.ll_addr and not pkt.src.is_unspecified:
+                self._nd_learn(net, iface, pkt.src, icmp.ll_addr)
+            if icmp.target is not None and iface.has_ip6(icmp.target):
+                self._send_na(net, iface, pkt.src, icmp.target)
+            return
+        if icmp.type == 136:  # neighbor advertisement
+            if icmp.target is not None and icmp.ll_addr:
+                self._nd_learn(net, iface, icmp.target, icmp.ll_addr)
+            return
+        if icmp.type == 128:  # echo request -> reply
+            src = pkt.dst if not pkt.dst.is_multicast else iface.link_local.ip
+            self.send_ip6(
+                net,
+                Ipv6Packet(
+                    src=src,
+                    dst=pkt.src,
+                    proto=PROTO_ICMPV6,
+                    hop_limit=64,
+                    payload=Icmpv6Message(
+                        type=129, ident=icmp.ident, seq=icmp.seq, data_len=icmp.data_len
+                    ),
+                ),
+            )
+            return
+        if icmp.type == 129:  # echo reply
+            net.ping_reply_received(self, pkt, icmp)
+            return
+        if icmp.type in (1, 2, 3):  # unreachable / too-big / time exceeded
+            net.on_icmp6(self, pkt, icmp)
+            return
+        self.on_ndp_router(net, iface, pkt, icmp)  # RS/RA — subclass hooks
+
+    def _send_na(
+        self, net: "Network", iface: Interface, dst: IPv6Address, target: IPv6Address
+    ) -> None:
+        cached = self.nd_cache.get(dst)
+        dst_mac = cached[0] if cached else ipv6_multicast_mac(IPv6Address("ff02::1"))
+        iface.transmit(
+            net,
+            EthernetFrame(
+                src_mac=iface.mac,
+                dst_mac=dst_mac,
+                ethertype=ETH_IPV6,
+                payload=Ipv6Packet(
+                    src=target,
+                    dst=dst,
+                    proto=PROTO_ICMPV6,
+                    hop_limit=255,
+                    payload=Icmpv6Message(
+                        type=136, target=target, ll_addr=str(iface.mac)
+                    ),
+                ),
+            ),
+        )
+
+    def on_ndp_router(
+        self, net: "Network", iface: Interface, pkt: Ipv6Packet, icmp: Icmpv6Message
+    ) -> None:
+        """Hook: RS/RA handling — hosts consume RA, routers answer RS."""
+
+    def on_no_route6(self, net: "Network", packet: Ipv6Packet) -> None:
+        """Hook: no IPv6 route for a locally-originated/forwarded packet."""
+
 
 class Host(L3Device):
     """An end host: ARP, ping, DHCP client, DNS stub resolver."""
@@ -265,6 +492,8 @@ class Host(L3Device):
     def __init__(self, name: str, node_id: str | None = None, nos: str = "forgeos") -> None:
         super().__init__(name, node_id, nos)
         self.default_gateway: IPv4Address | None = None
+        self.default_gateway6: IPv6Address | None = None
+        self._gateway6_iface: str | None = None   # iface the RA arrived on
         self.dns_server: IPv4Address | None = None
         self.dns_cache: dict[str, IPv4Address] = {}
         self._dhcp_xid = 0
@@ -283,6 +512,77 @@ class Host(L3Device):
                         return iface, self.default_gateway
         return None
 
+    def egress_for6(self, dst: IPv6Address) -> tuple[Interface, IPv6Address] | None:
+        direct = super().egress_for6(dst)
+        if direct is not None:
+            return direct
+        gw = self.default_gateway6
+        if gw is not None:
+            iface = self.interfaces.get(self._gateway6_iface or "")
+            if iface is None:  # statically configured gateway: any v6 port
+                iface = next(
+                    (i for i in self.interfaces.values() if i.ips6 or i.slaac),
+                    next(iter(self.interfaces.values()), None),
+                )
+            if iface is not None:
+                return iface, gw
+        return None
+
+    # ----- SLAAC / router discovery ----------------------------------------------
+    def on_start(self, net: "Network") -> None:
+        """Solicit routers on SLAAC-enabled ports so autoconfig converges fast."""
+        for iface in self.interfaces.values():
+            if iface.slaac:
+                net.scheduler.schedule_after(
+                    0.01,
+                    SimEvent(
+                        time=0.0,
+                        type=EventType.TIMER,
+                        handler=lambda _c, _e, i=iface: self._send_rs(net, i),
+                        node_id=self.node_id,
+                    ),
+                )
+
+    def _send_rs(self, net: "Network", iface: Interface) -> None:
+        iface.transmit(
+            net,
+            EthernetFrame(
+                src_mac=iface.mac,
+                dst_mac=ipv6_multicast_mac(ALL_ROUTERS_V6),
+                ethertype=ETH_IPV6,
+                payload=Ipv6Packet(
+                    src=iface.link_local.ip,
+                    dst=ALL_ROUTERS_V6,
+                    proto=PROTO_ICMPV6,
+                    hop_limit=255,
+                    payload=Icmpv6Message(type=133, ll_addr=str(iface.mac)),
+                ),
+            ),
+        )
+
+    def on_ndp_router(
+        self, net: "Network", iface: Interface, pkt: Ipv6Packet, icmp: Icmpv6Message
+    ) -> None:
+        if icmp.type != 134:  # hosts only consume router advertisements
+            return
+        if icmp.ll_addr and not pkt.src.is_unspecified:
+            self._nd_learn(net, iface, pkt.src, icmp.ll_addr)
+        if icmp.router_lifetime > 0 and self.default_gateway6 is None:
+            self.default_gateway6 = pkt.src
+            self._gateway6_iface = iface.name
+        if iface.slaac:
+            for pfx in icmp.prefixes:
+                try:
+                    net6 = IPv6Network(pfx)
+                except ValueError:
+                    continue
+                if net6.prefixlen != 64:
+                    continue
+                addr = slaac_address(net6, iface.mac)
+                if addr not in iface.ips6:
+                    iface.ips6.append(addr)
+                    net.on_slaac_bound(self, iface, addr)
+
     # ----- frame handling --------------------------------------------------------
     def on_frame(self, net: "Network", iface: Interface, frame: EthernetFrame) -> None:
         if not self.powered_on:
@@ -296,6 +596,9 @@ class Host(L3Device):
         payload = frame.payload
         if isinstance(payload, ArpPacket):
             self._handle_arp(net, iface, payload)
+            return
+        if isinstance(payload, Ipv6Packet):
+            self._on_ipv6(net, iface, payload)
             return
         if not isinstance(payload, Ipv4Packet):
             return
@@ -321,18 +624,25 @@ class Host(L3Device):
         if pkt.proto == PROTO_UDP and isinstance(pkt.payload, UdpSegment):
             self._handle_udp(net, iface, pkt, pkt.payload)
 
+    def _on_ipv6(self, net: "Network", iface: Interface, pkt: Ipv6Packet) -> None:
+        if not (self.owns_ip6(pkt.dst) or iface.joined_group(pkt.dst)):
+            return  # hosts do not forward
+        if pkt.proto == PROTO_ICMPV6 and isinstance(pkt.payload, Icmpv6Message):
+            self._handle_icmpv6(net, iface, pkt, pkt.payload)
+
     # ----- applications ---------------------------------------------------------
     def ping(
         self,
         net: "Network",
-        dst: IPv4Address,
+        dst: IPv4Address | IPv6Address,
         count: int = 4,
         interval: float = 1.0,
         size: int = 56,
         ttl: int = 64,
     ) -> int:
-        """Send ``count`` ICMP echo requests. Returns the session ident used
-        to correlate replies (results are collected by the Network)."""
+        """Send ``count`` ICMP(v6) echo requests — dual stack, dispatched on
+        the destination's address family. Returns the session ident used to
+        correlate replies (results are collected by the Network)."""
         ident = net.new_ping_session(self, dst, count)
         for seq in range(1, count + 1):
             net.scheduler.schedule_after(
@@ -347,8 +657,17 @@ class Host(L3Device):
         return ident
 
     def _send_echo(
-        self, net: "Network", dst: IPv4Address, ident: int, seq: int, size: int, ttl: int
+        self,
+        net: "Network",
+        dst: IPv4Address | IPv6Address,
+        ident: int,
+        seq: int,
+        size: int,
+        ttl: int,
     ) -> None:
+        if isinstance(dst, IPv6Address):
+            self._send_echo6(net, dst, ident, seq, size, ttl)
+            return
         src_iface = self.egress_for(dst)
         src_ip = (
             src_iface[0].ip.ip
@@ -364,6 +683,30 @@ class Host(L3Device):
                 proto=PROTO_ICMP,
                 ttl=ttl,
                 payload=IcmpMessage(type=8, ident=ident, seq=seq, data_len=size),
+            ),
+        )
+
+    def _send_echo6(
+        self, net: "Network", dst: IPv6Address, ident: int, seq: int, size: int, hlim: int
+    ) -> None:
+        route = self.egress_for6(dst)
+        iface = route[0] if route else next(iter(self.interfaces.values()), None)
+        if iface is None:
+            net.record_drop("no_route6")
+            return
+        if dst.is_link_local or dst.is_multicast or not iface.ips6:
+            src_ip = iface.link_local.ip
+        else:
+            src_ip = iface.ips6[0].ip
+        net.ping_sent(ident, seq)
+        self.send_ip6(
+            net,
+            Ipv6Packet(
+                src=src_ip,
+                dst=dst,
+                proto=PROTO_ICMPV6,
+                hop_limit=hlim,
+                payload=Icmpv6Message(type=128, ident=ident, seq=seq, data_len=size),
             ),
         )
 

@@ -20,18 +20,37 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from ipaddress import IPv4Address, IPv4Interface
+from ipaddress import IPv4Address, IPv4Interface, IPv6Address, IPv6Interface
 from typing import TYPE_CHECKING, Optional
 
 from engine.events import EventType, SimEvent
-from engine.netstack.addr import MacAddr
-from engine.netstack.frames import EthernetFrame, Ipv4Packet
+from engine.netstack.addr import MacAddr, link_local_for, solicited_node
+from engine.netstack.frames import EthernetFrame, Ipv4Packet, Ipv6Packet
 
 if TYPE_CHECKING:  # pragma: no cover
     from engine.netstack.device import Device
     from engine.netstack.network import Network
 
 PRIORITY_DSCP_THRESHOLD = 40  # CS5 and above ride the priority queue
+
+
+@dataclass(slots=True)
+class FrameContext:
+    """Event payload for PACKET_TX/RX: the frame plus where it happened.
+    Consumed by the ledger (record enrichment) and the packet animation."""
+
+    frame: EthernetFrame
+    link_id: str
+    iface: str      # qualified "device:port" at the recording end
+
+    def ledger_fields(self) -> dict:
+        return {
+            "link": self.link_id,
+            "iface": self.iface,
+            "frame_id": self.frame.id,
+            "size": self.frame.size_bytes,
+            "info": self.frame.summary(),
+        }
 
 
 @dataclass(slots=True)
@@ -68,6 +87,8 @@ class Interface:
         "device",
         "mac",
         "ips",
+        "ips6",
+        "slaac",
         "vlan_mode",
         "access_vlan",
         "trunk_vlans",
@@ -95,6 +116,8 @@ class Interface:
         self.device = device
         self.mac = mac
         self.ips: list[IPv4Interface] = ips or []
+        self.ips6: list[IPv6Interface] = []      # global/ULA; link-local derived
+        self.slaac: bool = False                 # autoconfigure from RA prefixes
         self.vlan_mode: str = "access"          # access | trunk
         self.access_vlan: int = 1
         self.trunk_vlans: set[int] | None = None  # None = allow all
@@ -115,6 +138,28 @@ class Interface:
 
     def has_ip(self, addr: IPv4Address) -> bool:
         return any(i.ip == addr for i in self.ips)
+
+    # ----- IPv6 addressing -------------------------------------------------
+    @property
+    def link_local(self) -> IPv6Interface:
+        """fe80:: address derived from the MAC (EUI-64) — always present on
+        an IPv6-capable port, like a real stack."""
+        return link_local_for(self.mac)
+
+    def all_ips6(self) -> list[IPv6Interface]:
+        return [self.link_local, *self.ips6]
+
+    def has_ip6(self, addr: IPv6Address) -> bool:
+        return any(i.ip == addr for i in self.all_ips6())
+
+    def joined_group(self, addr: IPv6Address) -> bool:
+        """Is ``addr`` a multicast group this port listens to? (all-nodes and
+        the solicited-node group of every configured address)."""
+        if not addr.is_multicast:
+            return False
+        if addr == IPv6Address("ff02::1"):
+            return True
+        return any(solicited_node(i.ip) == addr for i in self.all_ips6())
 
     @property
     def qualified_name(self) -> str:
@@ -141,6 +186,8 @@ class Interface:
     # ----- egress path ------------------------------------------------------
     def transmit(self, net: "Network", frame: EthernetFrame) -> None:
         """Enqueue a frame for transmission out of this interface."""
+        if frame.id == 0:
+            frame.id = net.next_frame_id()
         att = self.attachment
         if att is None or not self.is_up:
             self.counters.drops_down += 1
@@ -148,7 +195,7 @@ class Interface:
             return
 
         # MTU check on the L3 payload (L2 headers don't count against MTU).
-        if isinstance(frame.payload, Ipv4Packet) and frame.payload.wire_size > att.mtu:
+        if isinstance(frame.payload, (Ipv4Packet, Ipv6Packet)) and frame.payload.wire_size > att.mtu:
             self.counters.drops_mtu += 1
             net.record_drop("mtu_exceeded")
             self.device.on_mtu_drop(net, self, frame)
@@ -188,13 +235,17 @@ class Interface:
         net.capture.record(net.now, att.id, self.qualified_name, "tx", frame)
 
         # TX completes after serialization — then the next queued frame starts
-        # and this frame begins propagating toward the peer.
+        # and this frame begins propagating toward the peer. The frame + link
+        # ride along as the event payload so the ledger (NG-SIM-01) can show
+        # per-PDU records and the canvas can animate them (NG-CAP-04).
         net.scheduler.schedule_after(
             ser,
             SimEvent(
                 time=0.0,
                 type=EventType.PACKET_TX,
                 handler=lambda _ctx, _ev, f=frame: self._tx_done(net, f),
+                payload=FrameContext(frame, att.id, self.qualified_name),
+                node_id=self.device.node_id,
             ),
         )
 
@@ -228,6 +279,8 @@ class Interface:
                 time=0.0,
                 type=EventType.PACKET_RX,
                 handler=lambda _ctx, _ev, f=frame, p=peer: p._deliver(net, f),
+                payload=FrameContext(frame, att.id, peer.qualified_name),
+                node_id=peer.device.node_id,
             ),
         )
 
@@ -251,6 +304,8 @@ class Interface:
             "name": self.name,
             "mac": str(self.mac),
             "ips": [str(i) for i in self.ips],
+            "ips6": [str(i) for i in self.ips6],
+            "link_local": str(self.link_local),
             "vlan_mode": self.vlan_mode,
             "access_vlan": self.access_vlan,
             "up": self.is_up,
@@ -261,7 +316,7 @@ class Interface:
 
 def _frame_priority(frame: EthernetFrame) -> int:
     p = frame.payload
-    if isinstance(p, Ipv4Packet):
+    if isinstance(p, (Ipv4Packet, Ipv6Packet)):
         return p.dscp
     return 48  # L2 control (ARP/BPDU) rides the priority queue
 

@@ -12,6 +12,7 @@ import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 import { useWindowStore } from '@/store/windowStore';
 import { SimulationBar } from '@/components/SimulationBar';
+import { ModeSwitch } from '@/components/ModeSwitch';
 import { UpdatesButton } from '@/components/shell/UpdatesButton';
 import { PresenceBar } from '@/components/shell/PresenceBar';
 import { cn } from '@/lib/cn';
@@ -78,6 +79,8 @@ export function MenuBar({ projectName, conn }: MenuBarProps) {
 
       {/* Simulation controls (center) */}
       <SimulationBar />
+      {/* Realtime | Simulation lab mode (NG-SIM-01) */}
+      <ModeSwitch />
 
       <div className="flex-1" />
 

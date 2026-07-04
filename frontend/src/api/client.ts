@@ -240,6 +240,52 @@ export interface PingResult {
   avg_ms: number | null;
   max_ms: number | null;
   errors: string[];
+  /** Session id + completion flag — in simulation mode results arrive as you step. */
+  ident?: number;
+  done?: boolean;
+  mode?: LabMode;
+}
+
+export type LabMode = 'realtime' | 'simulation';
+
+/** One dispatched engine event (NG-SIM-01). PACKET_TX/RX rows carry frame context. */
+export interface LedgerRecord {
+  seq: number;
+  t: number;
+  type: string;
+  node: string;
+  info?: string;
+  link?: string;
+  iface?: string;
+  frame_id?: number;
+  size?: number;
+}
+
+export interface LedgerResponse {
+  hash: string;
+  total: number;
+  mode: LabMode;
+  sim_time: number;
+  pending_events: number;
+  records: LedgerRecord[];
+}
+
+export interface StepResponse {
+  project_id: string;
+  dispatched: number;
+  seq: number;
+  sim_time: number;
+  pending_events: number;
+  records: LedgerRecord[];
+}
+
+export interface SeekResponse {
+  project_id: string;
+  mode: LabMode;
+  seq: number;
+  hash: string;
+  sim_time: number;
+  pending_events: number;
 }
 
 export interface TracerouteHop {
@@ -297,6 +343,21 @@ export const labApi = {
   autoAddress: (projectId: string) =>
     http
       .post<{ nodes_updated: number }>(`/lab/${projectId}/auto-address`)
+      .then((r) => r.data),
+  /* --- Simulation mode (NG-SIM-01) --- */
+  mode: (projectId: string, mode: LabMode) =>
+    http
+      .post<{ mode: LabMode; seq: number }>(`/lab/${projectId}/mode`, { mode })
+      .then((r) => r.data),
+  step: (projectId: string, body: { events?: number; duration?: number }) =>
+    http.post<StepResponse>(`/lab/${projectId}/step`, body).then((r) => r.data),
+  seek: (projectId: string, seq: number) =>
+    http.post<SeekResponse>(`/lab/${projectId}/seek`, { seq }).then((r) => r.data),
+  ledger: (projectId: string, fromSeq = 0, limit = 300) =>
+    http
+      .get<LedgerResponse>(`/lab/${projectId}/ledger`, {
+        params: { from_seq: fromSeq, limit },
+      })
       .then((r) => r.data),
 };
 

@@ -1,14 +1,16 @@
 /**
- * DiagnosticsPanel — packet-level tooling over the live lab:
- *   - Ping / Traceroute between simulated devices (real DES run per request)
+ * DiagnosticsPanel — packet-level tooling over the live lab (NG-CAP-03):
+ *   - Ping / Traceroute between simulated devices (dual-stack, IPv4 + IPv6)
  *   - Packet capture inspector per link (built-in "Wireshark lite")
+ *   - Per-node live tables: RIB v4/v6, ARP/ND caches, MAC table, OSPF/BGP
+ *     adjacency state as colored badges (NG-TD-04)
  *
  * Design: clean tab strip, monospace results, no clutter — every action is
  * one click away, matching the "3 clicks to any feature" rule.
  */
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Activity, ArrowRight, Radio, Route } from 'lucide-react';
+import { Activity, ArrowRight, Radio, Route, Table2 } from 'lucide-react';
 import {
   labApi,
   type CaptureRecord,
@@ -19,7 +21,7 @@ import { useTopologyStore } from '@/store/topologyStore';
 import { useUiStore } from '@/store/uiStore';
 import { cn } from '@/lib/cn';
 
-type Tab = 'ping' | 'trace' | 'capture';
+type Tab = 'ping' | 'trace' | 'capture' | 'tables';
 
 export function DiagnosticsPanel() {
   const [tab, setTab] = useState<Tab>('ping');
@@ -35,11 +37,15 @@ export function DiagnosticsPanel() {
         <TabButton active={tab === 'capture'} onClick={() => setTab('capture')} icon={Radio}>
           Capture
         </TabButton>
+        <TabButton active={tab === 'tables'} onClick={() => setTab('tables')} icon={Table2}>
+          Tables
+        </TabButton>
       </div>
       <div className="ng-scroll flex-1 overflow-auto p-3">
         {tab === 'ping' && <PingTool />}
         {tab === 'trace' && <TraceTool />}
         {tab === 'capture' && <CaptureTool />}
+        {tab === 'tables' && <TablesTool />}
       </div>
     </div>
   );
@@ -121,7 +127,7 @@ function SrcDstRow({
         value={dst}
         onChange={(e) => setDst(e.target.value)}
         list="ng-diag-dst-options"
-        placeholder="destination IP or device"
+        placeholder="IPv4/IPv6 or device"
         aria-label="Destination"
         spellCheck={false}
         className="w-[190px] rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs outline-none placeholder:text-white/30 focus:border-accent"
@@ -328,5 +334,195 @@ function CaptureTool() {
         </div>
       )}
     </div>
+  );
+}
+
+/* ------------------------- Live tables (NG-TD-04) --------------------------- */
+
+interface NodeTables {
+  node: string;
+  kind: string;
+  interfaces: {
+    name: string;
+    mac: string;
+    ips: string[];
+    ips6?: string[];
+    link_local?: string;
+    up: boolean;
+    stp?: { state: string; role: string };
+  }[];
+  arp?: { ip: string; mac: string; iface: string }[];
+  neighbors6?: { ip: string; mac: string; iface: string }[];
+  routes?: RouteRow[];
+  routes6?: RouteRow[];
+  mac_table?: { vlan: number; mac: string; port: string }[];
+  ospf_neighbors?: { router_id: string; state: string; ip: string; iface: string }[];
+  bgp_peers?: { neighbor: string; remote_as: number; state: string; prefixes_received: number }[];
+}
+
+interface RouteRow {
+  prefix: string;
+  next_hop: string | null;
+  iface: string | null;
+  source: string;
+  metric: number;
+  ad: number;
+}
+
+function TablesTool() {
+  const projectId = useUiStore((s) => s.projectId);
+  const options = useNodeOptions();
+  const [nodeRef, setNodeRef] = useState('');
+
+  const q = useQuery({
+    queryKey: ['lab-tables', projectId, nodeRef],
+    queryFn: () => labApi.tables(projectId!, nodeRef) as Promise<unknown> as Promise<NodeTables>,
+    enabled: !!projectId && !!nodeRef,
+    refetchInterval: 5000,
+  });
+
+  const t = q.data;
+  return (
+    <div className="flex flex-col gap-3">
+      <select
+        value={nodeRef}
+        onChange={(e) => setNodeRef(e.target.value)}
+        aria-label="Device tables"
+        className="w-fit min-w-[180px] rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs outline-none focus:border-accent"
+      >
+        <option value="">select device…</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id} className="bg-neutral-900">
+            {o.name} ({o.kind})
+          </option>
+        ))}
+      </select>
+
+      {t && (
+        <div className="flex flex-col gap-3 font-mono text-[11px] leading-relaxed">
+          {/* Interfaces with live badges */}
+          <TableCard title="Interfaces">
+            {t.interfaces.map((i) => (
+              <p key={i.name} className="flex flex-wrap items-center gap-1.5">
+                <span className="text-white/75">{i.name}</span>
+                <Badge tone={i.up ? 'ok' : 'bad'}>{i.up ? 'up' : 'down'}</Badge>
+                {i.stp && i.stp.state !== 'forwarding' && (
+                  <Badge tone="warn">STP {i.stp.state}</Badge>
+                )}
+                <span className="text-white/45">
+                  {[...i.ips, ...(i.ips6 ?? [])].join(', ') || i.link_local || '—'}
+                </span>
+              </p>
+            ))}
+          </TableCard>
+
+          {(t.routes?.length ?? 0) > 0 && (
+            <RouteTable title="IPv4 routes" rows={t.routes!} />
+          )}
+          {(t.routes6?.length ?? 0) > 0 && (
+            <RouteTable title="IPv6 routes" rows={t.routes6!} />
+          )}
+
+          {(t.arp?.length ?? 0) > 0 && (
+            <TableCard title="ARP cache">
+              {t.arp!.map((a) => (
+                <p key={a.ip} className="text-white/60">
+                  {a.ip} <span className="text-white/35">→</span> {a.mac}{' '}
+                  <span className="text-white/35">({a.iface})</span>
+                </p>
+              ))}
+            </TableCard>
+          )}
+          {(t.neighbors6?.length ?? 0) > 0 && (
+            <TableCard title="IPv6 neighbors (NDP)">
+              {t.neighbors6!.map((a) => (
+                <p key={a.ip} className="text-white/60">
+                  {a.ip} <span className="text-white/35">→</span> {a.mac}{' '}
+                  <span className="text-white/35">({a.iface})</span>
+                </p>
+              ))}
+            </TableCard>
+          )}
+
+          {(t.mac_table?.length ?? 0) > 0 && (
+            <TableCard title="MAC address table">
+              {t.mac_table!.map((m, i) => (
+                <p key={i} className="text-white/60">
+                  vlan {m.vlan} · {m.mac} → {m.port}
+                </p>
+              ))}
+            </TableCard>
+          )}
+
+          {(t.ospf_neighbors?.length ?? 0) > 0 && (
+            <TableCard title="OSPF neighbors">
+              {t.ospf_neighbors!.map((n) => (
+                <p key={n.router_id} className="flex items-center gap-1.5 text-white/60">
+                  {n.router_id} via {n.iface}
+                  <Badge tone={n.state.toLowerCase() === 'full' ? 'ok' : 'warn'}>{n.state}</Badge>
+                </p>
+              ))}
+            </TableCard>
+          )}
+          {(t.bgp_peers?.length ?? 0) > 0 && (
+            <TableCard title="BGP peers">
+              {t.bgp_peers!.map((p) => (
+                <p key={p.neighbor} className="flex items-center gap-1.5 text-white/60">
+                  {p.neighbor} (AS{p.remote_as})
+                  <Badge tone={p.state.toLowerCase() === 'established' ? 'ok' : 'warn'}>
+                    {p.state}
+                  </Badge>
+                  <span className="text-white/35">{p.prefixes_received} pfx</span>
+                </p>
+              ))}
+            </TableCard>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RouteTable({ title, rows }: { title: string; rows: RouteRow[] }) {
+  return (
+    <TableCard title={title}>
+      {rows.map((r, i) => (
+        <p key={i} className="text-white/60">
+          <span className="text-white/40">{sourceCode(r.source)}</span> {r.prefix}{' '}
+          <span className="text-white/35">[{r.ad}/{r.metric}]</span>{' '}
+          {r.next_hop ? `via ${r.next_hop}` : 'directly connected'}
+          {r.iface ? <span className="text-white/35">, {r.iface}</span> : null}
+        </p>
+      ))}
+    </TableCard>
+  );
+}
+
+const sourceCode = (s: string) =>
+  ({ connected: 'C', static: 'S', ospf: 'O', ebgp: 'B', ibgp: 'B', rip: 'R' })[s] ?? '?';
+
+function TableCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-black/25 p-3">
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-white/40">
+        {title}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+function Badge({ tone, children }: { tone: 'ok' | 'warn' | 'bad'; children: React.ReactNode }) {
+  return (
+    <span
+      className={cn(
+        'rounded-full px-1.5 py-0 text-[10px] font-medium',
+        tone === 'ok' && 'bg-success/15 text-success',
+        tone === 'warn' && 'bg-warning/15 text-warning',
+        tone === 'bad' && 'bg-danger/15 text-danger',
+      )}
+    >
+      {children}
+    </span>
   );
 }

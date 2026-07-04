@@ -25,7 +25,15 @@ Observer = Callable[[float, SimEvent], None]
 class Scheduler:
     """Single-threaded discrete-event scheduler with a monotonic clock."""
 
-    __slots__ = ("queue", "now", "_observers", "_stop", "_dispatched", "context")
+    __slots__ = (
+        "queue",
+        "now",
+        "_observers",
+        "_stop",
+        "_dispatched",
+        "context",
+        "dispatch_cap",
+    )
 
     def __init__(self, context: Any = None) -> None:
         self.queue = EventQueue()
@@ -34,6 +42,9 @@ class Scheduler:
         self._observers: list[Observer] = []
         self._stop = False
         self._dispatched = 0
+        # Hard ceiling on lifetime dispatches — replay-to-cursor (NG-SIM-01)
+        # sets this to freeze the sim at an exact event, across run() calls.
+        self.dispatch_cap: int | None = None
 
     def schedule(self, event: SimEvent) -> None:
         """Push an event; clamps past-dated events to ``now`` defensively."""
@@ -63,6 +74,8 @@ class Scheduler:
         self._stop = False
         dispatched_this_call = 0
         while self.queue and not self._stop:
+            if self.dispatch_cap is not None and self._dispatched >= self.dispatch_cap:
+                break
             next_t = self.queue.peek_time()
             if until is not None and next_t is not None and next_t > until:
                 self.now = until

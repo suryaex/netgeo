@@ -12,7 +12,9 @@ window behaves like a real terminal session.
 """
 from __future__ import annotations
 
-from ipaddress import IPv4Address, IPv4Interface, IPv4Network
+from ipaddress import IPv4Interface, IPv4Network, ip_address
+
+from engine.netstack.addr import parse_ip_interface6
 from typing import TYPE_CHECKING
 
 from engine.netstack.device import Device, Host
@@ -137,6 +139,14 @@ class CliSession:
                 if isinstance(dev, Router):
                     dev.sync_connected_routes()
                 return ""
+            if words[0] == "ipv6" and len(words) == 3 and words[1] == "address":
+                try:
+                    iface.ips6 = [parse_ip_interface6(words[2])]
+                except ValueError as exc:
+                    return f"% {exc}\n"
+                if isinstance(dev, Router):
+                    dev.sync_connected_routes()
+                return ""
             if words[0] == "shutdown":
                 iface.enabled = False
                 return ""
@@ -161,6 +171,21 @@ class CliSession:
                     dev.add_static_route(words[2], words[3])
             except ValueError as exc:
                 return f"% {exc}\n"
+            return ""
+        if words[0] == "ipv6" and len(words) >= 4 and words[1] == "route":
+            if not isinstance(dev, Router):
+                return "% This device does not route\n"
+            try:               # ipv6 route PREFIX/nn NEXTHOP [IFACE]
+                dev.add_static_route6(
+                    words[2], words[3], iface_name=words[4] if len(words) > 4 else None
+                )
+            except ValueError as exc:
+                return f"% {exc}\n"
+            return ""
+        if line.lower() == "ipv6 nd ra enable":
+            if not isinstance(dev, Router):
+                return "% This device does not route\n"
+            dev.enable_ra()
             return ""
         return f"% Invalid config command: {line}\n"
 
@@ -192,6 +217,30 @@ class CliSession:
                     f"mtu={c.drops_mtu} down={c.drops_down}"
                 )
             return "\n".join(out) + "\n"
+        if low.startswith("show ipv6 route"):
+            if not isinstance(dev, Router):
+                return "% This device does not route\n"
+            rows = ["IPv6 Routing Table - Codes: C - connected, S - static\n"]
+            for r in dev.route_table_rows6():
+                code = _SOURCE_CODE.get(r["source"], "?")
+                via = f"via {r['next_hop']}" if r["next_hop"] else "directly connected"
+                dev_part = f", {r['iface']}" if r["iface"] else ""
+                rows.append(f"{code}    {r['prefix']} [{r['ad']}/{r['metric']}] {via}{dev_part}")
+            return "\n".join(rows) + "\n"
+        if low.startswith("show ipv6 neighbors") or low.startswith("show ipv6 neighbor"):
+            if not isinstance(dev, (Host, Router)):
+                return "% No neighbor table on this device\n"
+            rows = ["IPv6 Address                             Link-layer Addr      Interface"]
+            for ip, (mac, ifname) in sorted(dev.nd_cache.items(), key=lambda kv: str(kv[0])):
+                rows.append(f"{str(ip):<40} {mac:<20} {ifname}")
+            return "\n".join(rows) + "\n"
+        if low.startswith("show ipv6 interface brief") or low.startswith("show ipv6 int br"):
+            rows = ["Interface        Status  IPv6 Address(es)"]
+            for i in dev.interfaces.values():
+                status = "up" if i.is_up else ("admin-down" if not i.enabled else "down")
+                addrs = [str(i.link_local)] + [str(x) for x in i.ips6]
+                rows.append(f"{i.name:<16} {status:<7} {', '.join(addrs)}")
+            return "\n".join(rows) + "\n"
         if low.startswith("show ip route"):
             if not isinstance(dev, Router):
                 return "% This device does not route\n"
@@ -289,13 +338,15 @@ class CliSession:
 
     def _cisco_help(self) -> str:
         return (
-            "exec: enable | ping <ip> [count] | traceroute <ip>\n"
+            "exec: enable | ping <ip|ipv6> [count] | traceroute <ip|ipv6>\n"
             "show: version | ip interface brief | interfaces | ip route | arp |\n"
+            "      ipv6 route | ipv6 neighbors | ipv6 interface brief |\n"
             "      mac address-table | vlan | spanning-tree | ip ospf neighbor |\n"
             "      ip bgp summary | ip nat translations | access-lists | dhcp binding\n"
             "config: enable; conf t; interface <name>; ip address <cidr>;\n"
-            "        [no] shutdown; switchport mode access|trunk;\n"
-            "        switchport access vlan <n>; ip route <prefix> <next-hop>; end\n"
+            "        ipv6 address <cidr>; [no] shutdown; switchport mode access|trunk;\n"
+            "        switchport access vlan <n>; ip route <prefix> <next-hop>;\n"
+            "        ipv6 route <prefix> <next-hop> [iface]; ipv6 nd ra enable; end\n"
         )
 
     # =========================== MikroTik-like ==================================
@@ -305,7 +356,8 @@ class CliSession:
         if low in ("?", "help"):
             return (
                 "/ip address print | /ip route print | /ip arp print |\n"
-                "/interface print | /system resource print | /ping <ip> [count=N]\n"
+                "/ipv6 address print | /ipv6 route print | /ipv6 neighbor print |\n"
+                "/interface print | /system resource print | /ping <ip|ipv6> [count=N]\n"
             )
         if low == "/ip address print":
             rows = ["#  ADDRESS            INTERFACE"]
@@ -322,6 +374,30 @@ class CliSession:
             for n, r in enumerate(dev.route_table_rows()):
                 gw = r["next_hop"] or r["iface"] or "-"
                 rows.append(f"{n}  {r['prefix']:<18} {gw:<15} {r['ad']}")
+            return "\n".join(rows) + "\n"
+        if low == "/ipv6 address print":
+            rows = ["#  ADDRESS                                  INTERFACE"]
+            n = 0
+            for i in dev.interfaces.values():
+                for ip in [i.link_local, *i.ips6]:
+                    rows.append(f"{n}  {str(ip):<40} {i.name}")
+                    n += 1
+            return "\n".join(rows) + "\n"
+        if low == "/ipv6 route print":
+            if not isinstance(dev, Router):
+                return "no routes\n"
+            rows = ["#  DST-ADDRESS              GATEWAY                  DISTANCE"]
+            for n, r in enumerate(dev.route_table_rows6()):
+                gw = r["next_hop"] or r["iface"] or "-"
+                rows.append(f"{n}  {r['prefix']:<24} {gw:<24} {r['ad']}")
+            return "\n".join(rows) + "\n"
+        if low == "/ipv6 neighbor print":
+            rows = ["#  ADDRESS                                  MAC-ADDRESS          INTERFACE"]
+            nd = getattr(dev, "nd_cache", {})
+            for n, (ip, (mac, ifname)) in enumerate(
+                sorted(nd.items(), key=lambda kv: str(kv[0]))
+            ):
+                rows.append(f"{n}  {str(ip):<40} {mac:<20} {ifname}")
             return "\n".join(rows) + "\n"
         if low == "/ip arp print":
             rows = ["#  ADDRESS         MAC-ADDRESS          INTERFACE"]
@@ -355,7 +431,7 @@ class CliSession:
     # =========================== shared apps ==================================
     def _do_ping(self, target: str, count: int = 4) -> str:
         try:
-            dst = IPv4Address(target)
+            dst = ip_address(target)
         except ValueError:
             # try DNS via device cache
             cached = getattr(self.device, "dns_cache", {}).get(target)
@@ -386,7 +462,7 @@ class CliSession:
 
     def _do_traceroute(self, target: str) -> str:
         try:
-            dst = IPv4Address(target)
+            dst = ip_address(target)
         except ValueError:
             return f"% cannot resolve {target}\n"
         try:

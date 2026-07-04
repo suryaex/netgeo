@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from ipaddress import IPv4Address
-from typing import Optional
+from ipaddress import IPv4Address, IPv6Address, IPv6Interface, ip_address
+from typing import Optional, Union
 
 from engine.events import EventType, SimEvent
 from engine.netstack.addr import mac_from_int
 from engine.netstack.capture import CaptureManager
 from engine.netstack.device import Device, Host
-from engine.netstack.frames import DnsMessage, IcmpMessage, Ipv4Packet
+from engine.netstack.frames import DnsMessage, IcmpMessage, Icmpv6Message, Ipv4Packet, Ipv6Packet
 from engine.netstack.iface import Interface, LinkAttachment
 from engine.netstack.routing import Router
 from engine.netstack.switching import Switch
@@ -99,11 +99,15 @@ class Network:
         self.drops: dict[str, int] = {}
         self._mac_counter = 0
         self._xid_counter = 0
+        self._frame_counter = 0
         self._ping_ident = 0
         self.pings: dict[int, PingReport] = {}
         self.traceroutes: dict[int, TracerouteReport] = {}
         self.events_log: list[dict] = []               # notable control events
         self._started = False
+        # Simulation mode (NG-SIM-01): False = user-stepped; convenience APIs
+        # (ping/traceroute/CLI) enqueue their events but do not run the sim.
+        self.auto_run = True
 
     # ----- time ------------------------------------------------------------
     @property
@@ -121,14 +125,19 @@ class Network:
         return mac_from_int(self._mac_counter)
 
     def add_iface(self, device: Device, name: str, ips: list[str] | None = None) -> Interface:
-        from engine.netstack.addr import parse_ip_interface
+        """Attach a port. ``ips`` may mix IPv4 and IPv6 CIDR strings —
+        they are routed to the right stack by address family."""
+        from engine.netstack.addr import parse_ip_interface, parse_ip_interface6
 
+        v4 = [i for i in (ips or []) if ":" not in i]
+        v6 = [i for i in (ips or []) if ":" in i]
         iface = Interface(
             name=name,
             device=device,
             mac=self.new_mac(),
-            ips=[parse_ip_interface(i) for i in (ips or [])],
+            ips=[parse_ip_interface(i) for i in v4],
         )
+        iface.ips6 = [parse_ip_interface6(i) for i in v6]
         return device.add_interface(iface)
 
     def connect(
@@ -177,6 +186,7 @@ class Network:
             if isinstance(device, Router):
                 for proc in device.processes:
                     proc.start(self)
+            device.on_start(self)   # RS on SLAAC hosts, periodic RA on routers
 
     def run(self, until: float | None = None, max_events: int | None = 500_000) -> int:
         """Drain events synchronously. Returns events dispatched."""
@@ -209,6 +219,11 @@ class Network:
     def next_xid(self) -> int:
         self._xid_counter += 1
         return self._xid_counter
+
+    def next_frame_id(self) -> int:
+        """Per-lab frame ids — deterministic across rebuild/replay."""
+        self._frame_counter += 1
+        return self._frame_counter
 
     # ----- ping sessions ----------------------------------------------------------------
     def new_ping_session(self, src: Device, dst: IPv4Address, count: int) -> int:
@@ -247,20 +262,33 @@ class Network:
 
     def on_icmp(self, device: Device, pkt: Ipv4Packet, icmp: IcmpMessage) -> None:
         """ICMP errors (time-exceeded / unreachable) delivered to a device."""
-        if icmp.type == 11:
-            tr = self.traceroutes.get(icmp.orig_ident)
+        kind = "time-exceeded" if icmp.type == 11 else f"unreachable(code={icmp.code})"
+        self._icmp_error_report(
+            str(pkt.src), icmp.orig_ident, icmp.orig_seq, icmp.type == 11, kind
+        )
+
+    def on_icmp6(self, device: Device, pkt: Ipv6Packet, icmp: Icmpv6Message) -> None:
+        """ICMPv6 errors delivered to a device — mirrors :meth:`on_icmp`."""
+        kind = Icmpv6Message.NAMES.get(icmp.type, f"type{icmp.type}")
+        if icmp.type == 1:
+            kind = f"unreachable(code={icmp.code})"
+        self._icmp_error_report(
+            str(pkt.src), icmp.orig_ident, icmp.orig_seq, icmp.type == 3, kind
+        )
+
+    def _icmp_error_report(
+        self, src: str, orig_ident: int, orig_seq: int, time_exceeded: bool, kind: str
+    ) -> None:
+        if time_exceeded:
+            tr = self.traceroutes.get(orig_ident)
             if tr is not None:
-                sent_at = tr._sent_at.get(icmp.orig_seq)
+                sent_at = tr._sent_at.get(orig_seq)
                 if sent_at is not None:
-                    tr.hops[icmp.orig_seq] = (
-                        str(pkt.src),
-                        (self.now - sent_at) * 1000.0,
-                    )
+                    tr.hops[orig_seq] = (src, (self.now - sent_at) * 1000.0)
                 return
-        rep = self.pings.get(icmp.orig_ident)
+        rep = self.pings.get(orig_ident)
         if rep is not None:
-            kind = "time-exceeded" if icmp.type == 11 else f"unreachable(code={icmp.code})"
-            rep.errors.append(f"{kind} from {pkt.src}")
+            rep.errors.append(f"{kind} from {src}")
             if rep.received + len(rep.errors) >= rep.sent:
                 rep.done = True
 
@@ -275,32 +303,38 @@ class Network:
             "dns.answer", device=host.name, qname=msg.qname, answer=msg.answer
         )
 
+    def on_slaac_bound(self, host: Host, iface, addr: IPv6Interface) -> None:
+        self.log_event(
+            "slaac.bound", device=host.name, iface=iface.name, address=str(addr)
+        )
+
     # ----- applications ------------------------------------------------------------------------
     def ping(
         self,
         src_ref: str,
-        dst_ip: str | IPv4Address,
+        dst_ip: Union[str, IPv4Address, IPv6Address],
         count: int = 4,
         interval: float = 1.0,
         run_after: bool = True,
         settle: float = 0.0,
     ) -> PingReport:
-        """Convenience: ping from a device and (optionally) run the sim until done."""
+        """Convenience: ping from a device and (optionally) run the sim until
+        done. Dual stack — the destination's address family picks the path."""
         dev = self.find_device(src_ref)
         if dev is None or not isinstance(dev, (Host, Router)):
             raise ValueError(f"unknown or non-IP device: {src_ref}")
         self.start()
         if settle > 0:
             self.run_for(settle)
-        ident = _pingable(dev).ping(self, IPv4Address(dst_ip), count=count, interval=interval)
-        if run_after:
+        ident = _pingable(dev).ping(self, ip_address(dst_ip), count=count, interval=interval)
+        if run_after and self.auto_run:
             self.run_for(count * interval + 5.0)
         return self.pings[ident]
 
     def traceroute(
         self,
         src_ref: str,
-        dst_ip: str | IPv4Address,
+        dst_ip: Union[str, IPv4Address, IPv6Address],
         max_hops: int = 16,
         run_after: bool = True,
         settle: float = 0.0,
@@ -311,7 +345,7 @@ class Network:
         self.start()
         if settle > 0:
             self.run_for(settle)
-        dst = IPv4Address(dst_ip)
+        dst = ip_address(dst_ip)
         self._ping_ident += 1
         ident = self._ping_ident
         tr = TracerouteReport(ident=ident, src=dev.name, dst=str(dst), max_hops=max_hops)
@@ -329,7 +363,7 @@ class Network:
                     node_id=dev.node_id,
                 ),
             )
-        if run_after:
+        if run_after and self.auto_run:
             self.run_for(max_hops * 0.2 + 5.0)
             # Trim hops after the destination was reached.
             reached_at = min(
@@ -361,6 +395,7 @@ def _pingable(dev: Device) -> Host:
     if not hasattr(dev, "_send_echo"):
         import types
 
-        dev._send_echo = types.MethodType(Host._send_echo, dev)  # type: ignore[attr-defined]
-        dev.ping = types.MethodType(Host.ping, dev)              # type: ignore[attr-defined]
+        dev._send_echo = types.MethodType(Host._send_echo, dev)    # type: ignore[attr-defined]
+        dev._send_echo6 = types.MethodType(Host._send_echo6, dev)  # type: ignore[attr-defined]
+        dev.ping = types.MethodType(Host.ping, dev)                # type: ignore[attr-defined]
     return dev  # type: ignore[return-value]

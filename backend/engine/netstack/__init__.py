@@ -18,14 +18,16 @@ from engine.netstack.frames import (
     DnsMessage,
     EthernetFrame,
     IcmpMessage,
+    Icmpv6Message,
     Ipv4Packet,
+    Ipv6Packet,
     TcpSegment,
     UdpSegment,
 )
 from engine.netstack.iface import Interface, LinkAttachment
 from engine.netstack.device import Device, Host
 from engine.netstack.switching import Switch
-from engine.netstack.routing import AclRule, NatBinding, Route, Router
+from engine.netstack.routing import AclRule, NatBinding, Route, Route6, Router
 from engine.netstack.network import Network, PingReport, TracerouteReport
 
 __all__ = [
@@ -37,7 +39,9 @@ __all__ = [
     "DnsMessage",
     "EthernetFrame",
     "IcmpMessage",
+    "Icmpv6Message",
     "Ipv4Packet",
+    "Ipv6Packet",
     "TcpSegment",
     "UdpSegment",
     "Interface",
@@ -48,6 +52,7 @@ __all__ = [
     "AclRule",
     "NatBinding",
     "Route",
+    "Route6",
     "Router",
     "Network",
     "PingReport",

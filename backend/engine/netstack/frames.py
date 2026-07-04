@@ -8,27 +8,32 @@ inspect, and each knows how to summarise itself for packet capture.
 """
 from __future__ import annotations
 
-import itertools
-from dataclasses import dataclass, field, replace
-from ipaddress import IPv4Address
+from dataclasses import dataclass, replace
+from ipaddress import IPv4Address, IPv6Address
 from typing import Any, Union
 
 from engine.netstack.addr import BROADCAST_MAC, MacAddr
-
-_frame_ids = itertools.count(1)
 
 # EtherTypes
 ETH_IPV4 = 0x0800
 ETH_ARP = 0x0806
 ETH_VLAN = 0x8100
+ETH_IPV6 = 0x86DD
 
 # IP protocol numbers
 PROTO_ICMP = 1
 PROTO_TCP = 6
 PROTO_UDP = 17
+PROTO_ICMPV6 = 58
 PROTO_OSPF = 89
 
-_PROTO_NAMES = {PROTO_ICMP: "icmp", PROTO_TCP: "tcp", PROTO_UDP: "udp", PROTO_OSPF: "ospf"}
+_PROTO_NAMES = {
+    PROTO_ICMP: "icmp",
+    PROTO_TCP: "tcp",
+    PROTO_UDP: "udp",
+    PROTO_ICMPV6: "icmpv6",
+    PROTO_OSPF: "ospf",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +66,70 @@ class IcmpMessage:
         if self.type in (8, 0):
             return f"ICMP {base} id={self.ident} seq={self.seq}"
         return f"ICMP {base} code={self.code}"
+
+
+@dataclass(slots=True)
+class Icmpv6Message:
+    """ICMPv6 incl. NDP (RFC 4443/4861).
+
+    Types: 128/129 = echo request/reply, 1 = destination unreachable,
+    3 = time exceeded, 135/136 = neighbor solicitation/advertisement,
+    133/134 = router solicitation/advertisement.
+    """
+
+    type: int = 128
+    code: int = 0
+    ident: int = 0
+    seq: int = 0
+    data_len: int = 56
+    # NDP fields: NS/NA carry the target address; NS/NA/RS/RA carry the
+    # sender's link-layer address option; RA carries advertised /64 prefixes.
+    target: IPv6Address | None = None
+    ll_addr: str | None = None
+    prefixes: tuple[str, ...] = ()
+    router_lifetime: int = 1800
+    # For error messages (type 1/3): identifying bits of the offending packet.
+    original: tuple[str, str] | None = None   # (src_ip, dst_ip)
+    orig_ident: int = 0
+    orig_seq: int = 0
+
+    NAMES = {
+        128: "echo-request",
+        129: "echo-reply",
+        1: "unreachable",
+        2: "packet-too-big",
+        3: "time-exceeded",
+        135: "neighbor-solicitation",
+        136: "neighbor-advertisement",
+        133: "router-solicitation",
+        134: "router-advertisement",
+    }
+
+    @property
+    def wire_size(self) -> int:
+        if self.type in (128, 129):
+            return 8 + self.data_len
+        if self.type in (135, 136):
+            return 24 + (8 if self.ll_addr else 0)
+        if self.type == 134:
+            return 16 + (8 if self.ll_addr else 0) + 32 * len(self.prefixes)
+        if self.type == 133:
+            return 8 + (8 if self.ll_addr else 0)
+        return 8 + 48  # errors carry the invoking packet's leading bytes
+
+    def summary(self) -> str:
+        base = self.NAMES.get(self.type, f"type{self.type}")
+        if self.type in (128, 129):
+            return f"ICMPv6 {base} id={self.ident} seq={self.seq}"
+        if self.type == 135:
+            return f"ICMPv6 who-has {self.target}"
+        if self.type == 136:
+            return f"ICMPv6 {self.target} is-at {self.ll_addr}"
+        if self.type == 134:
+            return f"ICMPv6 {base} prefixes={','.join(self.prefixes) or '-'}"
+        if self.type in (1, 3):
+            return f"ICMPv6 {base} code={self.code}"
+        return f"ICMPv6 {base}"
 
 
 @dataclass(slots=True)
@@ -175,6 +244,35 @@ class Ipv4Packet:
         return f"IPv4 {self.src} -> {self.dst} ttl={self.ttl}{tail}"
 
 
+@dataclass(slots=True)
+class Ipv6Packet:
+    """IPv6 header (40 bytes fixed). ``proto`` is the next-header value —
+    named ``proto`` (not ``next_header``) so the forwarding pipeline, ACLs and
+    capture code can treat v4/v6 packets uniformly."""
+
+    src: IPv6Address
+    dst: IPv6Address
+    proto: int = PROTO_ICMPV6
+    hop_limit: int = 64
+    dscp: int = 0               # traffic-class DSCP bits
+    payload: Union[Icmpv6Message, UdpSegment, TcpSegment, Any] = None
+    payload_len: int = 0
+
+    @property
+    def wire_size(self) -> int:
+        inner = getattr(self.payload, "wire_size", None)
+        return 40 + (inner if inner is not None else self.payload_len)
+
+    @property
+    def proto_name(self) -> str:
+        return _PROTO_NAMES.get(self.proto, str(self.proto))
+
+    def summary(self) -> str:
+        inner = getattr(self.payload, "summary", None)
+        tail = f" {inner()}" if callable(inner) else f" proto={self.proto_name}"
+        return f"IPv6 {self.src} -> {self.dst} hlim={self.hop_limit}{tail}"
+
+
 # ---------------------------------------------------------------------------
 # L2 control
 # ---------------------------------------------------------------------------
@@ -231,9 +329,11 @@ class EthernetFrame:
     dst_mac: str
     ethertype: int = ETH_IPV4
     vlan: int | None = None
-    payload: Union[Ipv4Packet, ArpPacket, BpduFrame, Any] = None
+    payload: Union[Ipv4Packet, Ipv6Packet, ArpPacket, BpduFrame, Any] = None
     explicit_size: int | None = None
-    id: int = field(default_factory=lambda: next(_frame_ids))
+    # Assigned by the Network at first transmit (0 = unassigned) so ids are
+    # deterministic per lab — a rebuilt lab replays with identical frame ids.
+    id: int = 0
 
     L2_OVERHEAD = 18             # dst+src+type+FCS
     VLAN_OVERHEAD = 4
@@ -252,11 +352,12 @@ class EthernetFrame:
 
     def clone(self) -> "EthernetFrame":
         """Copy for flooding — each egress port gets its own frame instance
-        (fresh id) *and its own payload*, so two receivers can independently
-        mutate TTL / NAT fields without corrupting each other."""
+        (id reassigned at transmit) *and its own payload*, so two receivers
+        can independently mutate TTL / NAT fields without corrupting each
+        other."""
         import copy
 
-        return replace(self, id=next(_frame_ids), payload=copy.deepcopy(self.payload))
+        return replace(self, id=0, payload=copy.deepcopy(self.payload))
 
     def summary(self) -> str:
         inner = getattr(self.payload, "summary", None)
@@ -283,6 +384,26 @@ class EthernetFrame:
             }
         elif isinstance(p, BpduFrame):
             out["stp"] = {"root": p.root_id, "cost": p.root_cost, "bridge": p.bridge_id}
+        elif isinstance(p, Ipv6Packet):
+            out["ipv6"] = {
+                "src": str(p.src),
+                "dst": str(p.dst),
+                "hop_limit": p.hop_limit,
+                "proto": p.proto_name,
+                "dscp": p.dscp,
+            }
+            l4 = p.payload
+            if isinstance(l4, Icmpv6Message):
+                out["icmpv6"] = {
+                    "type": l4.type,
+                    "name": Icmpv6Message.NAMES.get(l4.type, str(l4.type)),
+                    "code": l4.code,
+                    "seq": l4.seq,
+                    "target": str(l4.target) if l4.target else None,
+                }
+            elif isinstance(l4, (UdpSegment, TcpSegment)):
+                key = "udp" if isinstance(l4, UdpSegment) else "tcp"
+                out[key] = {"src_port": l4.src_port, "dst_port": l4.dst_port}
         elif isinstance(p, Ipv4Packet):
             out["ipv4"] = {
                 "src": str(p.src),

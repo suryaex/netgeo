@@ -5,6 +5,7 @@
  */
 import {
   Activity,
+  ListVideo,
   Network,
   PanelRightOpen,
   SlidersHorizontal,
@@ -28,6 +29,7 @@ const ITEMS: DockItem[] = [
   { kind: 'properties', title: 'Properties', icon: SlidersHorizontal },
   { kind: 'console', title: 'Console', icon: TerminalSquare },
   { kind: 'diagnostics', title: 'Diagnostics', icon: Activity },
+  { kind: 'ledger', title: 'Event Ledger', icon: ListVideo },
   { kind: 'config', title: 'Config Viewer', icon: FileCode2 },
   { kind: 'scenarios', title: 'Scenarios', icon: ListChecks },
   { kind: 'settings', title: 'Settings', icon: Settings2 },

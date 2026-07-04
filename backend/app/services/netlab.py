@@ -9,9 +9,14 @@ and re-converges it.
 Node ``intent`` fields understood by the builder (all optional):
 
     gateway: "192.168.1.1"                 # hosts: default gateway
+    gateway6: "2001:db8::1"                # hosts: IPv6 default gateway
+    slaac: true                            # hosts: autoconfigure v6 from RA
     dns: "192.168.1.1"                     # hosts: resolver address
     vlans: {"<iface-name>": {"mode": "access"|"trunk", "vlan": 10}}
     static_routes: [{"prefix": "0.0.0.0/0", "next_hop": "10.0.0.1"}]
+    static_routes6: [{"prefix": "::/0", "next_hop": "2001:db8::1",
+                      "iface": null}]
+    ipv6_ra: {"enabled": true, "interval": 30}   # routers: advertise /64s
     ospf: {"enabled": true, "router_id": "1.1.1.1", "hello": 10}
     bgp: {"asn": 65001, "router_id": "1.1.1.1",
           "neighbors": [{"ip": "10.0.0.2", "asn": 65002}],
@@ -31,7 +36,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from functools import lru_cache
-from ipaddress import IPv4Address, IPv4Network
+from ipaddress import IPv4Address, IPv4Network, IPv6Address
 
 from app.models import Topology
 from engine.netstack import Network
@@ -141,6 +146,12 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
         gw = intent.get("gateway")
         if gw:
             dev.default_gateway = IPv4Address(gw)
+        gw6 = intent.get("gateway6")
+        if gw6:
+            dev.default_gateway6 = IPv6Address(gw6)
+        if intent.get("slaac"):
+            for iface in dev.interfaces.values():
+                iface.slaac = True
         dns = intent.get("dns")
         if dns:
             dev.dns_server = IPv4Address(dns)
@@ -154,6 +165,16 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
             dev.add_static_route(sr["prefix"], sr["next_hop"])
         except (KeyError, ValueError) as exc:
             logger.warning("%s: bad static route %r: %s", dev.name, sr, exc)
+
+    for sr in intent.get("static_routes6") or []:
+        try:
+            dev.add_static_route6(sr["prefix"], sr["next_hop"], sr.get("iface"))
+        except (KeyError, ValueError) as exc:
+            logger.warning("%s: bad static v6 route %r: %s", dev.name, sr, exc)
+
+    ra_cfg = intent.get("ipv6_ra") or {}
+    if ra_cfg.get("enabled"):
+        dev.enable_ra(interval=float(ra_cfg.get("interval", 30.0)))
 
     ospf_cfg = intent.get("ospf") or {}
     if ospf_cfg.get("enabled"):
@@ -240,10 +261,27 @@ def _settle_time(net: Network) -> float:
 
 @dataclass
 class Lab:
+    """A living lab plus its **stimulus journal** (NG-SIM-01).
+
+    Every operation that can advance or perturb the simulation goes through a
+    ``do_*`` method, which appends a journal entry *before* executing it. The
+    journal + the deterministic engine make time travel cheap: seeking to
+    event N = rebuild the network and re-apply the journal with the
+    scheduler's dispatch cap set to N (topology edits invalidate the lab
+    entirely, so the journal only ever describes one topology).
+
+    ``mode`` is Packet Tracer parity: ``realtime`` auto-runs the scheduler
+    after each stimulus; ``simulation`` leaves events queued for step/seek.
+    """
+
     project_id: str
     fingerprint: str
     net: Network
+    seed: int = 0
+    mode: str = "realtime"          # realtime | simulation
+    journal: list[dict] = field(default_factory=list)
     sessions: dict[str, CliSession] = field(default_factory=dict)
+    _recording: bool = True
 
     def session_for(self, node_ref: str) -> CliSession | None:
         dev = self.net.find_device(node_ref)
@@ -254,6 +292,73 @@ class Lab:
             sess = CliSession(self.net, dev)
             self.sessions[dev.node_id] = sess
         return sess
+
+    # ----- journal -----------------------------------------------------------
+    def _record(self, kind: str, **args) -> None:
+        if self._recording:
+            self.journal.append(
+                {"kind": kind, "seq_before": self.net.ledger.seq, "args": args}
+            )
+
+    # ----- journaled operations ----------------------------------------------
+    def do_run(self, until: float | None = None, max_events: int | None = 500_000) -> int:
+        self._record("run", until=until, max_events=max_events)
+        return self.net.run(until=until, max_events=max_events)
+
+    def do_mode(self, mode: str) -> None:
+        self._record("mode", mode=mode)
+        self.mode = mode
+        self.net.auto_run = mode == "realtime"
+
+    def do_ping(self, src: str, dst: str, count: int):
+        self._record("ping", src=src, dst=dst, count=count)
+        report = self.net.ping(src, dst, count=count, run_after=False)
+        if self.mode == "realtime":
+            self.do_run(until=self.net.now + count * 1.0 + 5.0)
+        return report
+
+    def do_traceroute(self, src: str, dst: str, max_hops: int):
+        self._record("traceroute", src=src, dst=dst, max_hops=max_hops)
+        report = self.net.traceroute(src, dst, max_hops=max_hops, run_after=False)
+        if self.mode == "realtime":
+            self.do_run(until=self.net.now + max_hops * 0.2 + 5.0)
+            self._trim_traceroute(report)
+        return report
+
+    def _trim_traceroute(self, tr) -> None:
+        reached_at = min(
+            (ttl for ttl, (addr, _r) in tr.hops.items() if addr == tr.dst),
+            default=None,
+        )
+        if reached_at is not None:
+            tr.reached = True
+            tr.hops = {t: h for t, h in tr.hops.items() if t <= reached_at}
+
+    def do_cli(self, node_ref: str, command: str) -> str | None:
+        session = self.session_for(node_ref)
+        if session is None:
+            return None
+        self._record("cli", node=node_ref, command=command)
+        return session.execute(command)
+
+    def _apply(self, entry: dict) -> None:
+        """Re-execute one journal entry during replay (no re-recording)."""
+        kind, args = entry["kind"], entry["args"]
+        if kind == "run":
+            self.net.run(until=args["until"], max_events=args["max_events"])
+        elif kind == "mode":
+            self.mode = args["mode"]
+            self.net.auto_run = args["mode"] == "realtime"
+        elif kind == "ping":
+            self.net.ping(args["src"], args["dst"], count=args["count"], run_after=False)
+        elif kind == "traceroute":
+            self.net.traceroute(
+                args["src"], args["dst"], max_hops=args["max_hops"], run_after=False
+            )
+        elif kind == "cli":
+            session = self.session_for(args["node"])
+            if session is not None:
+                session.execute(args["command"])
 
 
 class LabManager:
@@ -270,8 +375,8 @@ class LabManager:
             return lab
         net = build_network(topo, seed=seed)
         net.start()
-        net.run_for(_settle_time(net))
-        lab = Lab(project_id=pid, fingerprint=fp, net=net)
+        lab = Lab(project_id=pid, fingerprint=fp, net=net, seed=seed)
+        lab.do_run(until=net.now + _settle_time(net))
         self._labs[pid] = lab
         logger.info(
             "lab built for %s: %s devices, %s links, settled to t=%.1fs",
@@ -281,6 +386,37 @@ class LabManager:
             net.now,
         )
         return lab
+
+    def seek(self, topo: Topology, target_seq: int) -> Lab:
+        """Move the lab's cursor to event ``target_seq`` (step-back included):
+        rebuild, cap the scheduler at the target, replay the journal. Journal
+        entries recorded after the cursor are discarded — new stimuli rewrite
+        the future, exactly like stepping back in Packet Tracer."""
+        lab = self.get(topo)
+        target_seq = max(0, min(target_seq, lab.net.ledger.seq))
+        net = build_network(topo, seed=lab.seed)
+        net.start()
+        net.scheduler.dispatch_cap = target_seq
+        replayed = Lab(
+            project_id=lab.project_id,
+            fingerprint=lab.fingerprint,
+            net=net,
+            seed=lab.seed,
+            _recording=False,
+        )
+        kept: list[dict] = []
+        for entry in lab.journal:
+            if entry["seq_before"] >= target_seq:
+                break
+            replayed._apply(entry)
+            kept.append(entry)
+        net.scheduler.dispatch_cap = None
+        replayed.journal = kept
+        replayed.mode = "simulation"     # stepping implies simulation mode
+        replayed.net.auto_run = False
+        replayed._recording = True
+        self._labs[lab.project_id] = replayed
+        return replayed
 
     def invalidate(self, project_id: str) -> None:
         self._labs.pop(project_id, None)

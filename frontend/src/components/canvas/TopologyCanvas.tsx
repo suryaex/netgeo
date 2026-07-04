@@ -29,14 +29,17 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { DeviceNode, type DeviceNodeData } from './DeviceNode';
+import { PulseEdge } from './PulseEdge';
 import { useTopologyStore } from '@/store/topologyStore';
 import { useUiStore } from '@/store/uiStore';
+import { useLabStore } from '@/store/labStore';
 import { nodesApi, linksApi } from '@/api/client';
 import { deviceByKey } from '@/data/deviceCatalog';
 import { linkStatusColors, nodeColors } from '@/theme/tokens';
 import type { NodeModel } from '@/api/types';
 
 const nodeTypes = { device: DeviceNode };
+const edgeTypes = { pulse: PulseEdge };
 
 export function TopologyCanvas() {
   const rfRef = useRef<ReactFlowInstance<Node<DeviceNodeData>, Edge> | null>(null);
@@ -63,20 +66,37 @@ export function TopologyCanvas() {
     [nodesMap, selectedNodeId],
   );
 
+  // Follow-the-packet animation (NG-CAP-04 MVP): latest fresh pulse per link.
+  const pulses = useLabStore((s) => s.pulses);
+  const pulseByLink = useMemo(() => {
+    const map = new Map<string, (typeof pulses)[number]>();
+    for (const p of pulses) map.set(p.linkId, p); // later pulses win
+    return map;
+  }, [pulses]);
+
   const rfEdges: Edge[] = useMemo(
     () =>
       Array.from(linksMap.values()).map((l) => {
         const color = linkStatusColors[l.status ?? 'unknown'];
+        const source = ifaceNodeId(nodesMap, l.a_iface);
+        const target = ifaceNodeId(nodesMap, l.b_iface);
+        const pulse = pulseByLink.get(l.id);
         return {
           id: l.id,
-          source: ifaceNodeId(nodesMap, l.a_iface),
-          target: ifaceNodeId(nodesMap, l.b_iface),
+          source,
+          target,
+          type: 'pulse',
           animated: l.type === 'wireless',
           style: { stroke: color, strokeDasharray: l.type === 'fiber' ? '0' : '6 3' },
-          data: { type: l.type, bandwidth: l.bandwidth },
+          data: {
+            type: l.type,
+            bandwidth: l.bandwidth,
+            pulse,
+            pulseReverse: pulse ? pulse.fromNode === target : false,
+          },
         } as Edge;
       }),
-    [linksMap, nodesMap],
+    [linksMap, nodesMap, pulseByLink],
   );
 
   /* --- Node drag: local move now, persist on drag-stop --------------------- */
@@ -187,6 +207,7 @@ export function TopologyCanvas() {
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onNodeDragStop={onNodeDragStop}
         onNodeClick={onSelectionNode}

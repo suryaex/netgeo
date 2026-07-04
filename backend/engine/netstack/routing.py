@@ -14,14 +14,23 @@ routes with their administrative distance.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from ipaddress import IPv4Address, IPv4Interface, IPv4Network
+from ipaddress import (
+    IPv4Address,
+    IPv4Interface,
+    IPv4Network,
+    IPv6Address,
+    IPv6Network,
+)
 from typing import TYPE_CHECKING, Optional
 
-from engine.netstack.addr import BROADCAST_MAC, MacAddr
+from engine.events import EventType, SimEvent
+from engine.netstack.addr import ALL_NODES_V6, ALL_ROUTERS_V6, BROADCAST_MAC, MacAddr
 from engine.netstack.device import L3Device
 from engine.netstack.frames import (
     ETH_IPV4,
+    ETH_IPV6,
     PROTO_ICMP,
+    PROTO_ICMPV6,
     PROTO_OSPF,
     PROTO_TCP,
     PROTO_UDP,
@@ -30,7 +39,9 @@ from engine.netstack.frames import (
     DnsMessage,
     EthernetFrame,
     IcmpMessage,
+    Icmpv6Message,
     Ipv4Packet,
+    Ipv6Packet,
     TcpSegment,
     UdpSegment,
 )
@@ -49,6 +60,31 @@ class Route:
     next_hop: IPv4Address | None      # None = directly connected
     iface_name: str | None            # egress interface (resolved if None)
     source: str = "static"            # connected|static|ospf|ebgp|ibgp|rip
+    metric: int = 0
+
+    @property
+    def ad(self) -> int:
+        return AD.get(self.source, 255)
+
+    def as_dict(self) -> dict:
+        return {
+            "prefix": str(self.prefix),
+            "next_hop": str(self.next_hop) if self.next_hop else None,
+            "iface": self.iface_name,
+            "source": self.source,
+            "metric": self.metric,
+            "ad": self.ad,
+        }
+
+
+@dataclass(slots=True)
+class Route6:
+    """An IPv6 RIB entry — same shape as :class:`Route`."""
+
+    prefix: IPv6Network
+    next_hop: IPv6Address | None      # None = directly connected
+    iface_name: str | None
+    source: str = "static"
     metric: int = 0
 
     @property
@@ -140,6 +176,9 @@ class Router(L3Device):
     def __init__(self, name: str, node_id: str | None = None, nos: str = "forgeos") -> None:
         super().__init__(name, node_id, nos)
         self.routes: list[Route] = []
+        self.routes6: list[Route6] = []
+        self.ra_enabled = False           # advertise prefixes for SLAAC
+        self.ra_interval = 30.0
         self.acl_in: dict[str, list[AclRule]] = {}    # iface name -> rules
         self.acl_out: dict[str, list[AclRule]] = {}
         # NAT
@@ -157,13 +196,23 @@ class Router(L3Device):
 
     # ----- route table management -------------------------------------------------
     def sync_connected_routes(self) -> None:
-        """(Re)derive connected routes from interface addressing."""
+        """(Re)derive connected routes from interface addressing (v4 + v6)."""
         self.routes = [r for r in self.routes if r.source != "connected"]
+        self.routes6 = [r for r in self.routes6 if r.source != "connected"]
         for iface in self.interfaces.values():
             for ip in iface.ips:
                 self.routes.append(
                     Route(
                         prefix=ip.network,
+                        next_hop=None,
+                        iface_name=iface.name,
+                        source="connected",
+                    )
+                )
+            for ip6 in iface.ips6:
+                self.routes6.append(
+                    Route6(
+                        prefix=ip6.network,
                         next_hop=None,
                         iface_name=iface.name,
                         source="connected",
@@ -231,6 +280,57 @@ class Router(L3Device):
             return None
         return iface, next_hop
 
+    # ----- IPv6 route table --------------------------------------------------------
+    def add_static_route6(
+        self,
+        prefix: str | IPv6Network,
+        next_hop: str | IPv6Address,
+        iface_name: str | None = None,
+    ) -> Route6:
+        """Static v6 route. ``iface_name`` is required when the next hop is a
+        link-local address (fe80:: is ambiguous without a port)."""
+        route = Route6(
+            prefix=IPv6Network(prefix),
+            next_hop=IPv6Address(next_hop),
+            iface_name=iface_name,
+            source="static",
+            metric=0,
+        )
+        self.routes6.append(route)
+        return route
+
+    def lookup6(self, dst: IPv6Address) -> Route6 | None:
+        best: Route6 | None = None
+        for r in self.routes6:
+            if dst not in r.prefix:
+                continue
+            if (
+                best is None
+                or r.prefix.prefixlen > best.prefix.prefixlen
+                or (
+                    r.prefix.prefixlen == best.prefix.prefixlen
+                    and (r.ad, r.metric) < (best.ad, best.metric)
+                )
+            ):
+                best = r
+        return best
+
+    def egress_for6(self, dst: IPv6Address) -> tuple[Interface, IPv6Address] | None:
+        if dst.is_link_local or dst.is_multicast:
+            return super().egress_for6(dst)
+        route = self.lookup6(dst)
+        if route is None:
+            return None
+        next_hop = route.next_hop if route.next_hop is not None else dst
+        iface = self.interfaces.get(route.iface_name) if route.iface_name else None
+        if iface is None:
+            for cand in self.interfaces.values():
+                for ip6 in cand.ips6:
+                    if next_hop in ip6.network:
+                        return cand, next_hop
+            return None
+        return iface, next_hop
+
     # ----- ingress -----------------------------------------------------------------
     def on_frame(self, net: "Network", iface: Interface, frame: EthernetFrame) -> None:
         if not self.powered_on:
@@ -243,6 +343,9 @@ class Router(L3Device):
         payload = frame.payload
         if isinstance(payload, ArpPacket):
             self._handle_arp(net, iface, payload)
+            return
+        if isinstance(payload, Ipv6Packet):
+            self._on_ipv6(net, iface, payload)
             return
         if not isinstance(payload, Ipv4Packet):
             return
@@ -361,6 +464,134 @@ class Router(L3Device):
                 self._dns_serve(net, iface, pkt, udp, app)
                 return
 
+    # ----- IPv6 ingress + forwarding pipeline ----------------------------------------
+    def _on_ipv6(self, net: "Network", iface: Interface, pkt: Ipv6Packet) -> None:
+        if (
+            self.owns_ip6(pkt.dst)
+            or iface.joined_group(pkt.dst)
+            or pkt.dst == ALL_ROUTERS_V6
+        ):
+            if pkt.proto == PROTO_ICMPV6 and isinstance(pkt.payload, Icmpv6Message):
+                self._handle_icmpv6(net, iface, pkt, pkt.payload)
+            return
+        if pkt.dst.is_multicast or pkt.dst.is_link_local:
+            return  # never forwarded off-link
+        self._forward6(net, iface, pkt)
+
+    def _forward6(self, net: "Network", in_iface: Interface, pkt: Ipv6Packet) -> None:
+        if pkt.hop_limit <= 1:
+            net.record_drop("hop_limit_expired")
+            self._send_icmpv6_error(net, pkt, icmp_type=3, code=0)
+            return
+        pkt.hop_limit -= 1
+
+        resolved = self.egress_for6(pkt.dst)
+        if resolved is None:
+            net.record_drop("no_route6")
+            self._send_icmpv6_error(net, pkt, icmp_type=1, code=0)
+            return
+        out, next_hop = resolved
+        self.forwarded += 1
+        self._resolve_and_send6(net, out, next_hop, pkt)
+
+    def on_ndp_router(
+        self, net: "Network", iface: Interface, pkt: Ipv6Packet, icmp: Icmpv6Message
+    ) -> None:
+        # Routers answer solicitations immediately (solicited RA).
+        if icmp.type == 133 and self.ra_enabled:
+            if icmp.ll_addr and not pkt.src.is_unspecified:
+                self._nd_learn(net, iface, pkt.src, icmp.ll_addr)
+            self._send_ra(net, iface)
+
+    def enable_ra(self, interval: float = 30.0) -> None:
+        self.ra_enabled = True
+        self.ra_interval = interval
+
+    def on_start(self, net: "Network") -> None:
+        if not self.ra_enabled:
+            return
+        for iface in self.interfaces.values():
+            if iface.ips6:
+                self._schedule_ra(net, iface, first=True)
+
+    def _schedule_ra(self, net: "Network", iface: Interface, first: bool = False) -> None:
+        net.scheduler.schedule_after(
+            0.05 if first else self.ra_interval,
+            SimEvent(
+                time=0.0,
+                type=EventType.TIMER,
+                handler=lambda _c, _e, i=iface: self._ra_tick(net, i),
+                node_id=self.node_id,
+            ),
+        )
+
+    def _ra_tick(self, net: "Network", iface: Interface) -> None:
+        if not self.ra_enabled:
+            return
+        if self.powered_on and iface.is_up:
+            self._send_ra(net, iface)
+        self._schedule_ra(net, iface)
+
+    def _send_ra(self, net: "Network", iface: Interface) -> None:
+        """Unsolicited/solicited RA to all-nodes: advertise this port's /64s."""
+        prefixes = tuple(
+            str(ip6.network) for ip6 in iface.ips6 if ip6.network.prefixlen == 64
+        )
+        iface.transmit(
+            net,
+            EthernetFrame(
+                src_mac=iface.mac,
+                dst_mac="33:33:00:00:00:01",
+                ethertype=ETH_IPV6,
+                payload=Ipv6Packet(
+                    src=iface.link_local.ip,
+                    dst=ALL_NODES_V6,
+                    proto=PROTO_ICMPV6,
+                    hop_limit=255,
+                    payload=Icmpv6Message(
+                        type=134,
+                        ll_addr=str(iface.mac),
+                        prefixes=prefixes,
+                        router_lifetime=int(self.ra_interval * 3),
+                    ),
+                ),
+            ),
+        )
+
+    def _send_icmpv6_error(
+        self, net: "Network", offending: Ipv6Packet, icmp_type: int, code: int
+    ) -> None:
+        # Never generate errors about errors, nor toward multicast sources.
+        inner = offending.payload
+        if isinstance(inner, Icmpv6Message) and inner.type in (1, 2, 3):
+            return
+        if offending.src.is_multicast or offending.src.is_unspecified:
+            return
+        route = self.egress_for6(offending.src)
+        if route is None:
+            return
+        out = route[0]
+        src_ip = out.ips6[0].ip if out.ips6 else out.link_local.ip
+        orig_ident = getattr(inner, "ident", 0) if isinstance(inner, Icmpv6Message) else 0
+        orig_seq = getattr(inner, "seq", 0) if isinstance(inner, Icmpv6Message) else 0
+        self.send_ip6(
+            net,
+            Ipv6Packet(
+                src=src_ip,
+                dst=offending.src,
+                proto=PROTO_ICMPV6,
+                hop_limit=64,
+                payload=Icmpv6Message(
+                    type=icmp_type,
+                    code=code,
+                    data_len=48,
+                    original=(str(offending.src), str(offending.dst)),
+                    orig_ident=orig_ident,
+                    orig_seq=orig_seq,
+                ),
+            ),
+        )
+
     # ----- ICMP error generation ----------------------------------------------------
     def _send_icmp_error(
         self, net: "Network", offending: Ipv4Packet, icmp_type: int, code: int
@@ -399,6 +630,8 @@ class Router(L3Device):
         pkt = frame.payload
         if isinstance(pkt, Ipv4Packet):
             self._send_icmp_error(net, pkt, icmp_type=3, code=4)  # frag needed
+        elif isinstance(pkt, Ipv6Packet):
+            self._send_icmpv6_error(net, pkt, icmp_type=2, code=0)  # packet too big
 
     # ----- NAT44 (PAT) ------------------------------------------------------------------
     def enable_nat(self, inside: list[str], outside: str) -> None:
@@ -574,6 +807,11 @@ class Router(L3Device):
     def route_table_rows(self) -> list[dict]:
         return [r.as_dict() for r in sorted(
             self.routes, key=lambda r: (r.prefix.network_address, r.prefix.prefixlen, r.ad)
+        )]
+
+    def route_table_rows6(self) -> list[dict]:
+        return [r.as_dict() for r in sorted(
+            self.routes6, key=lambda r: (r.prefix.network_address, r.prefix.prefixlen, r.ad)
         )]
 
     def nat_rows(self) -> list[dict]:

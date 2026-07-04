@@ -15,9 +15,13 @@ from engine.events import SimEvent
 from engine.scheduler import Scheduler
 
 
-def _payload_desc(payload: Any) -> str:
-    # ponytail: type name only — rich per-frame summaries land with the R1 ledger UI
-    return "" if payload is None else type(payload).__name__
+def _payload_fields(payload: Any) -> dict:
+    """Rich per-frame fields when the event carries a FrameContext
+    (duck-typed via ``ledger_fields`` to avoid importing the netstack)."""
+    fields = getattr(payload, "ledger_fields", None)
+    if callable(fields):
+        return fields()
+    return {"info": "" if payload is None else type(payload).__name__}
 
 
 class Ledger:
@@ -41,12 +45,12 @@ class Ledger:
             "t": round(now, 9),
             "type": event.type.name,
             "node": event.node_id or "",
-            "payload": _payload_desc(event.payload),
+            **_payload_fields(event.payload),
         }
         self.records.append(record)
         self._hash.update(
             f'{record["seq"]}|{record["t"]:.9f}|{record["type"]}|'
-            f'{record["node"]}|{record["payload"]}\n'.encode()
+            f'{record["node"]}|{record.get("link", "")}|{record.get("info", "")}\n'.encode()
         )
 
     def hash(self) -> str:

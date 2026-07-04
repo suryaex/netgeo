@@ -20,6 +20,7 @@ from engine.netstack.frames import DnsMessage, IcmpMessage, Ipv4Packet
 from engine.netstack.iface import Interface, LinkAttachment
 from engine.netstack.routing import Router
 from engine.netstack.switching import Switch
+from engine.ledger import Ledger
 from engine.scheduler import Scheduler
 
 
@@ -90,6 +91,7 @@ class Network:
         self.seed = seed
         self.rng = random.Random(seed)
         self.scheduler = Scheduler(context=self)
+        self.ledger = Ledger().attach(self.scheduler)
         self.capture = CaptureManager()
         self.devices: dict[str, Device] = {}          # by name
         self.devices_by_id: dict[str, Device] = {}    # by node id

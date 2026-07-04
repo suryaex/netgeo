@@ -113,6 +113,25 @@ _SECURITY_HEADERS: list[tuple[bytes, bytes]] = [
 ]
 
 
+class ApiV2AliasMiddleware:
+    """NG-NFR-04: serve ``/api/v2/*`` from the same handlers as ``/api/*``.
+
+    Pure path rewrite (HTTP + WebSocket) so v2 clients and v1 clients hit
+    identical routes; runs outermost so rate limiting sees the v1 path.
+    ponytail: duplicate routers when v2 needs to *diverge* from v1, not before.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
+        path = scope.get("path", "")
+        if scope["type"] in ("http", "websocket") and path.startswith("/api/v2/"):
+            scope = dict(scope)
+            scope["path"] = "/api/" + path[len("/api/v2/"):]
+        await self.app(scope, receive, send)
+
+
 class SecurityHeadersMiddleware:
     """Inject hardening headers on every HTTP response (pure ASGI, no deps).
 
@@ -208,6 +227,10 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Request-ID"],
     )
+
+    # NG-NFR-04: /api/v2 alias — added last so it runs outermost (rewrites
+    # the path before rate limiting and routing see it).
+    app.add_middleware(ApiV2AliasMiddleware)
 
     register_exception_handlers(app)
     app.include_router(api_router)   # /api/*

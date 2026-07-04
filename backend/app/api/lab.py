@@ -128,6 +128,30 @@ async def lab_cli(project_id: str, body: CliRequest, r: MemoryRepository = Depen
         raise SimulationError(str(exc)) from exc
 
 
+@router.get("/{project_id}/ledger")
+async def lab_ledger(
+    project_id: str,
+    from_seq: int = 0,
+    limit: int = 500,
+    type_prefix: str | None = None,
+    node: str | None = None,
+    r: MemoryRepository = Depends(repo),
+):
+    """Event ledger of the living lab (NG-SIM-01): replay hash + recent records."""
+    topo = await _topo(r, project_id)
+
+    def work():
+        lab = _lab_for(topo)
+        led = lab.net.ledger
+        return {
+            "hash": led.hash(),
+            "total": led.seq,
+            "records": led.tail(from_seq, min(limit, 2000), type_prefix, node),
+        }
+
+    return await run_in_threadpool(work)
+
+
 @router.get("/{project_id}/captures")
 async def lab_captures(
     project_id: str,

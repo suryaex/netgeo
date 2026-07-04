@@ -2,36 +2,68 @@
  * LoginPage — full-viewport glassmorphism login screen.
  * Matches the NetGeo dark-glass design language: radial gradient background,
  * frosted card, Apple-blue accent. Credentials are validated by authStore.
+ *
+ * Two modes, decided by GET /api/auth/setup on mount:
+ *   - setup: no account exists yet → "create admin password" form (one-time)
+ *   - login: normal username + password sign-in
  */
 import { useEffect, useState, useRef } from 'react';
-import { Eye, EyeOff, Lock, LogIn, Network, User } from 'lucide-react';
+import { Eye, EyeOff, Lock, LogIn, Network, ShieldCheck, User } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { applyTheme } from '@/theme/tokens';
 import { cn } from '@/lib/cn';
 
+const MIN_PASSWORD_LENGTH = 8;
+
 export function LoginPage() {
   const login = useAuthStore((s) => s.login);
+  const setup = useAuthStore((s) => s.setup);
+  const checkSetup = useAuthStore((s) => s.checkSetup);
+  const setupRequired = useAuthStore((s) => s.setupRequired);
   const loginError = useAuthStore((s) => s.loginError);
   const clearError = useAuthStore((s) => s.clearError);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const usernameRef = useRef<HTMLInputElement>(null);
 
+  const isSetup = setupRequired === true;
+
   // Always render in dark mode on the login screen.
   useEffect(() => {
     applyTheme('dark');
+    checkSetup();
+  }, [checkSetup]);
+
+  // Focus + prefill once the mode is known.
+  useEffect(() => {
+    if (setupRequired === null) return;
+    if (setupRequired) setUsername((u) => u || 'admin');
     usernameRef.current?.focus();
-  }, []);
+  }, [setupRequired]);
+
+  const passwordTooShort = isSetup && password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  const passwordsMismatch =
+    isSetup && confirmPassword.length > 0 && password !== confirmPassword;
+  const submitDisabled =
+    loading ||
+    !username.trim() ||
+    !password ||
+    (isSetup && (password.length < MIN_PASSWORD_LENGTH || password !== confirmPassword));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password) return;
+    if (submitDisabled) return;
     setLoading(true);
     try {
-      await login(username.trim(), password);
+      if (isSetup) {
+        await setup(username.trim(), password);
+      } else {
+        await login(username.trim(), password);
+      }
     } finally {
       setLoading(false);
     }
@@ -61,10 +93,16 @@ export function LoginPage() {
           {/* Header stripe */}
           <div className="border-b border-white/10 px-8 pb-6 pt-8 text-center">
             <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-accent shadow-lg shadow-accent/40">
-              <Network className="h-7 w-7 text-white" />
+              {isSetup ? (
+                <ShieldCheck className="h-7 w-7 text-white" />
+              ) : (
+                <Network className="h-7 w-7 text-white" />
+              )}
             </div>
             <h1 className="text-xl font-semibold text-white">NetGeo</h1>
-            <p className="mt-1 text-sm text-white/50">Network Simulation Platform</p>
+            <p className="mt-1 text-sm text-white/50">
+              {isSetup ? 'First-run setup — create your admin account' : 'Network Simulation Platform'}
+            </p>
           </div>
 
           {/* Form */}
@@ -96,19 +134,19 @@ export function LoginPage() {
             {/* Password */}
             <div className="space-y-1.5">
               <label className="block text-xs font-medium uppercase tracking-wide text-white/50">
-                Password
+                {isSetup ? 'New password' : 'Password'}
               </label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
+                  autoComplete={isSetup ? 'new-password' : 'current-password'}
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); clearError(); }}
                   placeholder="••••••••"
                   className={cn(
                     'w-full rounded-md border bg-black/25 py-2.5 pl-9 pr-10 text-sm text-white/90 outline-none transition-colors placeholder:text-white/25',
-                    loginError
+                    loginError || passwordTooShort
                       ? 'border-danger focus:border-danger'
                       : 'border-white/10 focus:border-accent',
                   )}
@@ -123,7 +161,40 @@ export function LoginPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {passwordTooShort && (
+                <p className="text-xs text-danger">
+                  At least {MIN_PASSWORD_LENGTH} characters.
+                </p>
+              )}
             </div>
+
+            {/* Confirm password — setup mode only */}
+            {isSetup && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium uppercase tracking-wide text-white/50">
+                  Confirm password
+                </label>
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => { setConfirmPassword(e.target.value); clearError(); }}
+                    placeholder="••••••••"
+                    className={cn(
+                      'w-full rounded-md border bg-black/25 py-2.5 pl-9 pr-3 text-sm text-white/90 outline-none transition-colors placeholder:text-white/25',
+                      passwordsMismatch
+                        ? 'border-danger focus:border-danger'
+                        : 'border-white/10 focus:border-accent',
+                    )}
+                  />
+                </div>
+                {passwordsMismatch && (
+                  <p className="text-xs text-danger">Passwords do not match.</p>
+                )}
+              </div>
+            )}
 
             {/* Error message */}
             {loginError && (
@@ -135,24 +206,30 @@ export function LoginPage() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading || !username.trim() || !password}
+              disabled={submitDisabled}
               className={cn(
                 'flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold text-white transition-all',
-                loading || !username.trim() || !password
+                submitDisabled
                   ? 'cursor-not-allowed bg-accent/50'
                   : 'bg-accent hover:bg-accent-soft active:scale-[0.98]',
               )}
             >
               {loading ? (
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : isSetup ? (
+                <ShieldCheck className="h-4 w-4" />
               ) : (
                 <LogIn className="h-4 w-4" />
               )}
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading
+                ? isSetup ? 'Creating account…' : 'Signing in…'
+                : isSetup ? 'Create account & sign in' : 'Sign in'}
             </button>
 
             <p className="text-center text-[11px] text-white/25">
-              Sign in with your NetGeo account
+              {isSetup
+                ? 'This one-time setup secures your NetGeo instance'
+                : 'Sign in with your NetGeo account'}
             </p>
           </form>
         </div>

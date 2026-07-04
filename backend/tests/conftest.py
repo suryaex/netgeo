@@ -12,6 +12,13 @@ Catatan desain:
 """
 from __future__ import annotations
 
+import os
+
+# Matikan persistensi auth store SEBELUM app diimpor — TestClient menjalankan
+# lifespan yang memanggil configure_auth_store(); tanpa ini test bisa menulis
+# ke ~/.config/netgeo/auth.json milik developer.
+os.environ.setdefault("NETGEO_AUTH_STORE", "")
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -67,6 +74,8 @@ def _seed_admin():
     menggunakan ``TestClient`` secara langsung juga mendapat user yang valid.
     """
     sec._users.clear()
+    sec._rate_buckets.clear()   # isolasi rate-limit antar test
+    sec._auth_store_path = None  # jangan pernah menulis auth store dari test
     sec.init_admin_user(_TEST_USER, _TEST_PASS)
     yield
     sec._users.clear()

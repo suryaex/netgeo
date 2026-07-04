@@ -16,10 +16,18 @@ interface AuthState {
   role: string | null;
   loginError: string | null;
   loggingIn: boolean;
+  /** null = unknown (not checked yet); true = first-run setup pending. */
+  setupRequired: boolean | null;
 
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   clearError: () => void;
+  /** Query the backend for first-run setup status (login page, on mount). */
+  checkSetup: () => Promise<void>;
+  /** First-run setup: create the admin account, then sign in with its token. */
+  setup: (username: string, password: string) => Promise<boolean>;
+  /** Change the signed-in user's password. Resolves to an error message or null. */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<string | null>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -31,6 +39,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   role: null,
   loginError: null,
   loggingIn: false,
+  setupRequired: null,
 
   login: async (username, password) => {
     set({ loggingIn: true, loginError: null });
@@ -72,6 +81,62 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   clearError: () => set({ loginError: null }),
+
+  checkSetup: async () => {
+    try {
+      const { setup_required } = await authApi.setupStatus();
+      set({ setupRequired: setup_required });
+    } catch {
+      // Backend unreachable or older version without /setup — show normal login.
+      set({ setupRequired: false });
+    }
+  },
+
+  setup: async (username, password) => {
+    set({ loggingIn: true, loginError: null });
+    try {
+      const { access_token } = await authApi.setup(username, password);
+      setToken(access_token);
+      set({
+        isAuthenticated: true,
+        username,
+        role: 'admin',
+        loginError: null,
+        loggingIn: false,
+        setupRequired: false,
+      });
+      return true;
+    } catch (err) {
+      const e = err as ApiError;
+      const message =
+        e.status === 409
+          ? 'Setup was already completed. Please sign in instead.'
+          : e.status === 0
+            ? 'Cannot reach the server. Check your connection.'
+            : e.message || 'Could not complete setup.';
+      setToken(null);
+      set({
+        isAuthenticated: false,
+        loginError: message,
+        loggingIn: false,
+        // A 409 means someone finished setup already — fall back to sign-in.
+        setupRequired: e.status === 409 ? false : true,
+      });
+      return false;
+    }
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    try {
+      await authApi.changePassword(currentPassword, newPassword);
+      return null;
+    } catch (err) {
+      const e = err as ApiError;
+      if (e.status === 401) return 'Current password is incorrect.';
+      if (e.status === 0) return 'Cannot reach the server. Check your connection.';
+      return e.message || 'Could not change the password.';
+    }
+  },
 }));
 
 // Wire the transport-layer 401/4401 signal to a session teardown. Registered

@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import {
   Cpu,
+  KeyRound,
   LogOut,
   Moon,
   Plus,
@@ -570,6 +571,8 @@ function AccountSection() {
         </div>
       </div>
 
+      <ChangePasswordForm />
+
       <button
         onClick={logout}
         className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-4 py-2.5 text-sm text-danger transition-colors hover:bg-danger/20"
@@ -577,6 +580,115 @@ function AccountSection() {
         <LogOut className="h-4 w-4" />
         Sign out
       </button>
+    </div>
+  );
+}
+
+const MIN_PASSWORD_LENGTH = 8;
+
+function ChangePasswordForm() {
+  const changePassword = useAuthStore((s) => s.changePassword);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const tooShort = newPassword.length > 0 && newPassword.length < MIN_PASSWORD_LENGTH;
+  const mismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
+  const disabled =
+    saving ||
+    !currentPassword ||
+    newPassword.length < MIN_PASSWORD_LENGTH ||
+    newPassword !== confirmPassword;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (disabled) return;
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+    const err = await changePassword(currentPassword, newPassword);
+    setSaving(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setSuccess(true);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  return (
+    <div className="space-y-3">
+      <SectionHeading>Change password</SectionHeading>
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-3 rounded-lg border border-white/10 bg-white/5 px-4 py-4"
+      >
+        <input
+          type="password"
+          autoComplete="current-password"
+          value={currentPassword}
+          onChange={(e) => { setCurrentPassword(e.target.value); setError(null); setSuccess(false); }}
+          placeholder="Current password"
+          className={inputCls}
+        />
+        <input
+          type="password"
+          autoComplete="new-password"
+          value={newPassword}
+          onChange={(e) => { setNewPassword(e.target.value); setError(null); setSuccess(false); }}
+          placeholder={`New password (min. ${MIN_PASSWORD_LENGTH} characters)`}
+          className={inputCls}
+        />
+        <input
+          type="password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(e) => { setConfirmPassword(e.target.value); setError(null); setSuccess(false); }}
+          placeholder="Confirm new password"
+          className={inputCls}
+        />
+
+        {tooShort && (
+          <p className="text-xs text-danger">
+            New password must be at least {MIN_PASSWORD_LENGTH} characters.
+          </p>
+        )}
+        {mismatch && <p className="text-xs text-danger">Passwords do not match.</p>}
+        {error && (
+          <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+            Password updated.
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={disabled}
+          className={cn(
+            'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition-all',
+            disabled
+              ? 'cursor-not-allowed bg-accent/40'
+              : 'bg-accent hover:bg-accent-soft active:scale-[0.98]',
+          )}
+        >
+          {saving ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          ) : (
+            <KeyRound className="h-4 w-4" />
+          )}
+          {saving ? 'Updating…' : 'Update password'}
+        </button>
+      </form>
     </div>
   );
 }

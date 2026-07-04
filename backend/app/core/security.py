@@ -20,6 +20,7 @@ import os
 import secrets
 import time
 from collections import defaultdict
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -158,11 +159,61 @@ def verify_password(password: str, hashed: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# In-memory user store  (single admin account; no database dependency)
+# User store — in-memory, mirrored to a JSON file so credentials survive
+# restarts (single admin account; no database dependency)
 # ---------------------------------------------------------------------------
 
 # { username: {"hashed_password": str, "role": str} }
 _users: dict[str, dict] = {}
+
+# Where password hashes are persisted.  Set once at startup via
+# configure_auth_store(); None disables persistence (unit tests).
+_auth_store_path: Path | None = None
+
+MIN_PASSWORD_LENGTH = 8
+
+
+def configure_auth_store(path: str | os.PathLike | None) -> None:
+    """Set the JSON file used to persist the user store and load it if present.
+
+    Called once at application startup, before any seeding, so credentials
+    saved via first-run setup or change-password take precedence over env vars.
+    """
+    global _auth_store_path
+    _auth_store_path = Path(path).expanduser() if path else None
+    if _auth_store_path is None or not _auth_store_path.is_file():
+        return
+    try:
+        data = json.loads(_auth_store_path.read_text(encoding="utf-8"))
+        users = data.get("users", {})
+        if isinstance(users, dict) and all(
+            isinstance(u, dict) and "hashed_password" in u for u in users.values()
+        ):
+            _users.update({k: v for k, v in users.items() if k not in _users})
+            logger.info("Loaded %d user(s) from auth store %s", len(users), _auth_store_path)
+        else:
+            logger.warning("Auth store %s is malformed — ignoring it.", _auth_store_path)
+    except Exception:
+        logger.warning("Could not read auth store %s — ignoring it.", _auth_store_path, exc_info=True)
+
+
+def _persist_users() -> None:
+    """Write the user store to disk (best-effort; skipped when unconfigured)."""
+    if _auth_store_path is None:
+        return
+    try:
+        _auth_store_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = _auth_store_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"users": _users}, indent=2), encoding="utf-8")
+        os.chmod(tmp, 0o600)
+        tmp.replace(_auth_store_path)
+    except Exception:
+        logger.error("Failed to persist auth store to %s", _auth_store_path, exc_info=True)
+
+
+def is_setup_required() -> bool:
+    """True while no user account exists yet (first-run setup pending)."""
+    return not _users
 
 
 def init_admin_user(username: str, password: str) -> None:
@@ -177,6 +228,38 @@ def init_admin_user(username: str, password: str) -> None:
         "role": "admin",
     }
     logger.info("Admin user %r initialised.", username)
+
+
+def create_initial_admin(username: str, password: str) -> dict:
+    """First-run setup: create the admin account and persist it.
+
+    Raises ValueError if setup was already completed or inputs are invalid.
+    """
+    if not is_setup_required():
+        raise ValueError("Setup already completed")
+    username = username.strip()
+    if not username:
+        raise ValueError("Username must not be empty")
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+    init_admin_user(username, password)
+    _persist_users()
+    return {"sub": username, "role": _users[username]["role"]}
+
+
+def change_password(username: str, current_password: str, new_password: str) -> None:
+    """Change a user's password after verifying the current one.  Persists.
+
+    Raises ValueError with a safe message on any failure.
+    """
+    user = _users.get(username)
+    if not user or not verify_password(current_password, user["hashed_password"]):
+        raise ValueError("Current password is incorrect")
+    if len(new_password) < MIN_PASSWORD_LENGTH:
+        raise ValueError(f"New password must be at least {MIN_PASSWORD_LENGTH} characters")
+    user["hashed_password"] = hash_password(new_password)
+    _persist_users()
+    logger.info("Password changed for user %r.", username)
 
 
 def authenticate_user(username: str, password: str) -> dict | None:

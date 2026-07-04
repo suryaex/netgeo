@@ -210,3 +210,139 @@ def test_ws_console_rejects_missing_token():
     with pytest.raises((WebSocketDisconnect, Exception)):
         with client.websocket_connect("/ws/console/fake-node-id") as ws:
             ws.receive_text()
+
+
+# ---- First-run setup (/auth/setup) ------------------------------------------
+
+async def test_setup_status_false_when_admin_exists(anon):
+    """Admin already seeded → setup_required is False."""
+    resp = await anon.get("/api/auth/setup")
+    assert resp.status_code == 200
+    assert resp.json()["setup_required"] is False
+
+
+async def test_setup_conflict_when_admin_exists(anon):
+    """POST /setup after an account exists → 409 CONFLICT."""
+    resp = await anon.post("/api/auth/setup", json={"password": "SomePass123!"})
+    assert resp.status_code == 409
+
+
+async def test_first_run_setup_flow(anon):
+    """Fresh install: status → create admin → auto-login token → setup closes."""
+    from app.core import security as sec
+    sec._users.clear()  # simulate a fresh install (no NETGEO_ADMIN_PASSWORD)
+
+    resp = await anon.get("/api/auth/setup")
+    assert resp.json()["setup_required"] is True
+
+    resp = await anon.post(
+        "/api/auth/setup", json={"username": "surya", "password": "SuperSecret1"}
+    )
+    assert resp.status_code == 200, resp.text
+    assert "access_token" in resp.json()
+
+    # Setup is now closed and cannot be repeated.
+    resp = await anon.get("/api/auth/setup")
+    assert resp.json()["setup_required"] is False
+    resp = await anon.post("/api/auth/setup", json={"password": "AnotherPass1"})
+    assert resp.status_code == 409
+
+    # The chosen credentials work through the normal login flow.
+    resp = await anon.post(
+        "/api/auth/login", json={"username": "surya", "password": "SuperSecret1"}
+    )
+    assert resp.status_code == 200
+
+
+async def test_setup_rejects_short_password(anon):
+    """Password below the minimum length → 422, no account created."""
+    from app.core import security as sec
+    sec._users.clear()
+
+    resp = await anon.post("/api/auth/setup", json={"password": "short"})
+    assert resp.status_code == 422
+    assert sec.is_setup_required()
+
+
+async def test_setup_persists_across_restart(tmp_path, anon):
+    """Password chosen during setup survives a simulated backend restart."""
+    from app.core import security as sec
+    sec._users.clear()
+    sec.configure_auth_store(tmp_path / "auth.json")
+
+    resp = await anon.post(
+        "/api/auth/setup", json={"username": "surya", "password": "SuperSecret1"}
+    )
+    assert resp.status_code == 200
+    assert (tmp_path / "auth.json").is_file()
+
+    # Simulate restart: wipe memory, reload from the store.
+    sec._users.clear()
+    sec.configure_auth_store(tmp_path / "auth.json")
+    assert not sec.is_setup_required()
+    resp = await anon.post(
+        "/api/auth/login", json={"username": "surya", "password": "SuperSecret1"}
+    )
+    assert resp.status_code == 200
+    sec._auth_store_path = None
+
+
+# ---- Change password (/auth/change-password) --------------------------------
+
+async def test_change_password_requires_auth(anon):
+    """No token → 401."""
+    resp = await anon.post(
+        "/api/auth/change-password",
+        json={"current_password": _TEST_PASS, "new_password": "BrandNewPass1"},
+    )
+    assert resp.status_code == 401
+
+
+async def test_change_password_wrong_current(anon):
+    """Wrong current password → 401, old password still works."""
+    from tests.conftest import make_auth_headers
+    resp = await anon.post(
+        "/api/auth/change-password",
+        json={"current_password": "wrong-password", "new_password": "BrandNewPass1"},
+        headers=make_auth_headers(),
+    )
+    assert resp.status_code == 401
+    resp = await anon.post(
+        "/api/auth/login", json={"username": _TEST_USER, "password": _TEST_PASS}
+    )
+    assert resp.status_code == 200
+
+
+async def test_change_password_flow(anon):
+    """Correct current password → changed; old rejected, new accepted."""
+    from tests.conftest import make_auth_headers
+    resp = await anon.post(
+        "/api/auth/change-password",
+        json={"current_password": _TEST_PASS, "new_password": "BrandNewPass1"},
+        headers=make_auth_headers(),
+    )
+    assert resp.status_code == 200, resp.text
+
+    resp = await anon.post(
+        "/api/auth/login", json={"username": _TEST_USER, "password": _TEST_PASS}
+    )
+    assert resp.status_code == 401
+    resp = await anon.post(
+        "/api/auth/login", json={"username": _TEST_USER, "password": "BrandNewPass1"}
+    )
+    assert resp.status_code == 200
+
+
+async def test_change_password_rejects_short_new(anon):
+    """New password below minimum length → 422, password unchanged."""
+    from tests.conftest import make_auth_headers
+    resp = await anon.post(
+        "/api/auth/change-password",
+        json={"current_password": _TEST_PASS, "new_password": "short"},
+        headers=make_auth_headers(),
+    )
+    assert resp.status_code == 422
+    resp = await anon.post(
+        "/api/auth/login", json={"username": _TEST_USER, "password": _TEST_PASS}
+    )
+    assert resp.status_code == 200

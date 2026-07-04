@@ -106,8 +106,15 @@ http.interceptors.response.use(
     // revoked) — tear it down so the app falls back to the login screen. We
     // only fire when a token was actually attached, so a failed login attempt
     // (no token yet) keeps its inline error instead of bouncing the UI.
+    // /auth/change-password also 401s on a wrong *current password* — that is
+    // an inline form error, not a dead session, so it must not log the user out.
     const url = err.config?.url ?? '';
-    if (err.response?.status === 401 && getToken() && !url.includes('/auth/login')) {
+    if (
+      err.response?.status === 401 &&
+      getToken() &&
+      !url.includes('/auth/login') &&
+      !url.includes('/auth/change-password')
+    ) {
       notifyUnauthorized();
     }
     const apiError: ApiError = {
@@ -154,6 +161,20 @@ export const authApi = {
   login: (username: string, password: string) =>
     http.post<LoginResponse>('/auth/login', { username, password }).then((r) => r.data),
   me: () => http.get<CurrentUser>('/auth/me').then((r) => r.data),
+  /** First-run setup: is there no account yet? (public) */
+  setupStatus: () =>
+    http.get<{ setup_required: boolean }>('/auth/setup').then((r) => r.data),
+  /** First-run setup: create the admin account; returns a token (auto-login). */
+  setup: (username: string, password: string) =>
+    http.post<LoginResponse>('/auth/setup', { username, password }).then((r) => r.data),
+  /** Change own password; requires the current password (re-auth). */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    http
+      .post('/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      })
+      .then((r) => r.data),
 };
 
 /* ----------------------------- Projects ---------------------------------- */

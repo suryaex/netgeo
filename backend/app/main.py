@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import logging
-import secrets
 import time
 from contextlib import asynccontextmanager
 from typing import Any
@@ -24,7 +23,7 @@ from app.api.ws import router as ws_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
-from app.core.security import check_rate_limit, init_admin_user
+from app.core.security import check_rate_limit, configure_auth_store, init_admin_user, is_setup_required
 
 logger = logging.getLogger(__name__)
 
@@ -148,30 +147,30 @@ class SecurityHeadersMiddleware:
 # ---------------------------------------------------------------------------
 
 def _init_admin_from_settings() -> None:
-    """Seed the in-memory admin user from environment variables.
+    """Initialise the admin account.  Called once from the lifespan hook.
 
-    Called once from the lifespan hook so settings are fully loaded.
-
-    - If NETGEO_ADMIN_PASSWORD is set: use it.
-    - If empty: auto-generate a random password, print it to stderr, and warn.
-      The random password is ephemeral — lost on restart.  Set the env var
-      to persist credentials across restarts.
+    Resolution order:
+    1. Load users persisted by the UI (first-run setup / change-password)
+       from NETGEO_AUTH_STORE — these always win over env vars, so a password
+       changed in the UI survives restarts even when the env var is stale.
+    2. Otherwise, if NETGEO_ADMIN_PASSWORD is set: seed the admin from env.
+    3. Otherwise: enter first-run setup mode — the login page prompts the
+       first visitor to create the admin password (POST /api/auth/setup).
     """
-    username = settings.NETGEO_ADMIN_USER
-    password = settings.NETGEO_ADMIN_PASSWORD
+    configure_auth_store(settings.NETGEO_AUTH_STORE or None)
 
-    if not password:
-        password = secrets.token_urlsafe(16)
-        logger.warning(
-            "\n\n[SECURITY WARNING] NETGEO_ADMIN_PASSWORD is not set.\n"
-            "Auto-generated ephemeral password for admin user %r: %s\n"
-            "This password will change on every restart.\n"
-            "Set NETGEO_ADMIN_PASSWORD in your .env file to make it persistent.\n",
-            username,
-            password,
-        )
+    if not is_setup_required():
+        return  # loaded from the auth store
 
-    init_admin_user(username, password)
+    if settings.NETGEO_ADMIN_PASSWORD:
+        init_admin_user(settings.NETGEO_ADMIN_USER, settings.NETGEO_ADMIN_PASSWORD)
+        return
+
+    logger.warning(
+        "\n\n[FIRST-RUN SETUP] No admin account is configured.\n"
+        "Open the NetGeo web UI to create the admin password (one-time setup),\n"
+        "or set NETGEO_ADMIN_PASSWORD in your .env file before startup.\n",
+    )
 
 
 # ---------------------------------------------------------------------------

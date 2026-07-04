@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # App
     APP_NAME: str = "NetGeo"
-    APP_VERSION: str = "0.3.1"
+    APP_VERSION: str = "0.4.0"
     ENVIRONMENT: str = "development"
     SECRET_KEY: str = "change-me"
     CORS_ORIGINS: str = "http://localhost,http://localhost:5173,http://localhost:3000"
@@ -55,10 +55,14 @@ class Settings(BaseSettings):
 
     # Auth — admin seed account (RB-01)
     # NETGEO_ADMIN_USER and NETGEO_ADMIN_PASSWORD are read once at startup.
-    # If NETGEO_ADMIN_PASSWORD is empty, an ephemeral password is auto-generated
-    # and printed to stderr — set it explicitly before any production use.
+    # If NETGEO_ADMIN_PASSWORD is empty (and no auth store file exists yet),
+    # the web UI enters first-run setup mode: the first visitor creates the
+    # admin password via POST /api/auth/setup.
     NETGEO_ADMIN_USER: str = "admin"
     NETGEO_ADMIN_PASSWORD: str = ""
+    # JSON file where password hashes set via the UI (first-run setup /
+    # change-password) are persisted across restarts. Empty = disabled.
+    NETGEO_AUTH_STORE: str = "~/.config/netgeo/auth.json"
 
     # In-app self-update (see app/services/updater.py + scripts/self-update.sh).
     # GITHUB_REPO is the "owner/name" slug whose releases we compare against.

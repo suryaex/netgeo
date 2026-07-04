@@ -235,7 +235,7 @@ export function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-white/20">
-          NetGeo v0.1 &mdash; Network Simulation Platform
+          NetGeo v{__APP_VERSION__} &mdash; Network Simulation Platform
         </p>
       </div>
     </div>

@@ -392,6 +392,9 @@ export interface UpdateCheck {
   published_at?: string;
   checked_at: number;
   can_apply?: boolean;
+  /** True when the backend has UPDATE_TOKEN configured — apply() must then
+   *  send the matching X-Update-Token header on top of the admin session. */
+  token_required?: boolean;
   error?: string;
 }
 export interface UpdateStatus {
@@ -410,8 +413,10 @@ export interface UpdateStatus {
 export const updateApi = {
   check: () => http.get<UpdateCheck>('/update/check').then((r) => r.data),
   status: () => http.get<UpdateStatus>('/update/status').then((r) => r.data),
-  apply: (token: string) =>
+  apply: (token?: string) =>
     http
-      .post<UpdateStatus>('/update/apply', null, { headers: { 'X-Update-Token': token } })
+      .post<UpdateStatus>('/update/apply', null, {
+        headers: token ? { 'X-Update-Token': token } : undefined,
+      })
       .then((r) => r.data),
 };

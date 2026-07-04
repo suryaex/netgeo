@@ -139,7 +139,8 @@ def check() -> dict:
             "latest": None,
             "update_available": False,
             "checked_at": int(time.time()),
-            "can_apply": bool(settings.UPDATE_TOKEN),
+            "can_apply": True,
+            "token_required": bool(settings.UPDATE_TOKEN),
             "error": "Could not reach GitHub to check for updates.",
         }
     return {
@@ -150,7 +151,10 @@ def check() -> dict:
         "url": latest["url"],
         "published_at": latest["published_at"],
         "checked_at": int(time.time()),
-        "can_apply": bool(settings.UPDATE_TOKEN),
+        # Applying always works for an authenticated admin; UPDATE_TOKEN is an
+        # optional extra header the UI must collect when configured.
+        "can_apply": True,
+        "token_required": bool(settings.UPDATE_TOKEN),
     }
 
 

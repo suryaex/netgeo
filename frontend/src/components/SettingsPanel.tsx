@@ -142,7 +142,7 @@ function GeneralSection() {
 
       <SectionHeading>About</SectionHeading>
       <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60">
-        <p className="font-medium text-white/80">NetGeo v0.1.0 Alpha</p>
+        <p className="font-medium text-white/80">NetGeo v{__APP_VERSION__} Alpha</p>
         <p className="mt-0.5 text-xs">
           Network Simulation · Planning · GIS Digital-Twin · AI — React + FastAPI
         </p>

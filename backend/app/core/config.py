@@ -12,6 +12,13 @@ from functools import lru_cache
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Single source of truth for the running version. Deliberately NOT a Settings
+# field: install.sh used to stamp APP_VERSION into .env / compose env, and that
+# stale value overrode the code default forever — self-updated installs kept
+# reporting the version they were first installed at (e.g. "0.1"), so the
+# updater always saw an update available. The env var is now ignored.
+APP_VERSION = "0.4.1"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -20,7 +27,6 @@ class Settings(BaseSettings):
 
     # App
     APP_NAME: str = "NetGeo"
-    APP_VERSION: str = "0.4.0"
     ENVIRONMENT: str = "development"
     SECRET_KEY: str = "change-me"
     CORS_ORIGINS: str = "http://localhost,http://localhost:5173,http://localhost:3000"
@@ -68,8 +74,9 @@ class Settings(BaseSettings):
     # GITHUB_REPO is the "owner/name" slug whose releases we compare against.
     GITHUB_REPO: str = "suryaex/netgeo"
     UPDATE_BRANCH: str = "main"
-    # Shared secret required to call POST /api/update/apply.
-    # An authenticated session is also required (see RB-05).
+    # Optional extra guard for POST /api/update/apply. The endpoint always
+    # requires an authenticated admin session (RB-05); when UPDATE_TOKEN is
+    # set, the X-Update-Token header must ALSO match (defence in depth).
     UPDATE_TOKEN: str = ""
     # Sentinel + status files exchanged with the host-side scripts/self-update.sh.
     UPDATE_TRIGGER_FILE: str = "/var/lib/netgeo/update.request"
@@ -126,6 +133,11 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def APP_VERSION(self) -> str:  # noqa: N802 — keeps the settings-style spelling
+        """Running version — always the code constant, never the environment."""
+        return APP_VERSION
 
 
 @lru_cache

@@ -2,11 +2,12 @@
 
 GET  /api/update/check   — read-only; compare running version with GitHub.
 GET  /api/update/status  — progress reported by scripts/self-update.sh.
-POST /api/update/apply   — trigger pull+rebuild+restart (guarded by UPDATE_TOKEN).
+POST /api/update/apply   — trigger pull+rebuild+restart.
 
-NetGeo has no auth layer yet, so the *mutating* endpoint requires a shared
-secret supplied via the ``X-Update-Token`` header and matched against
-``settings.UPDATE_TOKEN``. With no token configured, applying is disabled.
+The whole router is mounted behind the admin-JWT dependency (RB-05), so every
+endpoint here already requires an authenticated session. ``UPDATE_TOKEN`` is an
+*optional* second factor: when set, POST /apply additionally requires a matching
+``X-Update-Token`` header; when empty, the admin session alone is sufficient.
 
 Handlers are intentionally **synchronous** ``def`` functions. ``updater.check``
 and ``updater.apply`` perform *blocking* network/subprocess I/O; declaring the
@@ -55,14 +56,13 @@ def update_status() -> dict:
 @router.post("/update/apply")
 def update_apply(x_update_token: str | None = Header(default=None)) -> dict:
     settings = get_settings()
-    if not settings.UPDATE_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Applying updates from the app is disabled (set UPDATE_TOKEN).",
-        )
-    # Constant-time compare so the token cannot be recovered byte-by-byte via a
-    # response-timing side channel (consistent with core.security's hmac usage).
-    if x_update_token is None or not hmac.compare_digest(x_update_token, settings.UPDATE_TOKEN):
+    # The admin JWT is enforced by the router dependency. UPDATE_TOKEN, when
+    # configured, is an additional shared secret. Constant-time compare so the
+    # token cannot be recovered byte-by-byte via a response-timing side channel
+    # (consistent with core.security's hmac usage).
+    if settings.UPDATE_TOKEN and (
+        x_update_token is None or not hmac.compare_digest(x_update_token, settings.UPDATE_TOKEN)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid update token.",

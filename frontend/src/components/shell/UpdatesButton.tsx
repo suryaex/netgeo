@@ -2,8 +2,9 @@
  * UpdatesButton — menu-bar control that checks GitHub for a newer NetGeo
  * release and lets an operator apply it (pull + rebuild + restart) from the app.
  *
- * The mutating call is guarded by a shared secret (UPDATE_TOKEN on the backend);
- * the user is prompted for it before applying. After "apply" we poll status and
+ * Applying requires the signed-in admin session; when the backend additionally
+ * has UPDATE_TOKEN configured (token_required in the check payload), the user
+ * is prompted for that shared secret first. After "apply" we poll status and
  * surface progress until the backend restarts.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -48,6 +49,21 @@ function describeError(e: unknown): string {
   return msg || 'Update check failed.';
 }
 
+/**
+ * Release notes arrive as GitHub-flavoured markdown; the popover renders plain
+ * text, so strip the markup that would otherwise show up literally (##, **,
+ * backticks, [text](url) links) while keeping the wording intact.
+ */
+function plainNotes(md: string): string {
+  return md
+    .replace(/^#{1,6}\s+/gm, '')             // headings
+    .replace(/\*\*([^*]+)\*\*/g, '$1')        // bold
+    .replace(/\*([^*]+)\*/g, '$1')            // italics
+    .replace(/`([^`]+)`/g, '$1')              // inline code
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')  // links → text
+    .trim();
+}
+
 export function UpdatesButton() {
   const [open, setOpen] = useState(false);
   // `info` holds the last *successful* check so the version stays visible even
@@ -87,8 +103,13 @@ export function UpdatesButton() {
   useEffect(() => () => clearInterval(pollRef.current), []);
 
   const apply = useCallback(async () => {
-    const token = window.prompt('Enter the update token (UPDATE_TOKEN) to apply:');
-    if (!token) return;
+    // The admin session authorises the update; only prompt for the extra
+    // shared secret when the backend says one is configured.
+    let token: string | undefined;
+    if (info?.token_required) {
+      token = window.prompt('Enter the update token (UPDATE_TOKEN) to apply:') ?? undefined;
+      if (!token) return;
+    }
     setBusy(true);
     try {
       setStatus(await updateApi.apply(token));
@@ -112,7 +133,7 @@ export function UpdatesButton() {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [info?.token_required]);
 
   const available = info?.update_available ?? false;
   // We are mid-check with nothing to show yet — distinct from "up to date".
@@ -175,20 +196,20 @@ export function UpdatesButton() {
             <>
               {info?.notes && (
                 <p className="mt-2 max-h-24 overflow-auto whitespace-pre-wrap text-xs text-white/60">
-                  {info.notes}
+                  {plainNotes(info.notes)}
                 </p>
               )}
               <button
                 onClick={() => void apply()}
-                disabled={busy || !info?.can_apply}
+                disabled={busy || info?.can_apply === false}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-accent px-3 py-1.5 font-medium text-white disabled:opacity-50"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Update &amp; restart
               </button>
-              {!info?.can_apply && (
+              {info?.token_required && (
                 <p className="mt-1 text-[11px] text-white/40">
-                  Applying from the app is disabled (set UPDATE_TOKEN on the backend).
+                  You&apos;ll be asked for the update token (UPDATE_TOKEN).
                 </p>
               )}
             </>

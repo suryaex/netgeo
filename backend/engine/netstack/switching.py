@@ -99,7 +99,7 @@ class Switch(Device):
         self._recompute_roles(net)
         root_prio, root_mac, cost = self._current_root(net)
         for idx, iface in enumerate(self.interfaces.values()):
-            if not iface.is_up:
+            if not iface.is_up or iface.lag_parent is not None:
                 continue
             # Only designated ports originate BPDUs (root port listens).
             if iface.stp_role != "designated":
@@ -243,9 +243,10 @@ class Switch(Device):
             if out_name == iface.name:
                 return  # destination is back where it came from; filter
 
-        # Flood: broadcast, multicast, or unknown unicast.
+        # Flood: broadcast, multicast, or unknown unicast. LAG members are
+        # skipped — their logical port floods once for the whole bundle.
         for name, out in self.interfaces.items():
-            if name == iface.name or not out.is_up:
+            if name == iface.name or out.lag_parent is not None or not out.is_up:
                 continue
             if out.stp_state == "blocking" or not out.vlan_allows(vlan):
                 continue

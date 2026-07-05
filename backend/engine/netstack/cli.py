@@ -293,9 +293,12 @@ class CliSession:
             proc = self._proc("ospf")
             if proc is None:
                 return "% OSPF is not running\n"
-            rows = ["Neighbor ID     State   Address          Interface"]
+            rows = ["Neighbor ID     State   Area  Address          Interface"]
             for n in proc.neighbor_rows():
-                rows.append(f"{n['router_id']:<15} {n['state']:<7} {n['ip']:<16} {n['iface']}")
+                rows.append(
+                    f"{n['router_id']:<15} {n['state']:<7} {n.get('area', 0):<5} "
+                    f"{n['ip']:<16} {n['iface']}"
+                )
             return "\n".join(rows) + "\n"
         if low.startswith("show ip bgp summary") or low.startswith("show bgp summary"):
             proc = self._proc("bgp")
@@ -307,6 +310,22 @@ class CliSession:
                 rows.append(
                     f"{p['neighbor']:<16} {p['remote_as']:<7} {p['state']:<13} {p['prefixes_received']}"
                 )
+            return "\n".join(rows) + "\n"
+        if low.startswith("show etherchannel") or low.startswith("show lacp"):
+            from engine.netstack.lag import LagInterface
+
+            lags = [i for i in dev.interfaces.values() if isinstance(i, LagInterface)]
+            if not lags:
+                return "% No port-channels configured\n"
+            rows = ["Group  Mode    Ports"]
+            for lag in lags:
+                r = lag.status_row(self.net.now)
+                ports = " ".join(
+                    f"{m['name']}({'P' if m['bundled'] else 'D' if m['up'] else 's'})"
+                    for m in r["members"]
+                )
+                rows.append(f"{r['name']:<6} {r['mode']:<7} {ports}")
+            rows.append("(P) bundled  (D) up, not bundled  (s) link down")
             return "\n".join(rows) + "\n"
         if low.startswith("show vrrp") or low.startswith("show standby"):
             procs = [

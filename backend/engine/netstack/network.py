@@ -180,12 +180,17 @@ class Network:
         for device in self.devices.values():
             if isinstance(device, Router):
                 device.sync_connected_routes()
+        from engine.netstack.lag import LagInterface
+
         for device in self.devices.values():
             if isinstance(device, Switch):
                 device.start(self)
             if isinstance(device, Router):
                 for proc in device.processes:
                     proc.start(self)
+            for iface in device.interfaces.values():
+                if isinstance(iface, LagInterface):
+                    iface.start(self)   # LACP negotiation
             device.on_start(self)   # RS on SLAAC hosts, periodic RA on routers
 
     def run(self, until: float | None = None, max_events: int | None = 500_000) -> int:

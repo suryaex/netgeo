@@ -21,7 +21,12 @@ def _now() -> datetime:
 
 
 class _Base(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    # validate_default: enum defaults must coerce to their string values just
+    # like explicit input — otherwise `status: LinkStatus = LinkStatus.up`
+    # stays an Enum member and `str(field) == "up"` comparisons silently fail.
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True
+    )
 
 
 # --- enumerations (identical to schema.sql ENUMs) ---------------------------

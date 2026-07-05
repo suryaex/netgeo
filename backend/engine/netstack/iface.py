@@ -102,6 +102,8 @@ class Interface:
         # STP per-port state (used when the owning device is a Switch)
         "stp_state",
         "stp_role",
+        # Link aggregation: member ports point at their logical port-channel.
+        "lag_parent",
     )
 
     def __init__(
@@ -130,6 +132,7 @@ class Interface:
         self.queue_depth = queue_depth
         self.stp_state: str = "forwarding"       # forwarding | blocking | learning
         self.stp_role: str = "designated"        # root | designated | blocked
+        self.lag_parent: Optional["Interface"] = None
 
     # ----- addressing ----------------------------------------------------
     @property
@@ -296,6 +299,15 @@ class Interface:
             net.capture.record(
                 net.now, self.attachment.id, self.qualified_name, "rx", frame
             )
+        # LAG members hand ingress to their logical port-channel — except
+        # LACPDUs, which are negotiated per physical member.
+        if self.lag_parent is not None:
+            payload = frame.payload
+            if type(payload).__name__ == "LacpFrame":
+                self.lag_parent.on_lacp(net, self, payload)  # type: ignore[attr-defined]
+            else:
+                self.device.on_frame(net, self.lag_parent, frame)
+            return
         self.device.on_frame(net, self, frame)
 
     # ----- introspection ---------------------------------------------------

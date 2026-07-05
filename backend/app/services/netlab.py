@@ -19,7 +19,9 @@ Node ``intent`` fields understood by the builder (all optional):
     ipv6_ra: {"enabled": true, "interval": 30}   # routers: advertise /64s
     vrrp: [{"iface": "eth0", "vrid": 10, "vip": "192.168.1.254",
             "priority": 120, "adv_interval": 1.0, "preempt": true}]
-    ospf: {"enabled": true, "router_id": "1.1.1.1", "hello": 10}
+    lag: [{"name": "po1", "members": ["eth1", "eth2"], "mode": "lacp"}]
+    ospf: {"enabled": true, "router_id": "1.1.1.1", "hello": 10,
+           "areas": {"eth0": 0, "eth1": 1}, "default_originate": false}
     bgp: {"asn": 65001, "router_id": "1.1.1.1",
           "neighbors": [{"ip": "10.0.0.2", "asn": 65002}],
           "networks": ["198.51.100.0/24"]}
@@ -145,6 +147,17 @@ def _resolve_iface(net: Network, owner: dict, ref: str):
 
 
 def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
+    # Link aggregation first — any device kind can bundle ports (NG-SIM-04).
+    for lag in intent.get("lag") or []:
+        try:
+            dev.create_lag(
+                str(lag["name"]),
+                [str(m) for m in lag.get("members") or []],
+                mode=str(lag.get("mode", "lacp")),
+            )
+        except (KeyError, ValueError) as exc:
+            logger.warning("%s: bad lag config %r: %s", dev.name, lag, exc)
+
     if isinstance(dev, Host):
         gw = intent.get("gateway")
         if gw:
@@ -199,6 +212,10 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
             dev,
             router_id=ospf_cfg.get("router_id"),
             hello_interval=float(ospf_cfg.get("hello", 10.0)),
+            areas={
+                str(k): int(v) for k, v in (ospf_cfg.get("areas") or {}).items()
+            },
+            default_originate=bool(ospf_cfg.get("default_originate", False)),
         )
 
     bgp_cfg = intent.get("bgp") or {}

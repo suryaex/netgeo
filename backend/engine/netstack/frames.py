@@ -296,6 +296,22 @@ class ArpPacket:
 
 
 @dataclass(slots=True)
+class LacpFrame:
+    """802.1AX LACPDU (simplified): enough state to negotiate membership."""
+
+    system: str                  # sender's system id (device identity)
+    key: str                     # aggregation group key (port-channel name)
+    port: str                    # sending physical member port
+
+    @property
+    def wire_size(self) -> int:
+        return 110               # fixed LACPDU size on the wire
+
+    def summary(self) -> str:
+        return f"LACP {self.system} key={self.key} port={self.port}"
+
+
+@dataclass(slots=True)
 class BpduFrame:
     """802.1D configuration BPDU (simplified)."""
 

@@ -129,13 +129,21 @@ def _ospf_bytes(pkt: Ipv4Packet) -> bytes:
     if kind == "OspfLsu":
         body = struct.pack("!I", len(p.lsas))
         for lsa in p.lsas:
-            hdr = struct.pack("!HBB4s4sIHH", 1, 0x02, 1, _rid(lsa.router_id),
+            links = getattr(lsa, "links", None)
+            lsa_type = 1 if links is not None else 3
+            hdr = struct.pack("!HBB4s4sIHH", 1, 0x02, lsa_type, _rid(lsa.router_id),
                               _rid(lsa.router_id), lsa.seq & 0xFFFFFFFF, 0,
                               lsa.wire_size)
-            lbody = struct.pack("!BBH", 0, 0, len(lsa.links))
-            for _kind, _ref, cost in lsa.links:
-                lbody += _rid(_ref if "." in str(_ref).split("/")[0] else "0.0.0.0")[:4]
-                lbody += struct.pack("!IBBH", 0, 0, 0, cost & 0xFFFF)
+            if links is not None:  # router LSA
+                lbody = struct.pack("!BBH", 0, 0, len(links))
+                for _kind, _ref, cost in links:
+                    lbody += _rid(_ref if "." in str(_ref).split("/")[0] else "0.0.0.0")[:4]
+                    lbody += struct.pack("!IBBH", 0, 0, 0, cost & 0xFFFF)
+            else:  # type-3 summary: mask + metric
+                from ipaddress import IPv4Network as _Net
+
+                pfx = _Net(lsa.prefix)
+                lbody = pfx.netmask.packed + struct.pack("!I", lsa.metric & 0xFFFFFF)
             body += hdr + lbody
         return _ospf_header(4, getattr(p.lsas[0], "router_id", "0.0.0.0") if p.lsas else "0.0.0.0", body)
     return bytes(getattr(p, "wire_size", 0))

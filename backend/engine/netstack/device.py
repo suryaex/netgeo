@@ -75,6 +75,14 @@ class Device:
     def iface(self, name: str) -> Interface | None:
         return self.interfaces.get(name)
 
+    def create_lag(self, name: str, member_names: list[str], mode: str = "lacp"):
+        """Bundle existing ports into a logical port-channel (NG-SIM-04)."""
+        from engine.netstack.lag import LagInterface
+
+        members = [self.interfaces[m] for m in member_names if m in self.interfaces]
+        lag = LagInterface(name=name, device=self, members=members, mode=mode)
+        return self.add_interface(lag)
+
     # ----- frame entry point --------------------------------------------------
     def on_frame(self, net: "Network", iface: Interface, frame: EthernetFrame) -> None:
         """Called when a frame is fully received on ``iface``. Override."""

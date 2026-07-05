@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from app.models.schemas import (  # noqa: F401
+    Activity,
+    ActivityCreate,
     Cable,
     CableCreate,
     CableMedia,
@@ -13,6 +15,10 @@ from app.models.schemas import (  # noqa: F401
     ElevationPoint,
     ElevationProfile,
     GenerateConfigRequest,
+    GradeCheck,
+    GradeCheckKind,
+    GradeItem,
+    GradeReport,
     IfaceType,
     Interface,
     Link,

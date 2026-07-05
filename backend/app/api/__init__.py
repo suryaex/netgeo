@@ -17,6 +17,7 @@ from app.api import (
     auth,
     configs,
     device_types,
+    education,
     lab,
     links,
     nodes,
@@ -54,3 +55,4 @@ api_router.include_router(signal.router, dependencies=_require_auth)
 api_router.include_router(device_types.router, dependencies=_require_auth)
 api_router.include_router(wireless.router, dependencies=_require_auth)
 api_router.include_router(lab.router, dependencies=_require_auth)
+api_router.include_router(education.router, dependencies=_require_auth)   # NG-EDU-01/02

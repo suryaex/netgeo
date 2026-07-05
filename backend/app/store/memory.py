@@ -16,6 +16,7 @@ import re
 from collections import defaultdict
 
 from app.models import (
+    Activity,
     ConfigArtifact,
     Cable,
     Link,
@@ -80,6 +81,8 @@ class MemoryRepository:
         self._sites: dict[str, Site] = {}
         self._racks: dict[str, Rack] = {}
         self._cables: dict[str, Cable] = {}
+        # Education activities (NG-EDU-01)
+        self._activities: dict[str, Activity] = {}
 
     # --- projects -----------------------------------------------------------
     async def list_projects(self) -> list[Project]:
@@ -267,6 +270,27 @@ class MemoryRepository:
         async with self._lock:
             self._scenarios[scenario.id] = scenario
             return scenario
+
+    # --- education activities (NG-EDU-01) -----------------------------------
+    async def list_activities(self) -> list[Activity]:
+        return list(self._activities.values())
+
+    async def get_activity(self, aid: str) -> Activity:
+        try:
+            return self._activities[aid]
+        except KeyError as exc:
+            raise NotFound(aid) from exc
+
+    async def add_activity(self, activity: Activity) -> Activity:
+        async with self._lock:
+            self._activities[activity.id] = activity
+            return activity
+
+    async def delete_activity(self, aid: str) -> None:
+        async with self._lock:
+            if aid not in self._activities:
+                raise NotFound(aid)
+            del self._activities[aid]
 
     # --- config artifacts (append-only history) -----------------------------
     async def add_config(self, artifact: ConfigArtifact) -> ConfigArtifact:

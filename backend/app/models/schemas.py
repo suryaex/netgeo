@@ -359,6 +359,77 @@ class SimulateRequest(_Base):
     realtime: bool = False
 
 
+# --- education mode (NG-EDU-01/02) ------------------------------------------
+
+
+class GradeCheckKind(str, Enum):
+    """The kinds of assertion the auto-grader (NG-EDU-02) can make over a
+    student's live model state."""
+
+    node_exists = "node_exists"       # a device with this name exists
+    iface_ip = "iface_ip"             # node/iface carries an expected CIDR
+    vlan_present = "vlan_present"      # a vlan id is configured on a node
+    ospf_neighbor = "ospf_neighbor"   # node has a full OSPF adjacency (opt. peer)
+    ping = "ping"                     # src node reaches dst (ip or node name)
+
+
+class GradeCheck(_Base):
+    """One weighted assertion in an activity's grading tree.
+
+    ``kind`` selects which params matter; the rest are plain optional fields
+    (no fancy union — the grader reads only the fields its kind needs).
+    """
+
+    kind: GradeCheckKind
+    weight: float = 1.0
+    label: str | None = None
+    node: str | None = None     # subject device name (all kinds except pure ping-by-ip)
+    iface: str | None = None    # iface_ip: interface name
+    cidr: str | None = None     # iface_ip: expected "10.0.0.1/24"
+    vlan: int | None = None     # vlan_present: vlan id
+    peer: str | None = None     # ospf_neighbor: optional peer node name
+    dst: str | None = None      # ping: destination IP or node name
+
+
+class Activity(_Base):
+    """An education activity (NG-EDU-01): instructions plus a starting network
+    and a model answer (both stored as NG-WS-03 archive envelopes), the UI
+    elements locked for the student, and the grading checks (NG-EDU-02)."""
+
+    id: str
+    name: str
+    instructions: str = ""                          # markdown, multi-step
+    initial: dict = Field(default_factory=dict)     # archive envelope
+    answer: dict = Field(default_factory=dict)      # archive envelope
+    locked_ui: list[str] = Field(default_factory=list)
+    checks: list[GradeCheck] = Field(default_factory=list)
+
+
+class ActivityCreate(_Base):
+    name: str
+    instructions: str = ""
+    initial: dict = Field(default_factory=dict)
+    answer: dict = Field(default_factory=dict)
+    locked_ui: list[str] = Field(default_factory=list)
+    checks: list[GradeCheck] = Field(default_factory=list)
+
+
+class GradeItem(_Base):
+    """One graded check's verdict, with a human-readable reason (the AC)."""
+
+    label: str
+    passed: bool
+    weight: float
+    reason: str
+
+
+class GradeReport(_Base):
+    items: list[GradeItem] = Field(default_factory=list)
+    score_pct: float = 100.0
+    earned_weight: float = 0.0
+    total_weight: float = 0.0
+
+
 # --- wireless / RF planning -------------------------------------------------
 class LinkBudgetRequest(_Base):
     """Compute a single point-to-point budget. Either give an explicit

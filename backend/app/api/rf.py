@@ -9,8 +9,20 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from app.models import PathLossRequest, PathLossResult, PropagationModelInfo
+from app.models import (
+    CoverageRasterRequest,
+    CoverageRasterResult,
+    ElevationPoint,
+    ElevationProfile,
+    PathLossRequest,
+    PathLossResult,
+    PropagationModelInfo,
+    PtpRequest,
+    PtpResult,
+)
+from app.services import elevation as esvc
 from app.services import wireless as wsvc
+from engine import wireless as rf
 
 router = APIRouter(prefix="/rf", tags=["rf"])
 
@@ -43,3 +55,75 @@ async def compute_path_loss(body: PathLossRequest):
         distance_m=body.distance_m,
         freq_mhz=body.freq_mhz,
     )
+
+
+@router.post("/ptp", response_model=PtpResult)
+async def plan_ptp(body: PtpRequest):
+    """Plan a point-to-point link (NG-RF-03): link budget via the propagation
+    registry + terrain LoS/Fresnel verdict. Supply ``profile`` for an offline
+    deterministic run, else terrain is fetched (flat-terrain fallback offline).
+    422 on an unknown model id or out-of-range frequency."""
+    distance_m = rf.haversine_m(body.a_lat, body.a_lon, body.b_lat, body.b_lon)
+    try:
+        budget = wsvc.ptp_budget(
+            model_id=body.model_id,
+            distance_m=distance_m,
+            freq_mhz=body.freq_mhz,
+            tx_height_m=body.tx_height_m,
+            rx_height_m=body.rx_height_m,
+            tx_power_dbm=body.tx_power_dbm,
+            tx_gain_dbi=body.tx_gain_dbi,
+            rx_gain_dbi=body.rx_gain_dbi,
+            misc_loss_db=body.misc_loss_db,
+            rx_sensitivity_dbm=body.rx_sensitivity_dbm,
+            params=body.params,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    if body.profile is not None:
+        profile = [p.model_dump() for p in body.profile]
+        out_profile = None
+    else:
+        profile = await esvc.fetch_profile(
+            body.a_lat, body.a_lon, body.b_lat, body.b_lon, body.samples,
+            fallback_to_flat=True,
+        )
+        out_profile = ElevationProfile(
+            samples=len(profile),
+            total_distance_m=profile[-1]["distance_m"] if profile else 0.0,
+            points=[ElevationPoint(**p) for p in profile],
+        )
+
+    los = esvc.analyse_los(
+        distance_m=distance_m,
+        frequency_ghz=body.freq_mhz / 1000.0,
+        tx_height_m=body.tx_height_m,
+        rx_height_m=body.rx_height_m,
+        profile=profile,
+    )
+    link_ok = budget["rssi_dbm"] >= body.rx_sensitivity_dbm and los.fresnel_clear
+    return PtpResult(
+        model_id=body.model_id,
+        distance_m=round(distance_m, 2),
+        los_clear=los.los_clear,
+        fresnel_clear=los.fresnel_clear,
+        worst_obstruction_m=round(los.worst_obstruction_m, 2),
+        min_clearance_ratio=round(los.min_clearance_ratio, 3),
+        verdict="clear" if los.los_clear else "obstructed",
+        link_ok=link_ok,
+        profile=out_profile,
+        **budget,
+    )
+
+
+@router.post("/coverage", response_model=CoverageRasterResult)
+async def compute_coverage(body: CoverageRasterRequest):
+    """Compute a best-server RSSI raster (NG-RF-02) over a bbox / centre+radius.
+    Deterministic: identical request → identical raster + ``study_key``. 422 on
+    the cell-cap overflow, bad geometry, unknown technology, or unknown model."""
+    try:
+        raster = wsvc.coverage_raster(body)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return CoverageRasterResult(**raster)

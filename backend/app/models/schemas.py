@@ -615,3 +615,125 @@ class LosCheckResult(_Base):
     min_clearance_ratio: float
     distance_m: float
     profile: ElevationProfile | None = None
+
+
+# --- point-to-point link planner (NG-RF-03) --------------------------------
+class PtpRequest(_Base):
+    """Plan a point-to-point link between two endpoints.
+
+    Path loss is computed through the propagation registry (NG-RF-01) so the
+    chosen ``model_id`` is honoured. LoS/Fresnel reuse the terrain profile:
+    supply ``profile`` for offline/deterministic runs, else the server fetches
+    it (degrading to flat terrain if the provider is offline)."""
+
+    # ``model_id`` collides with Pydantic's protected ``model_`` namespace.
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True,
+        protected_namespaces=(),
+    )
+
+    a_lat: float = Field(..., ge=-90, le=90)
+    a_lon: float = Field(..., ge=-180, le=180)
+    b_lat: float = Field(..., ge=-90, le=90)
+    b_lon: float = Field(..., ge=-180, le=180)
+    freq_mhz: float = Field(..., gt=0)
+    tx_power_dbm: float = 20.0
+    tx_gain_dbi: float = 0.0
+    rx_gain_dbi: float = 0.0
+    misc_loss_db: float = 0.0
+    rx_sensitivity_dbm: float = -85.0
+    tx_height_m: float = Field(10.0, gt=0)
+    rx_height_m: float = Field(5.0, gt=0)
+    model_id: str = "fspl"
+    params: dict[str, object] = Field(default_factory=dict)
+    samples: int = Field(24, ge=2, le=128)
+    profile: list[ElevationPoint] | None = None
+
+
+class PtpResult(_Base):
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True,
+        protected_namespaces=(),
+    )
+
+    model_id: str
+    distance_m: float
+    eirp_dbm: float
+    path_loss_db: float
+    rssi_dbm: float
+    fade_margin_db: float        # rssi - rx sensitivity
+    los_clear: bool
+    fresnel_clear: bool
+    worst_obstruction_m: float
+    min_clearance_ratio: float
+    verdict: str                 # "clear" | "obstructed"
+    link_ok: bool                # rssi >= sensitivity AND 60% Fresnel clear
+    profile: ElevationProfile | None = None
+
+
+# --- coverage raster (NG-RF-02) --------------------------------------------
+class CoverageSite(_Base):
+    """One transmitter in a coverage study. Radio fields left ``None`` inherit
+    the request's ``technology`` preset."""
+
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    height_m: float = Field(30.0, gt=0)
+    tx_power_dbm: float | None = None
+    freq_mhz: float | None = None
+    tx_gain_dbi: float | None = None
+
+
+class CoverageLegendItem(_Base):
+    label: str
+    min_dbm: float
+
+
+class CoverageRasterRequest(_Base):
+    """Best-server received-signal raster over a bounding box.
+
+    Supply an explicit bbox (all four ``min/max_lat/lon``) OR
+    ``center_lat``/``center_lon`` + ``radius_m`` (bbox derived). The grid is
+    ``rows × cols`` cells and is capped at ``MAX_COVERAGE_CELLS`` (see
+    ``services.wireless``) so the synchronous compute stays within budget."""
+
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True,
+        protected_namespaces=(),
+    )
+
+    sites: list[CoverageSite] = Field(..., min_length=1)
+    technology: str = "wifi_5ghz"
+    model_id: str = "fspl"
+    params: dict[str, object] = Field(default_factory=dict)
+    rows: int = Field(32, ge=1)
+    cols: int = Field(32, ge=1)
+    # bounding box (give these four ...)
+    min_lat: float | None = Field(None, ge=-90, le=90)
+    min_lon: float | None = Field(None, ge=-180, le=180)
+    max_lat: float | None = Field(None, ge=-90, le=90)
+    max_lon: float | None = Field(None, ge=-180, le=180)
+    # ... or a centre + radius)
+    center_lat: float | None = Field(None, ge=-90, le=90)
+    center_lon: float | None = Field(None, ge=-180, le=180)
+    radius_m: float | None = Field(None, gt=0)
+    rx_gain_dbi: float = 0.0
+    misc_loss_db: float = 0.0
+    rx_height_m: float = Field(1.5, gt=0)
+
+
+class CoverageRasterResult(_Base):
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True,
+        protected_namespaces=(),
+    )
+
+    model_id: str
+    technology: str
+    rows: int
+    cols: int
+    bounds: dict[str, float]           # min_lat / min_lon / max_lat / max_lon
+    values: list[list[float]]          # best-server dBm, row-major (rows × cols)
+    legend: list[CoverageLegendItem] = Field(default_factory=list)
+    study_key: str                     # deterministic cache key (same in→same out)
+    site_count: int

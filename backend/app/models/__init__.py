@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 from app.models.schemas import (  # noqa: F401
+    Cable,
+    CableCreate,
+    CableMedia,
+    CableUpdate,
     ConfigArtifact,
     ConfigFormat,
     CoverageCircle,
@@ -29,9 +33,13 @@ from app.models.schemas import (  # noqa: F401
     Nos,
     Project,
     ProjectCreate,
+    Rack,
+    RackCreate,
     Radio,
     Scenario,
     ScenarioStep,
+    Site,
+    SiteCreate,
     SimulateRequest,
     Topology,
     WirelessLink,

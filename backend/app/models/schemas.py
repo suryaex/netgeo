@@ -92,6 +92,10 @@ class LinkStatus(str, Enum):
     up = "up"
     down = "down"
     admin_down = "admin_down"
+    # Physically errored: the run brought it down (e.g. cable over max length,
+    # NG-PH-03) rather than an operator. Distinct from admin_down so the UI can
+    # explain *why* — a teachable failure, not a config choice.
+    errored = "errored"
     unknown = "unknown"
 
 
@@ -146,6 +150,10 @@ class Node(_Base):
     interfaces: list[Interface] = Field(default_factory=list)
     config_ref: str | None = None
     status: NodeStatus = NodeStatus.stopped
+    # Physical placement (NG-PH-01): rack + rack-unit span; None = unplaced.
+    rack_id: str | None = None
+    ru_start: int | None = None
+    ru_span: int = 1
     # extension fields used by the ForgeOS compiler (see protocols/NEEDS.md)
     intent: dict | None = None
 
@@ -176,6 +184,9 @@ class NodeUpdate(_Base):
     radio: Radio | None = None
     status: NodeStatus | None = None
     interfaces: list[Interface] | None = None
+    rack_id: str | None = None
+    ru_start: int | None = None
+    ru_span: int | None = None
     intent: dict | None = None
 
 
@@ -225,10 +236,92 @@ class ProjectCreate(_Base):
     description: str = ""
 
 
+# --- physical plant (NG-PH-01/02) -------------------------------------------
+
+
+class CableMedia(str, Enum):
+    """Physical media types (NG-PH-02). Each has a max length + per-metre
+    propagation latency in :mod:`app.services.physical`."""
+
+    cat5e = "cat5e"
+    cat6 = "cat6"
+    cat6a = "cat6a"
+    mmf_om3 = "mmf_om3"
+    mmf_om4 = "mmf_om4"
+    smf_os2 = "smf_os2"
+    dac = "dac"
+    coax = "coax"
+    gpon_drop = "gpon_drop"
+
+
+class Site(_Base):
+    """A building/location that holds racks (NG-PH-01)."""
+
+    id: str
+    project_id: str
+    name: str
+    region: str = ""
+
+
+class Rack(_Base):
+    """An RU-gridded rack inside a site (NG-PH-01). Devices are placed into it
+    via ``Node.rack_id`` / ``ru_start`` / ``ru_span``."""
+
+    id: str
+    project_id: str
+    site_id: str | None = None
+    name: str
+    ru_height: int = 42
+
+
+class Cable(_Base):
+    """A physical run realizing a logical link (NG-PH-02). ``length_m`` feeds
+    propagation delay; exceeding the media's max length degrades the link
+    (NG-PH-03)."""
+
+    id: str
+    project_id: str
+    link_id: str
+    media: CableMedia = CableMedia.cat6
+    length_m: float = 1.0
+    label: str = ""
+
+
+class SiteCreate(_Base):
+    project_id: str
+    name: str
+    region: str = ""
+
+
+class RackCreate(_Base):
+    project_id: str
+    site_id: str | None = None
+    name: str
+    ru_height: int = 42
+
+
+class CableCreate(_Base):
+    project_id: str
+    link_id: str
+    media: CableMedia = CableMedia.cat6
+    length_m: float = 1.0
+    label: str = ""
+
+
+class CableUpdate(_Base):
+    media: CableMedia | None = None
+    length_m: float | None = None
+    label: str | None = None
+
+
 class Topology(_Base):
     project: Project
     nodes: list[Node] = Field(default_factory=list)
     links: list[Link] = Field(default_factory=list)
+    # Physical plant (NG-PH-01/02); empty for purely logical projects.
+    sites: list[Site] = Field(default_factory=list)
+    racks: list[Rack] = Field(default_factory=list)
+    cables: list[Cable] = Field(default_factory=list)
 
 
 class ScenarioStep(_Base):

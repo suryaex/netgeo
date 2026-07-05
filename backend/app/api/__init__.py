@@ -20,6 +20,7 @@ from app.api import (
     lab,
     links,
     nodes,
+    physical,
     projects,
     scenarios,
     signal,
@@ -43,6 +44,7 @@ api_router.include_router(auth.router)
 api_router.include_router(projects.router, dependencies=_require_auth)
 api_router.include_router(nodes.router, dependencies=_require_auth)
 api_router.include_router(links.router, dependencies=_require_auth)
+api_router.include_router(physical.router, dependencies=_require_auth)
 api_router.include_router(scenarios.router, dependencies=_require_auth)
 api_router.include_router(simulate.router, dependencies=_require_auth)
 api_router.include_router(configs.router, dependencies=_require_auth)

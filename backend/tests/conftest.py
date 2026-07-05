@@ -62,6 +62,9 @@ def _reset_repo():
     repo._scenarios.clear()
     repo._configs.clear()
     repo._configs_by_node.clear()
+    repo._sites.clear()
+    repo._racks.clear()
+    repo._cables.clear()
     yield
 
 

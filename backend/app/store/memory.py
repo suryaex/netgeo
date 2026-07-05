@@ -17,12 +17,16 @@ from collections import defaultdict
 
 from app.models import (
     ConfigArtifact,
+    Cable,
     Link,
     Node,
     Project,
+    Rack,
     Scenario,
+    Site,
     Topology,
 )
+from app.services.physical import apply_physical
 from app.utils.ids import new_id
 
 
@@ -72,6 +76,10 @@ class MemoryRepository:
         self._scenarios: dict[str, Scenario] = {}
         self._configs: dict[str, ConfigArtifact] = {}
         self._configs_by_node: dict[str, list[str]] = defaultdict(list)
+        # Physical plant (NG-PH-01/02)
+        self._sites: dict[str, Site] = {}
+        self._racks: dict[str, Rack] = {}
+        self._cables: dict[str, Cable] = {}
 
     # --- projects -----------------------------------------------------------
     async def list_projects(self) -> list[Project]:
@@ -93,7 +101,16 @@ class MemoryRepository:
         proj = await self.get_project(pid)
         nodes = [n for n in self._nodes.values() if n.project_id == pid]
         links = [l for l in self._links.values() if l.project_id == pid]
-        return Topology(project=proj, nodes=nodes, links=links)
+        sites = [s for s in self._sites.values() if s.project_id == pid]
+        racks = [rk for rk in self._racks.values() if rk.project_id == pid]
+        cables = [c for c in self._cables.values() if c.project_id == pid]
+        topo = Topology(
+            project=proj, nodes=nodes, links=links,
+            sites=sites, racks=racks, cables=cables,
+        )
+        # Fold cable physics (propagation delay + over-length errors, NG-PH-03)
+        # into the links so every consumer — view, sim, lab — is consistent.
+        return apply_physical(topo)
 
     # --- nodes --------------------------------------------------------------
     async def get_node(self, nid: str) -> Node:
@@ -146,6 +163,7 @@ class MemoryRepository:
                     if l.a_iface in iface_ids or l.b_iface in iface_ids]
             for lid in dead:
                 del self._links[lid]
+                self._drop_cables_for_link(lid)
             del self._nodes[nid]
 
     # --- links --------------------------------------------------------------
@@ -171,6 +189,54 @@ class MemoryRepository:
         async with self._lock:
             await self.get_link(lid)
             del self._links[lid]
+            self._drop_cables_for_link(lid)
+
+    # --- physical plant (NG-PH-01/02) ---------------------------------------
+    def _drop_cables_for_link(self, lid: str) -> None:
+        """Cables realize a link; a link's removal takes its cables with it.
+        Caller holds the lock (or is inside a cascading delete)."""
+        for cid in [c.id for c in self._cables.values() if c.link_id == lid]:
+            del self._cables[cid]
+
+    async def add_site(self, site: Site) -> Site:
+        async with self._lock:
+            self._sites[site.id] = site
+            return site
+
+    async def add_rack(self, rack: Rack) -> Rack:
+        async with self._lock:
+            self._racks[rack.id] = rack
+            return rack
+
+    async def add_cable(self, cable: Cable) -> Cable:
+        async with self._lock:
+            if cable.link_id not in self._links:
+                raise NotFound(cable.link_id)
+            self._cables[cable.id] = cable
+            return cable
+
+    async def get_cable(self, cid: str) -> Cable:
+        try:
+            return self._cables[cid]
+        except KeyError as exc:
+            raise NotFound(cid) from exc
+
+    async def update_cable(self, cid: str, patch: dict) -> Cable:
+        async with self._lock:
+            cable = self._cables.get(cid)
+            if cable is None:
+                raise NotFound(cid)
+            updated = cable.model_copy(
+                update={k: v for k, v in patch.items() if v is not None}
+            )
+            self._cables[cid] = updated
+            return updated
+
+    async def delete_cable(self, cid: str) -> None:
+        async with self._lock:
+            if cid not in self._cables:
+                raise NotFound(cid)
+            del self._cables[cid]
 
     # --- scenarios ----------------------------------------------------------
     async def list_scenarios(self, pid: str) -> list[Scenario]:

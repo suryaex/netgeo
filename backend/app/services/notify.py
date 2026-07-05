@@ -72,4 +72,23 @@ async def link_removed(project_id: str | None, link_id: str) -> None:
         logger.exception("link_removed broadcast failed for %s", link_id)
 
 
-__all__ = ["node_changed", "node_removed", "link_changed", "link_removed"]
+async def cable_changed(repo: MemoryRepository, project_id: str) -> None:
+    """A cable was created/updated/deleted — a run's physics may have changed a
+    link's delay or ``errored`` state (NG-PH-03), so re-emit the topology."""
+    try:
+        topo = await repo.topology(project_id)
+        get_bus().publish(
+            {"type": "topology.updated", "topology": topo.model_dump(mode="json")},
+            project_id,
+        )
+    except Exception:  # pragma: no cover
+        logger.exception("cable_changed broadcast failed for %s", project_id)
+
+
+__all__ = [
+    "node_changed",
+    "node_removed",
+    "link_changed",
+    "link_removed",
+    "cable_changed",
+]

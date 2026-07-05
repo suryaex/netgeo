@@ -1,25 +1,33 @@
 """BGP-4 — path-vector routing between autonomous systems (simplified).
 
-What is modelled:
+What is modelled (v2, NG-SIM-06):
 - explicit neighbor configuration (eBGP and iBGP by ASN comparison);
 - session establishment over the simulated TCP port 179 (OPEN/KEEPALIVE
   exchange — real packets across the topology, so a broken data path means
-  no session);
+  no session); the peer's router-id is learned from its OPEN;
 - UPDATE messages carrying the full Adj-RIB-Out snapshot (implicit withdraw:
-  a prefix missing from the latest update is removed);
-- AS-path loop prevention, next-hop-self on every advertisement;
+  a prefix missing from the latest update is removed); every route carries
+  its attributes: AS-path, next-hop, local-pref, communities, originator;
+- AS-path loop prevention + originator-id loop prevention for reflection;
+- **route reflection**: a speaker with ``rr_client`` neighbors reflects
+  iBGP-learned routes — client routes to everyone, non-client routes to
+  clients (RFC 4456, single cluster);
+- **communities**: propagated end-to-end; well-known ``no-export`` honoured
+  (never advertised to an eBGP peer);
+- **prefix filtering**: per-neighbor in/out prefix lists with ge/le, first
+  match wins, implicit deny when a list is configured;
 - best-path selection: highest local-pref, shortest AS-path, lowest peer IP;
 - hold-timer expiry drops the session and withdraws its routes;
-- iBGP split-horizon (iBGP-learned routes are not re-advertised to iBGP).
+- iBGP split-horizon for non-reflectors; next-hop-self on advertisement.
 
-Not modelled: MED, route reflectors, confederations, communities, MP-BGP.
+Not modelled: MED, confederations, MP-BGP, dynamic capability negotiation.
 """
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from ipaddress import IPv4Address, IPv4Network
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 from engine.events import EventType, SimEvent
 from engine.netstack.frames import PROTO_TCP, Ipv4Packet, TcpSegment
@@ -30,6 +38,73 @@ if TYPE_CHECKING:  # pragma: no cover
     from engine.netstack.network import Network
 
 logger = logging.getLogger(__name__)
+
+NO_EXPORT = "no-export"
+
+
+# --- route attributes ----------------------------------------------------------
+
+@dataclass(slots=True)
+class BgpAttrs:
+    """Path attributes carried with every prefix in an UPDATE."""
+
+    as_path: tuple[int, ...] = ()
+    next_hop: str = ""
+    local_pref: int = 100
+    communities: tuple[str, ...] = ()
+    originator: str = ""          # router-id of the speaker that injected
+                                  # the route into this AS (RFC 4456-ish)
+
+    @property
+    def wire_size(self) -> int:
+        return 9 + 2 * len(self.as_path) + 4 * len(self.communities)
+
+
+# --- prefix lists ----------------------------------------------------------------
+
+@dataclass(slots=True)
+class PrefixRule:
+    """One prefix-list entry. Without ge/le the match is exact (Cisco style)."""
+
+    action: str                   # "permit" | "deny"
+    prefix: IPv4Network
+    ge: int | None = None
+    le: int | None = None
+
+    def matches(self, p: IPv4Network) -> bool:
+        if not p.subnet_of(self.prefix):
+            return False
+        lo = self.ge if self.ge is not None else self.prefix.prefixlen
+        hi = self.le if self.le is not None else (
+            32 if self.ge is not None else self.prefix.prefixlen
+        )
+        return lo <= p.prefixlen <= hi
+
+
+def _parse_plist(rules: Iterable | None) -> tuple[PrefixRule, ...]:
+    out: list[PrefixRule] = []
+    for r in rules or []:
+        if isinstance(r, PrefixRule):
+            out.append(r)
+        else:  # dict from intent JSON
+            out.append(
+                PrefixRule(
+                    action=str(r.get("action", "permit")),
+                    prefix=IPv4Network(r["prefix"]),
+                    ge=int(r["ge"]) if r.get("ge") is not None else None,
+                    le=int(r["le"]) if r.get("le") is not None else None,
+                )
+            )
+    return tuple(out)
+
+
+def _plist_permits(plist: tuple[PrefixRule, ...], p: IPv4Network) -> bool:
+    if not plist:
+        return True
+    for rule in plist:
+        if rule.matches(p):
+            return rule.action == "permit"
+    return False  # implicit deny
 
 
 # --- BGP messages (payload of TcpSegment port 179) ----------------------------
@@ -60,13 +135,13 @@ class BgpKeepalive:
 
 @dataclass(slots=True)
 class BgpUpdate:
-    """Full Adj-RIB-Out snapshot: prefix -> (as_path, next_hop, local_pref)."""
+    """Full Adj-RIB-Out snapshot: prefix -> attributes."""
 
-    routes: dict[str, tuple[tuple[int, ...], str, int]] = field(default_factory=dict)
+    routes: dict[str, BgpAttrs] = field(default_factory=dict)
 
     @property
     def wire_size(self) -> int:
-        return 23 + sum(9 + 2 * len(p[0]) for p in self.routes.values())
+        return 23 + sum(a.wire_size for a in self.routes.values())
 
     def summary(self) -> str:
         return f"BGP UPDATE {len(self.routes)} route(s)"
@@ -79,10 +154,15 @@ class _Peer:
     state: str = "idle"                  # idle | open-sent | established
     hold_time: float = 90.0
     last_keepalive: float = 0.0
-    # prefix -> (as_path, next_hop, local_pref)
-    rib_in: dict[IPv4Network, tuple[tuple[int, ...], IPv4Address, int]] = field(
-        default_factory=dict
-    )
+    router_id: str = ""                  # learned from the peer's OPEN
+    rr_client: bool = False
+    plist_in: tuple[PrefixRule, ...] = ()
+    plist_out: tuple[PrefixRule, ...] = ()
+    rib_in: dict[IPv4Network, BgpAttrs] = field(default_factory=dict)
+    # Last Adj-RIB-Out snapshot actually sent — updates go out only on
+    # change, otherwise two speakers ping-pong identical UPDATEs forever
+    # and the storm tail-drops real traffic in the egress queues.
+    adj_out: dict[str, BgpAttrs] | None = None
 
 
 class BgpProcess:
@@ -106,19 +186,41 @@ class BgpProcess:
         self.keepalive_interval = keepalive_interval
         self.hold_time = hold_time
         self.peers: dict[IPv4Address, _Peer] = {}
-        self.networks: list[IPv4Network] = []
+        # (prefix, communities) advertised by this speaker
+        self.networks: list[tuple[IPv4Network, tuple[str, ...]]] = []
         self._started = False
         router.processes.append(self)
 
     # ----- configuration -----------------------------------------------------
-    def add_neighbor(self, peer_ip: str | IPv4Address, remote_asn: int) -> None:
+    def add_neighbor(
+        self,
+        peer_ip: str | IPv4Address,
+        remote_asn: int,
+        rr_client: bool = False,
+        prefix_list_in: Iterable | None = None,
+        prefix_list_out: Iterable | None = None,
+    ) -> None:
         ip = IPv4Address(peer_ip)
-        self.peers[ip] = _Peer(ip=ip, remote_asn=remote_asn, hold_time=self.hold_time)
+        self.peers[ip] = _Peer(
+            ip=ip,
+            remote_asn=remote_asn,
+            hold_time=self.hold_time,
+            rr_client=rr_client,
+            plist_in=_parse_plist(prefix_list_in),
+            plist_out=_parse_plist(prefix_list_out),
+        )
 
-    def advertise_network(self, prefix: str | IPv4Network) -> None:
+    def advertise_network(
+        self, prefix: str | IPv4Network, communities: Iterable[str] = ()
+    ) -> None:
         net_ = IPv4Network(prefix)
-        if net_ not in self.networks:
-            self.networks.append(net_)
+        comms = tuple(communities)
+        if not any(p == net_ for p, _c in self.networks):
+            self.networks.append((net_, comms))
+
+    @property
+    def is_reflector(self) -> bool:
+        return any(p.rr_client for p in self.peers.values())
 
     # ----- lifecycle ------------------------------------------------------------
     def start(self, net: "Network") -> None:
@@ -163,6 +265,7 @@ class BgpProcess:
         logger.debug("%s: BGP session to %s down", self.router_id, peer.ip)
         peer.state = "idle"
         peer.rib_in.clear()
+        peer.adj_out = None          # a new session must get a fresh UPDATE
         self._decide_and_install(net)
         self._advertise_all(net)
 
@@ -200,6 +303,7 @@ class BgpProcess:
                 logger.debug("%s: OPEN from %s wrong ASN %s", self.router_id, pkt.src, msg.asn)
                 return
             peer.hold_time = min(self.hold_time, msg.hold_time)
+            peer.router_id = msg.router_id
             if peer.state != "established":
                 if peer.state == "idle":
                     # Passive side: answer with our own OPEN.
@@ -217,62 +321,65 @@ class BgpProcess:
             self._on_update(net, peer, msg)
 
     def _on_update(self, net: "Network", peer: _Peer, update: BgpUpdate) -> None:
-        rib: dict[IPv4Network, tuple[tuple[int, ...], IPv4Address, int]] = {}
-        for prefix_s, (as_path, next_hop, local_pref) in update.routes.items():
-            path = tuple(as_path)
-            if self.asn in path:
-                continue  # loop prevention
-            rib[IPv4Network(prefix_s)] = (path, IPv4Address(next_hop), local_pref)
+        rib: dict[IPv4Network, BgpAttrs] = {}
+        for prefix_s, attrs in update.routes.items():
+            if self.asn in attrs.as_path:
+                continue  # AS-path loop prevention
+            if attrs.originator and attrs.originator == self.router_id:
+                continue  # reflection loop prevention (RFC 4456)
+            prefix = IPv4Network(prefix_s)
+            if not _plist_permits(peer.plist_in, prefix):
+                continue
+            rib[prefix] = attrs
+        if rib == peer.rib_in:
+            return  # nothing changed — no re-decision, no re-advertisement
         peer.rib_in = rib
         self._decide_and_install(net)
         self._advertise_all(net)
 
     # ----- decision process ----------------------------------------------------------------
-    def best_paths(
-        self,
-    ) -> dict[IPv4Network, tuple[tuple[int, ...], IPv4Address, int, IPv4Address]]:
-        """prefix -> (as_path, next_hop, local_pref, learned_from_peer_ip)."""
-        best: dict[IPv4Network, tuple[tuple[int, ...], IPv4Address, int, IPv4Address]] = {}
+    def best_paths(self) -> dict[IPv4Network, tuple[BgpAttrs, IPv4Address]]:
+        """prefix -> (attrs, learned_from_peer_ip)."""
+        best: dict[IPv4Network, tuple[BgpAttrs, IPv4Address]] = {}
         for peer in self.peers.values():
             if peer.state != "established":
                 continue
-            for prefix, (path, nh, lp) in peer.rib_in.items():
+            for prefix, attrs in peer.rib_in.items():
                 cur = best.get(prefix)
-                if cur is None or self._better(path, nh, lp, peer.ip, cur):
-                    best[prefix] = (path, nh, lp, peer.ip)
+                if cur is None or self._better(attrs, peer.ip, cur):
+                    best[prefix] = (attrs, peer.ip)
         return best
 
     @staticmethod
     def _better(
-        path: tuple[int, ...],
-        nh: IPv4Address,
-        lp: int,
+        attrs: BgpAttrs,
         peer_ip: IPv4Address,
-        cur: tuple[tuple[int, ...], IPv4Address, int, IPv4Address],
+        cur: tuple[BgpAttrs, IPv4Address],
     ) -> bool:
-        cur_path, _cur_nh, cur_lp, cur_peer = cur
-        if lp != cur_lp:
-            return lp > cur_lp
-        if len(path) != len(cur_path):
-            return len(path) < len(cur_path)
+        cur_attrs, cur_peer = cur
+        if attrs.local_pref != cur_attrs.local_pref:
+            return attrs.local_pref > cur_attrs.local_pref
+        if len(attrs.as_path) != len(cur_attrs.as_path):
+            return len(attrs.as_path) < len(cur_attrs.as_path)
         return peer_ip < cur_peer
 
     def _decide_and_install(self, net: "Network") -> None:
         local = {ip.network for ip in self.router.all_ips()}
+        my_networks = {p for p, _c in self.networks}
         self.router.withdraw_routes("ebgp")
         self.router.withdraw_routes("ibgp")
-        for prefix, (path, nh, _lp, peer_ip) in self.best_paths().items():
-            if prefix in local or prefix in self.networks:
+        for prefix, (attrs, peer_ip) in self.best_paths().items():
+            if prefix in local or prefix in my_networks:
                 continue
             peer = self.peers[peer_ip]
             source = "ibgp" if peer.remote_asn == self.asn else "ebgp"
             self.router.install_route(
                 Route(
                     prefix=prefix,
-                    next_hop=nh,
+                    next_hop=IPv4Address(attrs.next_hop),
                     iface_name=None,
                     source=source,
-                    metric=len(path),
+                    metric=len(attrs.as_path),
                 )
             )
 
@@ -288,24 +395,60 @@ class BgpProcess:
         if my_nh is None:
             return
         is_ibgp_peer = peer.remote_asn == self.asn
-        out: dict[str, tuple[tuple[int, ...], str, int]] = {}
+        out: dict[str, BgpAttrs] = {}
+
+        def offer(prefix: IPv4Network, attrs: BgpAttrs) -> None:
+            if not _plist_permits(peer.plist_out, prefix):
+                return
+            out[str(prefix)] = attrs
 
         # Locally-originated networks.
-        for prefix in self.networks:
-            path = () if is_ibgp_peer else (self.asn,)
-            out[str(prefix)] = (path, str(my_nh), 100)
+        for prefix, comms in self.networks:
+            offer(
+                prefix,
+                BgpAttrs(
+                    as_path=() if is_ibgp_peer else (self.asn,),
+                    next_hop=str(my_nh),
+                    local_pref=100,
+                    communities=comms,
+                    # originator is an intra-AS attribute; never crosses eBGP.
+                    # NB: our own no-export networks ARE offered to eBGP peers
+                    # (RFC 1997 binds the *receiving* AS, not the originator).
+                    originator=self.router_id if is_ibgp_peer else "",
+                ),
+            )
 
-        # Best learned routes (respecting iBGP split-horizon).
-        for prefix, (path, _nh, lp, learned_from) in self.best_paths().items():
+        # Best learned routes.
+        for prefix, (attrs, learned_from) in self.best_paths().items():
             src_peer = self.peers[learned_from]
             learned_ibgp = src_peer.remote_asn == self.asn
-            if learned_ibgp and is_ibgp_peer:
-                continue  # iBGP -> iBGP is not re-advertised
             if learned_from == peer.ip:
                 continue  # don't echo a peer's routes back to it
-            new_path = path if is_ibgp_peer else (self.asn, *path)
-            out[str(prefix)] = (new_path, str(my_nh), lp if is_ibgp_peer else 100)
+            if not is_ibgp_peer and NO_EXPORT in attrs.communities:
+                continue  # RFC 1997: received no-export never leaves this AS
+            if learned_ibgp and is_ibgp_peer:
+                # Plain iBGP split-horizon — unless we are a route reflector
+                # and the route involves at least one client (RFC 4456).
+                if not (self.is_reflector and (src_peer.rr_client or peer.rr_client)):
+                    continue
+                if attrs.originator and attrs.originator == peer.router_id:
+                    continue  # never reflect a route back to its originator
+            offer(
+                prefix,
+                replace(
+                    attrs,
+                    as_path=attrs.as_path if is_ibgp_peer else (self.asn, *attrs.as_path),
+                    next_hop=str(my_nh),
+                    local_pref=attrs.local_pref if is_ibgp_peer else 100,
+                    # First injection into the AS stamps the originator;
+                    # stripped again when the route leaves the AS.
+                    originator=(attrs.originator or self.router_id) if is_ibgp_peer else "",
+                ),
+            )
 
+        if peer.adj_out is not None and out == peer.adj_out:
+            return  # snapshot unchanged since last send
+        peer.adj_out = dict(out)
         self._send(net, peer, BgpUpdate(routes=out))
 
     # ----- introspection -------------------------------------------------------------------------
@@ -316,6 +459,7 @@ class BgpProcess:
                 "remote_as": p.remote_asn,
                 "state": p.state,
                 "prefixes_received": len(p.rib_in),
+                "rr_client": p.rr_client,
             }
             for p in self.peers.values()
         ]

@@ -228,11 +228,26 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
         )
         for nb in bgp_cfg.get("neighbors") or []:
             try:
-                proc.add_neighbor(nb["ip"], int(nb["asn"]))
+                proc.add_neighbor(
+                    nb["ip"],
+                    int(nb["asn"]),
+                    rr_client=bool(nb.get("rr_client", False)),
+                    prefix_list_in=nb.get("prefix_list_in"),
+                    prefix_list_out=nb.get("prefix_list_out"),
+                )
             except (KeyError, ValueError) as exc:
                 logger.warning("%s: bad bgp neighbor %r: %s", dev.name, nb, exc)
-        for prefix in bgp_cfg.get("networks") or []:
-            proc.advertise_network(prefix)
+        # networks: "10.0.0.0/24" or {"prefix": ..., "communities": [...]}
+        for entry in bgp_cfg.get("networks") or []:
+            try:
+                if isinstance(entry, dict):
+                    proc.advertise_network(
+                        entry["prefix"], entry.get("communities") or ()
+                    )
+                else:
+                    proc.advertise_network(entry)
+            except (KeyError, ValueError) as exc:
+                logger.warning("%s: bad bgp network %r: %s", dev.name, entry, exc)
 
     dhcp_cfg = intent.get("dhcp_server") or {}
     for pool in dhcp_cfg.get("pools") or []:

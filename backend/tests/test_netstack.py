@@ -394,7 +394,7 @@ def test_bgp_session_and_route_exchange():
     assert r is not None and r.source == "ebgp"
     assert str(r.next_hop) == "203.0.113.2"
     # AS-path is recorded in the adj-rib-in.
-    path = p1.peers[IPv4Address("203.0.113.2")].rib_in[IPv4Network("198.51.101.0/24")][0]
+    path = p1.peers[IPv4Address("203.0.113.2")].rib_in[IPv4Network("198.51.101.0/24")].as_path
     assert path == (65002,)
 
     report = net.ping("r1", "198.51.101.1", count=2)
@@ -425,7 +425,7 @@ def test_bgp_as_path_grows_across_transit():
     net.run_for(15.0)
 
     rib = procs["r3"].peers[IPv4Address("10.0.2.2")].rib_in
-    path = rib[IPv4Network("198.51.100.0/24")][0]
+    path = rib[IPv4Network("198.51.100.0/24")].as_path
     assert path == (65002, 65001)
     route = r3.lookup(IPv4Address("198.51.100.9"))
     assert route is not None and route.source == "ebgp" and route.metric == 2

@@ -403,6 +403,9 @@ class Activity(_Base):
     answer: dict = Field(default_factory=dict)      # archive envelope
     locked_ui: list[str] = Field(default_factory=list)
     checks: list[GradeCheck] = Field(default_factory=list)
+    # Timed assessment (NG-EDU-03): optional wall-clock budget in seconds. A
+    # graded submission records whether it landed within this limit.
+    time_limit_s: int | None = None
 
 
 class ActivityCreate(_Base):
@@ -412,6 +415,7 @@ class ActivityCreate(_Base):
     answer: dict = Field(default_factory=dict)
     locked_ui: list[str] = Field(default_factory=list)
     checks: list[GradeCheck] = Field(default_factory=list)
+    time_limit_s: int | None = None
 
 
 class GradeItem(_Base):
@@ -428,6 +432,33 @@ class GradeReport(_Base):
     score_pct: float = 100.0
     earned_weight: float = 0.0
     total_weight: float = 0.0
+
+
+class GradeSubmit(_Base):
+    """Request body for a graded attempt (NG-EDU-03): grade the ``project_id``
+    against the activity and persist the result under ``student``. ``elapsed_s``
+    is the student's wall-clock time, checked against the activity time limit."""
+
+    project_id: str
+    student: str = ""
+    elapsed_s: float | None = None
+
+
+class GradeResult(_Base):
+    """A persisted graded attempt (NG-EDU-03) — a :class:`GradeReport` plus who
+    took it, how long it took, and whether that was within the time limit.
+    Instructors export these per activity as CSV."""
+
+    id: str
+    activity_id: str
+    student: str = ""
+    score_pct: float = 100.0
+    earned_weight: float = 0.0
+    total_weight: float = 0.0
+    elapsed_s: float | None = None
+    within_time: bool | None = None
+    graded_at: datetime = Field(default_factory=_now)
+    items: list[GradeItem] = Field(default_factory=list)
 
 
 # --- wireless / RF planning -------------------------------------------------

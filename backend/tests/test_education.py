@@ -6,6 +6,9 @@ pass/fail, 404s, and activity CRUD round-trips.
 """
 from __future__ import annotations
 
+import csv
+import io
+
 
 async def _build_project(client, *, with_vlan: bool = True) -> str:
     """A small teachable network: r1<->r2 over 10.0.0.0/24 with OSPF area 0,
@@ -172,3 +175,132 @@ async def test_instantiate_activity_creates_project(client):
     assert new_pid != pid
     dst = (await client.get(f"/api/projects/{new_pid}/topology")).json()
     assert {n["name"] for n in dst["nodes"]} == {"r1", "r2", "sw1"}
+
+
+# --- NG-EDU-03: timed assessments + CSV export + sharable activity files -----
+
+
+async def _make_timed_activity(client, checks, *, time_limit_s: int) -> str:
+    resp = await client.post(
+        "/api/activities",
+        json={"name": "timed lab", "instructions": "go", "checks": checks,
+              "time_limit_s": time_limit_s},
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["time_limit_s"] == time_limit_s
+    return body["id"]
+
+
+async def test_submit_records_within_time(client):
+    pid = await _build_project(client, with_vlan=True)
+    aid = await _make_timed_activity(client, _checks(), time_limit_s=300)
+
+    # Under the limit → within_time True; persisted as a GradeResult.
+    under = await client.post(
+        f"/api/activities/{aid}/submit",
+        json={"project_id": pid, "student": "alice", "elapsed_s": 120.5},
+    )
+    assert under.status_code == 201, under.text
+    res = under.json()
+    assert res["student"] == "alice"
+    assert res["within_time"] is True
+    assert res["elapsed_s"] == 120.5
+    assert res["score_pct"] == 100.0
+    assert res["items"] and all(i["passed"] for i in res["items"])
+    assert res["id"] and res["activity_id"] == aid
+
+    # Over the limit → within_time False.
+    over = await client.post(
+        f"/api/activities/{aid}/submit",
+        json={"project_id": pid, "student": "bob", "elapsed_s": 999.0},
+    )
+    assert over.status_code == 201, over.text
+    assert over.json()["within_time"] is False
+
+
+async def test_submit_no_time_limit_leaves_within_time_none(client):
+    pid = await _build_project(client, with_vlan=True)
+    aid = await _make_activity(client, _checks())  # no time_limit_s
+    res = (
+        await client.post(
+            f"/api/activities/{aid}/submit",
+            json={"project_id": pid, "student": "carol", "elapsed_s": 42.0},
+        )
+    ).json()
+    assert res["within_time"] is None
+
+
+async def test_results_csv_export(client):
+    pid = await _build_project(client, with_vlan=True)
+    aid = await _make_timed_activity(client, _checks(), time_limit_s=300)
+    await client.post(
+        f"/api/activities/{aid}/submit",
+        json={"project_id": pid, "student": "alice", "elapsed_s": 100.0},
+    )
+    await client.post(
+        f"/api/activities/{aid}/submit",
+        json={"project_id": pid, "student": "bob", "elapsed_s": 500.0},
+    )
+
+    resp = await client.get(f"/api/activities/{aid}/results.csv")
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"].startswith("text/csv")
+    assert "attachment" in resp.headers["content-disposition"]
+
+    rows = list(csv.reader(io.StringIO(resp.text)))
+    header, data = rows[0], rows[1:]
+    assert header == [
+        "student", "score_pct", "earned_weight", "total_weight",
+        "elapsed_s", "within_time", "graded_at",
+    ]
+    assert len(data) == 2
+    by_student = {r[0]: r for r in data}
+    assert by_student["alice"][1] == "100.0"
+    assert by_student["alice"][6]  # graded_at present
+    assert by_student["bob"][5] == "False"    # over the 300s limit
+
+
+async def test_activity_file_export_import_round_trip(client):
+    pid = await _build_project(client, with_vlan=True)
+    initial = (await client.get(f"/api/projects/{pid}/archive")).json()
+    answer = initial
+    src = await client.post(
+        "/api/activities",
+        json={"name": "sharable", "instructions": "# Wire it", "initial": initial,
+              "answer": answer, "checks": _checks(), "time_limit_s": 600},
+    )
+    aid = src.json()["id"]
+
+    env = (await client.get(f"/api/activities/{aid}/export")).json()
+    assert env["format"] == "netgeo-lab" and env["version"] == 1
+
+    imported = await client.post("/api/activities/import", json=env)
+    assert imported.status_code == 201, imported.text
+    new = imported.json()
+    assert new["id"] != aid                          # fresh id
+    assert new["name"] == "sharable"
+    assert new["instructions"] == "# Wire it"
+    assert new["time_limit_s"] == 600
+    assert new["checks"] == src.json()["checks"]
+    assert new["initial"] == initial and new["answer"] == answer
+
+    # The imported activity still grades: instantiate its initial, then grade.
+    inst = await client.post(f"/api/activities/{new['id']}/instantiate")
+    new_pid = inst.json()["id"]
+    report = (
+        await client.post(
+            f"/api/activities/{new['id']}/grade", json={"project_id": new_pid}
+        )
+    ).json()
+    assert report["score_pct"] == 100.0
+
+
+async def test_import_malformed_envelope_422(client):
+    bad = await client.post("/api/activities/import", json={"format": "nope"})
+    assert bad.status_code == 422, bad.text
+
+
+async def test_export_and_csv_unknown_activity_404(client):
+    assert (await client.get("/api/activities/deadbeef/export")).status_code == 404
+    assert (await client.get("/api/activities/deadbeef/results.csv")).status_code == 404

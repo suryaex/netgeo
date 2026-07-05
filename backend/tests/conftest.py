@@ -66,6 +66,7 @@ def _reset_repo():
     repo._racks.clear()
     repo._cables.clear()
     repo._activities.clear()
+    repo._grade_results.clear()
     yield
 
 

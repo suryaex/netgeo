@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from app.exceptions.base import ValidationError
 from app.models import (
+    Activity,
     Cable,
     ConfigArtifact,
     Link,
@@ -33,6 +34,13 @@ from app.utils.ids import new_id
 
 ARCHIVE_FORMAT = "netgeo-archive"
 ARCHIVE_VERSION = 1
+
+# Sharable activity file (NG-EDU-03). A ``.netgeo-lab`` archive is just the
+# activity model wrapped in a versioned envelope — the ``initial``/``answer``
+# it carries are already NG-WS-03 archive envelopes, so no inner remap is
+# needed here (student instantiation mints fresh ids from them later).
+ACTIVITY_FORMAT = "netgeo-lab"
+ACTIVITY_VERSION = 1
 
 # envelope section -> model. project is handled separately (it seeds the import).
 _SECTIONS: dict[str, type] = {
@@ -81,6 +89,33 @@ def parse_archive(env: dict) -> dict:
     except Exception as exc:  # pydantic / type errors on a broken entity payload
         raise ValidationError(f"malformed archive entity: {exc}") from exc
     return parsed
+
+
+def build_activity_archive(activity: Activity) -> dict:
+    """Serialize one activity into a versioned ``.netgeo-lab`` envelope."""
+    return {
+        "format": ACTIVITY_FORMAT,
+        "version": ACTIVITY_VERSION,
+        "activity": activity.model_dump(mode="json"),
+    }
+
+
+def parse_activity_archive(env: dict) -> Activity:
+    """Validate a ``.netgeo-lab`` envelope and rebuild its :class:`Activity`
+    (original id preserved — the caller mints a fresh one on import). Raises
+    :class:`ValidationError` (HTTP 422) on a malformed/wrong-format envelope."""
+    if not isinstance(env, dict) or env.get("format") != ACTIVITY_FORMAT:
+        raise ValidationError("not a NetGeo activity file (missing/blank 'format')")
+    if env.get("version") != ACTIVITY_VERSION:
+        raise ValidationError(f"unsupported activity version {env.get('version')!r}")
+    if not isinstance(env.get("activity"), dict):
+        raise ValidationError("activity file is missing its 'activity'")
+    try:
+        return Activity(**env["activity"])
+    except ValidationError:
+        raise
+    except Exception as exc:  # pydantic / type errors on a broken payload
+        raise ValidationError(f"malformed activity file: {exc}") from exc
 
 
 def remap(parsed: dict, new_project_id: str) -> dict:

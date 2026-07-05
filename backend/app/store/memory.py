@@ -19,6 +19,7 @@ from app.models import (
     Activity,
     ConfigArtifact,
     Cable,
+    GradeResult,
     Link,
     Node,
     Project,
@@ -83,6 +84,8 @@ class MemoryRepository:
         self._cables: dict[str, Cable] = {}
         # Education activities (NG-EDU-01)
         self._activities: dict[str, Activity] = {}
+        # Graded attempts (NG-EDU-03), keyed by result id.
+        self._grade_results: dict[str, GradeResult] = {}
 
     # --- projects -----------------------------------------------------------
     async def list_projects(self) -> list[Project]:
@@ -291,6 +294,17 @@ class MemoryRepository:
             if aid not in self._activities:
                 raise NotFound(aid)
             del self._activities[aid]
+
+    # --- graded attempts (NG-EDU-03) ----------------------------------------
+    async def add_grade_result(self, result: GradeResult) -> GradeResult:
+        async with self._lock:
+            self._grade_results[result.id] = result
+            return result
+
+    async def list_grade_results(self, activity_id: str) -> list[GradeResult]:
+        return [
+            g for g in self._grade_results.values() if g.activity_id == activity_id
+        ]
 
     # --- config artifacts (append-only history) -----------------------------
     async def add_config(self, artifact: ConfigArtifact) -> ConfigArtifact:

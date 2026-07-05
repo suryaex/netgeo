@@ -7,12 +7,22 @@ and returns a per-item report with a live completion %.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+import csv
+import io
+
+from fastapi import APIRouter, Depends, Response
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict
 
 from app.api.deps import repo, translate_not_found
-from app.models import Activity, ActivityCreate, GradeReport, Project
+from app.models import (
+    Activity,
+    ActivityCreate,
+    GradeReport,
+    GradeResult,
+    GradeSubmit,
+    Project,
+)
 from app.services import archive as archive_svc
 from app.services import grading
 from app.store import MemoryRepository
@@ -66,6 +76,90 @@ async def grade_activity(
         raise translate_not_found(exc) from exc
     # Engine work (build + settle + ping) is CPU-bound — keep the loop live.
     return await run_in_threadpool(grading.grade, topo, activity.checks)
+
+
+@router.post("/activities/{activity_id}/submit", response_model=GradeResult, status_code=201)
+async def submit_activity(
+    activity_id: str, body: GradeSubmit, r: MemoryRepository = Depends(repo)
+):
+    """Grade a student's project and **persist** the attempt (NG-EDU-03).
+
+    Unlike ``/grade`` (a pure, side-effect-free report) this records a
+    :class:`GradeResult` — who took it, elapsed time, and whether that was
+    within the activity's ``time_limit_s`` — so instructors can export results.
+    """
+    try:
+        activity = await r.get_activity(activity_id)
+        topo = await r.topology(body.project_id)
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+    report = await run_in_threadpool(grading.grade, topo, activity.checks)
+    within = None
+    if body.elapsed_s is not None and activity.time_limit_s is not None:
+        within = body.elapsed_s <= activity.time_limit_s
+    result = GradeResult(
+        id=new_id(),
+        activity_id=activity_id,
+        student=body.student,
+        score_pct=report.score_pct,
+        earned_weight=report.earned_weight,
+        total_weight=report.total_weight,
+        elapsed_s=body.elapsed_s,
+        within_time=within,
+        items=report.items,
+    )
+    return await r.add_grade_result(result)
+
+
+@router.get("/activities/{activity_id}/results.csv")
+async def export_results_csv(activity_id: str, r: MemoryRepository = Depends(repo)):
+    """Download all graded attempts for this activity as CSV (NG-EDU-03)."""
+    try:
+        await r.get_activity(activity_id)  # 404 if the activity is unknown
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+    results = sorted(
+        await r.list_grade_results(activity_id),
+        key=lambda g: (g.graded_at, g.student),
+    )
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(
+        ["student", "score_pct", "earned_weight", "total_weight",
+         "elapsed_s", "within_time", "graded_at"]
+    )
+    for g in results:
+        w.writerow([
+            g.student, g.score_pct, g.earned_weight, g.total_weight,
+            "" if g.elapsed_s is None else g.elapsed_s,
+            "" if g.within_time is None else g.within_time,
+            g.graded_at.isoformat(),
+        ])
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="activity-{activity_id}-results.csv"'
+        },
+    )
+
+
+@router.get("/activities/{activity_id}/export")
+async def export_activity(activity_id: str, r: MemoryRepository = Depends(repo)) -> dict:
+    """Export one activity as a sharable ``.netgeo-lab`` envelope (NG-EDU-03)."""
+    try:
+        activity = await r.get_activity(activity_id)
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+    return archive_svc.build_activity_archive(activity)
+
+
+@router.post("/activities/import", response_model=Activity, status_code=201)
+async def import_activity(body: dict, r: MemoryRepository = Depends(repo)):
+    """Create a brand-new activity from a ``.netgeo-lab`` envelope, minting a
+    fresh id (NG-EDU-03). Raises 422 on a malformed/wrong-format envelope."""
+    activity = archive_svc.parse_activity_archive(body)  # ValidationError -> 422
+    return await r.add_activity(activity.model_copy(update={"id": new_id()}))
 
 
 @router.post("/activities/{activity_id}/instantiate", response_model=Project, status_code=201)

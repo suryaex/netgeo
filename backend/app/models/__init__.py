@@ -19,6 +19,8 @@ from app.models.schemas import (  # noqa: F401
     GradeCheckKind,
     GradeItem,
     GradeReport,
+    GradeResult,
+    GradeSubmit,
     IfaceType,
     Interface,
     Link,

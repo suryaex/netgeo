@@ -19,6 +19,8 @@ from app.models import (
     CoverageCircle,
     CoverageRasterRequest,
     Node,
+    ProductSelectRequest,
+    PtmpRequest,
     Radio,
     Topology,
     WirelessLink,
@@ -302,6 +304,146 @@ def coverage_raster(req: CoverageRasterRequest) -> dict:
     }
 
 
+# --- NG-RF-04 / NG-RF-05 modulation ladder ---------------------------------
+# Monotonic RSSI(dBm) floor → (MCS index, modulation, spectral efficiency in
+# bits/s/Hz). A documented, simplified 802.11-style ladder (BPSK…256QAM);
+# throughput = spectral_eff × bandwidth_mhz is an *idealised PHY rate* (no
+# guard-interval / MAC overhead). ponytail: closed-form ladder — swap for a
+# per-standard table only if certification-grade rates are ever needed.
+_MCS_LADDER: list[tuple[float, int, str, float]] = [
+    (-57.0, 9, "256QAM 5/6", 6.67),
+    (-59.0, 8, "256QAM 3/4", 6.00),
+    (-64.0, 7, "64QAM 5/6",  5.00),
+    (-65.0, 6, "64QAM 3/4",  4.50),
+    (-66.0, 5, "64QAM 2/3",  4.00),
+    (-70.0, 4, "16QAM 3/4",  3.00),
+    (-74.0, 3, "16QAM 1/2",  2.00),
+    (-77.0, 2, "QPSK 3/4",   1.50),
+    (-79.0, 1, "QPSK 1/2",   1.00),
+    (-82.0, 0, "BPSK 1/2",   0.50),
+]
+
+
+def mcs_for_rssi(rssi_dbm: float, bandwidth_mhz: float) -> dict:
+    """Highest MCS whose RSSI floor ≤ ``rssi_dbm``. Below the lowest floor the
+    link carries no data (mcs=None, 0 Mbps). Monotonic: lower RSSI → lower MCS."""
+    for floor, mcs, mod, se in _MCS_LADDER:
+        if rssi_dbm >= floor:
+            return {"mcs": mcs, "modulation": mod,
+                    "throughput_mbps": round(se * bandwidth_mhz, 2)}
+    return {"mcs": None, "modulation": None, "throughput_mbps": 0.0}
+
+
+def _bearing_deg(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Initial great-circle bearing from point 1 → point 2, degrees [0, 360)."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dl = math.radians(lon2 - lon1)
+    y = math.sin(dl) * math.cos(p2)
+    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return math.degrees(math.atan2(y, x)) % 360.0
+
+
+def _angular_diff(a: float, b: float) -> float:
+    """Smallest absolute angle between two bearings, degrees [0, 180]."""
+    d = abs(a - b) % 360.0
+    return d if d <= 180.0 else 360.0 - d
+
+
+def ptmp_plan(req: PtmpRequest) -> dict:
+    """Plan one AP sector over its CPEs (NG-RF-04).
+
+    Per CPE: resolve distance+bearing (explicit or from coords), test in-beam
+    (bearing within azimuth ± beamwidth/2), path loss THROUGH the registry, RSSI
+    = Ptx + Gtx + Grx − loss − Lmisc, then an MCS from :func:`mcs_for_rssi`.
+
+    Sector capacity rolls up served CPEs two ways: ``sum_phy_mbps`` (contention-
+    free upper bound) and ``airtime_fair_mbps`` (mean served rate = equal-airtime
+    share of one shared medium). Raises ``ValueError`` (→ 422) on an unknown
+    model, out-of-range freq, or a CPE missing both coords and distance+bearing.
+    """
+    half = req.beamwidth_deg / 2.0
+    cpes: list[dict] = []
+    served_rates: list[float] = []
+    for c in req.cpes:
+        if c.distance_m is not None and c.bearing_deg is not None:
+            dist, brg = c.distance_m, c.bearing_deg
+        elif c.lat is not None and c.lon is not None:
+            dist = rf.haversine_m(req.lat, req.lon, c.lat, c.lon)
+            brg = _bearing_deg(req.lat, req.lon, c.lat, c.lon)
+        else:
+            raise ValueError(f"cpe {c.id!r}: provide lat/lon or distance_m+bearing_deg")
+        in_beam = _angular_diff(brg, req.azimuth_deg) <= half
+        loss = prop.path_loss(
+            req.model_id, dist, req.freq_mhz, req.height_m, c.height_m, **req.params
+        )
+        rssi = req.tx_power_dbm + req.tx_gain_dbi + c.rx_gain_dbi - loss - c.misc_loss_db
+        mcs = mcs_for_rssi(rssi, req.bandwidth_mhz)
+        served = in_beam and mcs["mcs"] is not None and rssi >= req.rx_sensitivity_dbm
+        if served:
+            served_rates.append(mcs["throughput_mbps"])
+        cpes.append({
+            "cpe_id": c.id,
+            "distance_m": round(dist, 2),
+            "bearing_deg": round(brg, 2),
+            "in_beam": in_beam,
+            "path_loss_db": round(loss, 2),
+            "rssi_dbm": round(rssi, 2),
+            "served": served,
+            **mcs,
+        })
+    return {
+        "model_id": req.model_id,
+        "azimuth_deg": req.azimuth_deg,
+        "beamwidth_deg": req.beamwidth_deg,
+        "freq_mhz": req.freq_mhz,
+        "bandwidth_mhz": req.bandwidth_mhz,
+        "cpes": cpes,
+        "served_count": len(served_rates),
+        "sum_phy_mbps": round(sum(served_rates), 2),
+        "airtime_fair_mbps": round(sum(served_rates) / len(served_rates), 2)
+        if served_rates else 0.0,
+    }
+
+
+def product_select(req: ProductSelectRequest) -> dict:
+    """Rank candidate radio pairs for a link (NG-RF-05).
+
+    Symmetric pair (same model both ends): RSSI = Ptx + 2·Gant − loss − Lmisc;
+    margin = RSSI − sensitivity. Ranked best margin-per-cost first (name breaks
+    ties → deterministic). ``meets_target`` = link closes AND predicted PHY
+    throughput ≥ target. Loss is identical for every candidate (same geometry),
+    so it's computed once — an unknown model / out-of-range freq raises
+    ``ValueError`` (→ 422) here."""
+    loss = prop.path_loss(
+        req.model_id, req.distance_m, req.freq_mhz,
+        req.tx_height_m, req.rx_height_m, **req.params
+    )
+    ranked: list[dict] = []
+    for c in req.candidates:
+        rssi = c.tx_power_dbm + 2.0 * c.antenna_gain_dbi - loss - req.misc_loss_db
+        margin = rssi - c.rx_sensitivity_dbm
+        mcs = mcs_for_rssi(rssi, c.bandwidth_mhz)
+        link_closes = margin >= 0.0 and mcs["mcs"] is not None
+        meets = link_closes and mcs["throughput_mbps"] >= req.target_throughput_mbps
+        ranked.append({
+            "name": c.name,
+            "rssi_dbm": round(rssi, 2),
+            "margin_db": round(margin, 2),
+            "predicted_throughput_mbps": mcs["throughput_mbps"],
+            "cost": c.cost,
+            "margin_per_cost": round(margin / c.cost, 4),
+            "link_closes": link_closes,
+            "meets_target": meets,
+        })
+    ranked.sort(key=lambda r: (-r["margin_per_cost"], r["name"]))
+    return {
+        "distance_m": req.distance_m,
+        "freq_mhz": req.freq_mhz,
+        "target_throughput_mbps": req.target_throughput_mbps,
+        "ranked": ranked,
+    }
+
+
 __all__ = [
     "plan_topology",
     "coverage_radius",
@@ -311,4 +453,7 @@ __all__ = [
     "ptp_budget",
     "coverage_raster",
     "MAX_COVERAGE_CELLS",
+    "mcs_for_rssi",
+    "ptmp_plan",
+    "product_select",
 ]

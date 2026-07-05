@@ -16,7 +16,11 @@ from app.models import (
     ElevationProfile,
     PathLossRequest,
     PathLossResult,
+    ProductSelectRequest,
+    ProductSelectResult,
     PropagationModelInfo,
+    PtmpRequest,
+    PtmpResult,
     PtpRequest,
     PtpResult,
 )
@@ -127,3 +131,27 @@ async def compute_coverage(body: CoverageRasterRequest):
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return CoverageRasterResult(**raster)
+
+
+@router.post("/ptmp", response_model=PtmpResult)
+async def plan_ptmp(body: PtmpRequest):
+    """Plan an AP sector over its CPEs (NG-RF-04): per-CPE in-beam test, RSSI +
+    MCS via the propagation registry, sector capacity roll-up. 422 on an unknown
+    model, out-of-range freq, or a CPE lacking coords/distance+bearing."""
+    try:
+        result = wsvc.ptmp_plan(body)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return PtmpResult(**result)
+
+
+@router.post("/product-select", response_model=ProductSelectResult)
+async def select_product(body: ProductSelectRequest):
+    """Rank candidate radio pairs for a required distance + target throughput
+    (NG-RF-05), best margin-per-cost first. 422 on an unknown model or
+    out-of-range frequency."""
+    try:
+        result = wsvc.product_select(body)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return ProductSelectResult(**result)

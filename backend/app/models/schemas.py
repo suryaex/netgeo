@@ -737,3 +737,133 @@ class CoverageRasterResult(_Base):
     legend: list[CoverageLegendItem] = Field(default_factory=list)
     study_key: str                     # deterministic cache key (same in→same out)
     site_count: int
+
+
+# --- point-to-multipoint sector planner (NG-RF-04) -------------------------
+class PtmpCpe(_Base):
+    """One client radio served by a sector. Give either ``lat``/``lon`` (bearing
+    + distance derived from the AP) or explicit ``distance_m`` + ``bearing_deg``."""
+
+    id: str
+    lat: float | None = Field(None, ge=-90, le=90)
+    lon: float | None = Field(None, ge=-180, le=180)
+    distance_m: float | None = Field(None, gt=0)
+    bearing_deg: float | None = Field(None, ge=0, lt=360)
+    height_m: float = Field(5.0, gt=0)
+    rx_gain_dbi: float = 0.0
+    misc_loss_db: float = 0.0
+
+
+class PtmpRequest(_Base):
+    """Plan one AP sector serving a set of CPEs (NG-RF-04). Per CPE: in-beam test
+    (bearing within azimuth ± beamwidth/2), path loss via the registry, RSSI, an
+    MCS from the documented RSSI ladder, and a PHY throughput."""
+
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True,
+        protected_namespaces=(),
+    )
+
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    height_m: float = Field(30.0, gt=0)
+    azimuth_deg: float = Field(..., ge=0, lt=360)     # sector boresight
+    beamwidth_deg: float = Field(..., gt=0, le=360)   # full -3 dB width
+    downtilt_deg: float = 0.0                         # informational (not modelled)
+    freq_mhz: float = Field(..., gt=0)
+    bandwidth_mhz: float = Field(20.0, gt=0)
+    tx_power_dbm: float = 23.0
+    tx_gain_dbi: float = 16.0
+    rx_sensitivity_dbm: float = -85.0
+    model_id: str = "fspl"
+    params: dict[str, object] = Field(default_factory=dict)
+    cpes: list[PtmpCpe] = Field(..., min_length=1)
+
+
+class PtmpCpeResult(_Base):
+    cpe_id: str
+    distance_m: float
+    bearing_deg: float
+    in_beam: bool
+    path_loss_db: float
+    rssi_dbm: float
+    mcs: int | None                    # None = below the lowest MCS floor
+    modulation: str | None
+    throughput_mbps: float
+    served: bool                       # in beam AND rssi ≥ sensitivity AND has an MCS
+
+
+class PtmpResult(_Base):
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True,
+        protected_namespaces=(),
+    )
+
+    model_id: str
+    azimuth_deg: float
+    beamwidth_deg: float
+    freq_mhz: float
+    bandwidth_mhz: float
+    cpes: list[PtmpCpeResult] = Field(default_factory=list)
+    served_count: int
+    # sum_phy = contention-free sum of served PHY rates (upper bound); airtime_fair
+    # = mean served rate (equal-airtime share of one shared sector medium).
+    sum_phy_mbps: float
+    airtime_fair_mbps: float
+
+
+# --- auto product selection (NG-RF-05) -------------------------------------
+class RadioCandidate(_Base):
+    """A candidate radio (a symmetric pair uses the same model both ends). The
+    device-types library carries no RF/price specs, so candidates are supplied by
+    the caller; wiring specs into that library is a follow-up."""
+
+    name: str
+    tx_power_dbm: float
+    antenna_gain_dbi: float
+    rx_sensitivity_dbm: float
+    cost: float = Field(..., gt=0)     # currency-agnostic; ranks margin-per-cost
+    bandwidth_mhz: float = Field(20.0, gt=0)
+
+
+class ProductSelectRequest(_Base):
+    """Rank candidate radio pairs for a required distance + target throughput
+    (NG-RF-05). Best link-margin-per-cost first; pass/fail vs the target."""
+
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True,
+        protected_namespaces=(),
+    )
+
+    distance_m: float = Field(..., gt=0)
+    freq_mhz: float = Field(..., gt=0)
+    target_throughput_mbps: float = Field(..., ge=0)
+    model_id: str = "fspl"
+    params: dict[str, object] = Field(default_factory=dict)
+    tx_height_m: float = Field(30.0, gt=0)
+    rx_height_m: float = Field(5.0, gt=0)
+    misc_loss_db: float = 0.0
+    candidates: list[RadioCandidate] = Field(..., min_length=1)
+
+
+class ProductSelectItem(_Base):
+    name: str
+    rssi_dbm: float
+    margin_db: float                   # rssi - rx sensitivity
+    predicted_throughput_mbps: float
+    cost: float
+    margin_per_cost: float
+    link_closes: bool                  # margin ≥ 0 and an MCS is usable
+    meets_target: bool                 # link_closes AND throughput ≥ target
+
+
+class ProductSelectResult(_Base):
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True,
+        protected_namespaces=(),
+    )
+
+    distance_m: float
+    freq_mhz: float
+    target_throughput_mbps: float
+    ranked: list[ProductSelectItem] = Field(default_factory=list)

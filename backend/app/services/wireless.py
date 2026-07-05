@@ -19,6 +19,7 @@ from app.models import (
     WirelessLink,
     WirelessPlanResult,
 )
+from engine import propagation as prop
 from engine import wireless as rf
 
 # How a stored NodeKind maps onto an engine planner "role".
@@ -135,4 +136,30 @@ def link_budget_between(
     return rf.link_budget(etx, erx, distance_m, rain_rate_mm_hr)
 
 
-__all__ = ["plan_topology", "coverage_radius", "link_budget_between"]
+def list_models() -> list[dict]:
+    """Registry metadata for every propagation model (NG-RF-01)."""
+    return prop.list_models()
+
+
+def path_loss(
+    model_id: str,
+    distance_m: float,
+    freq_mhz: float,
+    tx_height_m: float = 30.0,
+    rx_height_m: float = 1.5,
+    **params: object,
+) -> float:
+    """Path loss (dB) from the chosen propagation model. Raises ``ValueError``
+    on an unknown model id or out-of-range frequency."""
+    return prop.path_loss(
+        model_id, distance_m, freq_mhz, tx_height_m, rx_height_m, **params
+    )
+
+
+__all__ = [
+    "plan_topology",
+    "coverage_radius",
+    "link_budget_between",
+    "list_models",
+    "path_loss",
+]

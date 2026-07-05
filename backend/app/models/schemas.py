@@ -523,6 +523,59 @@ class CoverageResult(_Base):
     radius_m: float
 
 
+# --- propagation model registry (NG-RF-01) ---------------------------------
+class PropagationParam(_Base):
+    """One tunable parameter a propagation model exposes."""
+
+    name: str
+    default: object
+    description: str = ""
+    options: list[str] = Field(default_factory=list)
+
+
+class PropagationModelInfo(_Base):
+    """Registry metadata for a single propagation model."""
+
+    id: str
+    name: str
+    freq_min_mhz: float
+    freq_max_mhz: float
+    dist_min_m: float
+    dist_max_m: float
+    params: list[PropagationParam] = Field(default_factory=list)
+    note: str = ""
+
+
+class PathLossRequest(_Base):
+    """Compute path loss (dB) with a chosen propagation model."""
+
+    # ``model_id`` collides with Pydantic's protected ``model_`` namespace; free
+    # it so the field name can match the public API contract.
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True,
+        protected_namespaces=(),
+    )
+
+    model_id: str
+    distance_m: float = Field(..., gt=0)
+    freq_mhz: float = Field(..., gt=0)
+    tx_height_m: float = Field(30.0, gt=0)
+    rx_height_m: float = Field(1.5, gt=0)
+    params: dict[str, object] = Field(default_factory=dict)
+
+
+class PathLossResult(_Base):
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, validate_default=True,
+        protected_namespaces=(),
+    )
+
+    model_id: str
+    path_loss_db: float
+    distance_m: float
+    freq_mhz: float
+
+
 # --- terrain line-of-sight / Fresnel ---------------------------------------
 class ElevationPoint(_Base):
     lat: float

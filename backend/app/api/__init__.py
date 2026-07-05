@@ -23,6 +23,7 @@ from app.api import (
     nodes,
     physical,
     projects,
+    rf,
     scenarios,
     signal,
     simulate,
@@ -54,5 +55,6 @@ api_router.include_router(update.router, dependencies=_require_auth)   # RB-05
 api_router.include_router(signal.router, dependencies=_require_auth)
 api_router.include_router(device_types.router, dependencies=_require_auth)
 api_router.include_router(wireless.router, dependencies=_require_auth)
+api_router.include_router(rf.router, dependencies=_require_auth)   # NG-RF-01
 api_router.include_router(lab.router, dependencies=_require_auth)
 api_router.include_router(education.router, dependencies=_require_auth)   # NG-EDU-01/02

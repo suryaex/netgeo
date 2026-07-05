@@ -97,6 +97,27 @@ class MemoryRepository:
             self._projects[proj.id] = proj
             return proj
 
+    async def export_project(self, pid: str) -> dict:
+        """Raw per-project entities for archival (NG-WS-03).
+
+        Unlike :meth:`topology` this does *not* fold cable physics into links:
+        the archive must capture links exactly as stored so a round-trip does
+        not double-apply propagation delay / re-derive ``errored`` on import.
+        Raises :class:`NotFound` if the project id is unknown.
+        """
+        proj = await self.get_project(pid)  # raises NotFound
+        node_ids = {n.id for n in self._nodes.values() if n.project_id == pid}
+        return {
+            "project": proj,
+            "nodes": [n for n in self._nodes.values() if n.project_id == pid],
+            "links": [l for l in self._links.values() if l.project_id == pid],
+            "sites": [s for s in self._sites.values() if s.project_id == pid],
+            "racks": [rk for rk in self._racks.values() if rk.project_id == pid],
+            "cables": [c for c in self._cables.values() if c.project_id == pid],
+            "scenarios": [s for s in self._scenarios.values() if s.project_id == pid],
+            "configs": [c for c in self._configs.values() if c.node_id in node_ids],
+        }
+
     async def topology(self, pid: str) -> Topology:
         proj = await self.get_project(pid)
         nodes = [n for n in self._nodes.values() if n.project_id == pid]

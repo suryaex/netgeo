@@ -32,7 +32,12 @@ export type NodeStatus = 'stopped' | 'booting' | 'running' | 'degraded' | 'error
 
 export type IfaceType = 'eth' | 'sfp' | 'sfp28' | 'qsfp' | 'gpon' | 'wifi';
 export type LinkType = 'copper' | 'fiber' | 'wireless' | 'virtual';
-export type LinkStatus = 'up' | 'down' | 'admin_down' | 'unknown';
+/**
+ * `errored` = a physical run brought the link down (e.g. cable over its rated
+ * max length, NG-PH-03) rather than an operator — a teachable failure, distinct
+ * from `admin_down`. Must match the backend LinkStatus enum exactly.
+ */
+export type LinkStatus = 'up' | 'down' | 'admin_down' | 'errored' | 'unknown';
 export type ConfigFormat = 'cli' | 'netconf' | 'yaml';
 
 export interface Interface {
@@ -66,6 +71,11 @@ export interface NodeModel {
   interfaces: Interface[];
   config_ref: string | null;
   status: NodeStatus;
+  /** Physical placement (NG-PH-01): rack + rack-unit span. `rack_id`/`ru_start`
+   *  null => the device is unplaced (sits in the rack view's tray). */
+  rack_id?: string | null;
+  ru_start?: number | null;
+  ru_span?: number;
   /** Extension bag (ForgeOS intent; cloud-node `uplink`). */
   intent?: Record<string, unknown> | null;
 }
@@ -136,10 +146,14 @@ export interface ConfigArtifact {
   generated_at: string;
 }
 
-/** Full graph payload from GET /api/projects/{id}/topology and /ws/topology. */
+/** Full graph payload from GET /api/projects/{id}/topology and /ws/topology.
+ *  Physical-plant arrays (NG-PH-01/02) are empty for purely logical projects. */
 export interface Topology {
   nodes: NodeModel[];
   links: LinkModel[];
+  sites?: Site[];
+  racks?: Rack[];
+  cables?: Cable[];
 }
 
 /** Realtime events pushed over /ws/topology. */
@@ -212,6 +226,177 @@ export type PresenceEvent =
   | { type: 'presence.cursor'; peer_id: string; cursor: Peer['cursor'] }
   | { type: 'presence.selection'; peer_id: string; selection: string | null }
   | { type: 'crdt.op'; op: CrdtOp };
+
+/* -------------------------------------------------------------------------- */
+/* Physical plant (NG-PH-01/02/03) — sites, racks, cables                      */
+/* -------------------------------------------------------------------------- */
+
+/** Physical media types (NG-PH-02). Must match the backend CableMedia enum. */
+export type CableMedia =
+  | 'cat5e'
+  | 'cat6'
+  | 'cat6a'
+  | 'mmf_om3'
+  | 'mmf_om4'
+  | 'smf_os2'
+  | 'dac'
+  | 'coax'
+  | 'gpon_drop';
+
+/** A building/location that holds racks (NG-PH-01). */
+export interface Site {
+  id: string;
+  project_id: string;
+  name: string;
+  region: string;
+}
+
+/** An RU-gridded rack inside a site (NG-PH-01). Devices are placed into it
+ *  via `Node.rack_id` / `ru_start` / `ru_span`. */
+export interface Rack {
+  id: string;
+  project_id: string;
+  site_id: string | null;
+  name: string;
+  ru_height: number;
+}
+
+/** A physical run realizing a logical link (NG-PH-02). `length_m` feeds
+ *  propagation delay; exceeding the media's max length errors the link. */
+export interface Cable {
+  id: string;
+  project_id: string;
+  link_id: string;
+  media: CableMedia;
+  length_m: number;
+  label: string;
+}
+
+export interface SiteCreate {
+  project_id: string;
+  name: string;
+  region?: string;
+}
+
+export interface RackCreate {
+  project_id: string;
+  site_id?: string | null;
+  name: string;
+  ru_height?: number;
+}
+
+export interface CableCreate {
+  project_id: string;
+  link_id: string;
+  media?: CableMedia;
+  length_m?: number;
+  label?: string;
+}
+
+export interface CableUpdate {
+  media?: CableMedia;
+  length_m?: number;
+  label?: string;
+}
+
+/** Per-link physical verdict from GET /api/projects/{id}/plant (NG-PH-03). */
+export interface PlantLink {
+  total_length_m: number;
+  added_delay_ms: number;
+  over_length: boolean;
+  /** The media that blew its budget, else null. */
+  over_media: CableMedia | null;
+}
+
+/** GET /api/projects/{id}/plant — per-link physical effects, keyed by link id. */
+export interface PlantReport {
+  project_id: string;
+  links: Record<string, PlantLink>;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Education mode (NG-EDU-01/02/03) — activities + auto-grading                */
+/* -------------------------------------------------------------------------- */
+
+export type GradeCheckKind =
+  | 'node_exists'
+  | 'iface_ip'
+  | 'vlan_present'
+  | 'ospf_neighbor'
+  | 'ping';
+
+/** One weighted assertion in an activity's grading tree (NG-EDU-02). */
+export interface GradeCheck {
+  kind: GradeCheckKind;
+  weight?: number;
+  label?: string | null;
+  node?: string | null;
+  iface?: string | null;
+  cidr?: string | null;
+  vlan?: number | null;
+  peer?: string | null;
+  dst?: string | null;
+}
+
+/** An education activity (NG-EDU-01). `initial`/`answer` are NG-WS-03 archive
+ *  envelopes; the grader only reads `checks`. */
+export interface Activity {
+  id: string;
+  name: string;
+  instructions: string;
+  initial: Record<string, unknown>;
+  answer: Record<string, unknown>;
+  locked_ui: string[];
+  checks: GradeCheck[];
+  time_limit_s: number | null;
+}
+
+export interface ActivityCreate {
+  name: string;
+  instructions?: string;
+  initial?: Record<string, unknown>;
+  answer?: Record<string, unknown>;
+  locked_ui?: string[];
+  checks?: GradeCheck[];
+  time_limit_s?: number | null;
+}
+
+/** One graded check's verdict (NG-EDU-02). */
+export interface GradeItem {
+  label: string;
+  passed: boolean;
+  weight: number;
+  reason: string;
+}
+
+/** Live completion report from POST /activities/{id}/grade (NG-EDU-02). */
+export interface GradeReport {
+  items: GradeItem[];
+  score_pct: number;
+  earned_weight: number;
+  total_weight: number;
+}
+
+/** Request body for a graded submission (NG-EDU-03). */
+export interface GradeSubmit {
+  project_id: string;
+  student?: string;
+  elapsed_s?: number | null;
+}
+
+/** A persisted graded attempt (NG-EDU-03). */
+export interface GradeResult {
+  id: string;
+  activity_id: string;
+  student: string;
+  score_pct: number;
+  earned_weight: number;
+  total_weight: number;
+  elapsed_s: number | null;
+  within_time: boolean | null;
+  graded_at: string;
+  items: GradeItem[];
+}
 
 /** Simulation lifecycle. */
 export type SimState = 'idle' | 'running' | 'paused' | 'stepping';

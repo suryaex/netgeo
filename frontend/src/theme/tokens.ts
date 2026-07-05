@@ -47,6 +47,9 @@ export const linkStatusColors = {
   up: '#27C28B',
   down: '#FF4D4F',
   admin_down: '#F5A623',
+  // Physically errored (NG-PH-03): cable over its rated max length. Amber-red
+  // to read as a fault distinct from an operator-driven admin_down.
+  errored: '#FF7A45',
   unknown: '#8A93A6',
 } as const;
 

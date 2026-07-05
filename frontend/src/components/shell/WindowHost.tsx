@@ -13,6 +13,7 @@ import { ConsolePanel } from '@/components/ConsolePanel';
 import { ConfigViewer } from '@/components/ConfigViewer';
 import { DiagnosticsPanel } from '@/components/DiagnosticsPanel';
 import { EventLedgerPanel } from '@/components/EventLedgerPanel';
+import { RackElevationPanel } from '@/components/RackElevationPanel';
 import { ScenariosPanel } from '@/components/ScenariosPanel';
 import { SettingsPanel } from '@/components/SettingsPanel';
 
@@ -34,6 +35,8 @@ function WindowBody({ win }: { win: WindowInstance }) {
       return <DiagnosticsPanel />;
     case 'ledger':
       return <EventLedgerPanel />;
+    case 'racks':
+      return <RackElevationPanel />;
     case 'settings':
       return <SettingsPanel />;
     default:

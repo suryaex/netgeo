@@ -12,6 +12,7 @@ import {
   TerminalSquare,
   FileCode2,
   ListChecks,
+  Server,
   Settings2,
 } from 'lucide-react';
 import { useWindowStore, type WindowKind } from '@/store/windowStore';
@@ -30,6 +31,7 @@ const ITEMS: DockItem[] = [
   { kind: 'console', title: 'Console', icon: TerminalSquare },
   { kind: 'diagnostics', title: 'Diagnostics', icon: Activity },
   { kind: 'ledger', title: 'Event Ledger', icon: ListVideo },
+  { kind: 'racks', title: 'Rack Elevation', icon: Server },
   { kind: 'config', title: 'Config Viewer', icon: FileCode2 },
   { kind: 'scenarios', title: 'Scenarios', icon: ListChecks },
   { kind: 'settings', title: 'Settings', icon: Settings2 },

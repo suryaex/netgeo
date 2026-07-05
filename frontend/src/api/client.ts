@@ -6,14 +6,27 @@
  */
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import type {
+  Activity,
+  ActivityCreate,
+  Cable,
+  CableCreate,
+  CableUpdate,
   ConfigArtifact,
+  GradeReport,
+  GradeResult,
+  GradeSubmit,
   HostInterface,
   InternetStatus,
   LinkModel,
   NodeModel,
+  PlantReport,
   Project,
+  Rack,
+  RackCreate,
   Scenario,
   SimulateRequest,
+  Site,
+  SiteCreate,
   Topology,
 } from './types';
 import {
@@ -212,6 +225,75 @@ export const linksApi = {
 export const scenariosApi = {
   list: (projectId: string) =>
     http.get<Scenario[]>('/scenarios', { params: { project_id: projectId } }).then((r) => r.data),
+};
+
+/* --------------------------- Physical plant ------------------------------ */
+/**
+ * Sites, racks, and cables (NG-PH-01/02/03). Devices are placed into racks via
+ * the existing `nodesApi.update` (rack_id / ru_start / ru_span) — there is no
+ * separate placement endpoint. `plant` returns per-link physical verdicts
+ * (total length, added propagation delay, over-length errors).
+ */
+export const physicalApi = {
+  createSite: (body: SiteCreate) => http.post<Site>('/sites', body).then((r) => r.data),
+  createRack: (body: RackCreate) => http.post<Rack>('/racks', body).then((r) => r.data),
+  createCable: (body: CableCreate) => http.post<Cable>('/cables', body).then((r) => r.data),
+  getCable: (id: string) => http.get<Cable>(`/cables/${id}`).then((r) => r.data),
+  updateCable: (id: string, patch: CableUpdate) =>
+    http.patch<Cable>(`/cables/${id}`, patch).then((r) => r.data),
+  removeCable: (id: string) => http.delete(`/cables/${id}`).then(() => undefined),
+  plant: (projectId: string) =>
+    http.get<PlantReport>(`/projects/${projectId}/plant`).then((r) => r.data),
+};
+
+/* ------------------------------ Education -------------------------------- */
+/**
+ * Education activities + auto-grading (NG-EDU-01/02/03). An activity bundles
+ * instructions with a starting network, a model answer, and weighted grading
+ * checks; `grade` returns a live completion report, `submit` persists an
+ * attempt. Import/export move activities as `.netgeo-lab` envelopes.
+ */
+export const educationApi = {
+  list: () => http.get<Activity[]>('/activities').then((r) => r.data),
+  get: (id: string) => http.get<Activity>(`/activities/${id}`).then((r) => r.data),
+  create: (body: ActivityCreate) =>
+    http.post<Activity>('/activities', body).then((r) => r.data),
+  remove: (id: string) => http.delete(`/activities/${id}`).then(() => undefined),
+  /** Live, side-effect-free grade of a student's project against this activity. */
+  grade: (activityId: string, projectId: string) =>
+    http
+      .post<GradeReport>(`/activities/${activityId}/grade`, { project_id: projectId })
+      .then((r) => r.data),
+  /** Grade **and persist** the attempt (records student + elapsed time). */
+  submit: (activityId: string, body: GradeSubmit) =>
+    http
+      .post<GradeResult>(`/activities/${activityId}/submit`, body)
+      .then((r) => r.data),
+  /** Export an activity as a sharable `.netgeo-lab` envelope. */
+  export: (activityId: string) =>
+    http
+      .get<Record<string, unknown>>(`/activities/${activityId}/export`)
+      .then((r) => r.data),
+  /** Create a fresh activity from a `.netgeo-lab` envelope. */
+  import: (envelope: Record<string, unknown>) =>
+    http.post<Activity>('/activities/import', envelope).then((r) => r.data),
+  /** Import the activity's starting network as a fresh project for a student. */
+  instantiate: (activityId: string) =>
+    http
+      .post<Project>(`/activities/${activityId}/instantiate`)
+      .then((r) => r.data),
+  /** Download all graded attempts for this activity as a CSV file. */
+  downloadResultsCsv: async (activityId: string) => {
+    const resp = await http.get<Blob>(`/activities/${activityId}/results.csv`, {
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(resp.data as unknown as Blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity-${activityId}-results.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };
 
 /* ----------------------------- Simulation -------------------------------- */

@@ -15,6 +15,7 @@ export type WindowKind =
   | 'scenarios'
   | 'diagnostics'
   | 'ledger'
+  | 'racks'
   | 'settings';
 
 export interface Rect {
@@ -96,6 +97,13 @@ function getDefaultRect(kind: WindowKind): Rect {
       return { x: 280, y: 160, w: 720, h: 480 };
     case 'ledger':
       return { x: Math.max(PAD, vw - 760 - PAD), y: MENU_H + 100, w: 760, h: 440 };
+    case 'racks':
+      return {
+        x: Math.max(PAD, (vw - 860) / 2),
+        y: MENU_H + PAD,
+        w: 860,
+        h: Math.max(420, vh - MENU_H - DOCK_H - PAD * 2),
+      };
     case 'settings':
       return { x: 240, y: 120, w: 680, h: 500 };
   }

@@ -37,3 +37,24 @@ async def generate_config(body: GenerateConfigRequest, r: MemoryRepository = Dep
 @router.get("/configs", response_model=list[ConfigArtifact])
 async def list_configs(node_id: str = Query(...), r: MemoryRepository = Depends(repo)):
     return await r.configs_for_node(node_id)
+
+
+@router.get("/projects/{project_id}/configs/export")
+async def export_project_configs(
+    project_id: str,
+    vendor: str | None = Query(None),
+    r: MemoryRepository = Depends(repo),
+) -> dict:
+    """Whole-project vendor export (NG-CFG-01): every device's config, rendered
+    to ``vendor`` (or each node's native NOS when omitted)."""
+    try:
+        topo = await r.topology(project_id)
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+    if vendor is not None and configgen._TEMPLATE_MAP.get(vendor.lower()) is None:
+        raise ConfigGenFailed(f"no template for vendor '{vendor}'")
+    return {
+        "project_id": project_id,
+        "vendor": vendor.lower() if vendor else "native",
+        "configs": configgen.export_project(topo.nodes, vendor),
+    }

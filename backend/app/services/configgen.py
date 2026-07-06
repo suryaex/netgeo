@@ -135,6 +135,24 @@ def render(node: Node, vendor: str) -> str:
     return tmpl.render(**_context(node)).rstrip() + "\n"
 
 
+def export_project(nodes: list[Node], vendor: str | None) -> dict[str, str]:
+    """Render every node's live config for a whole-project export (NG-CFG-01).
+
+    ``vendor`` renders all nodes to that one dialect (cross-vendor compile);
+    ``None`` renders each node to its native NOS. Nodes with no template for the
+    resolved vendor (e.g. plain hosts/clouds) are skipped, not fatal — the same
+    intent the sim runs on (VLANs/OSPF/BGP/VRF/FHRP, see ``_context``) is what
+    gets rendered, so the export reflects the live model, not stale design text.
+    """
+    out: dict[str, str] = {}
+    for node in sorted(nodes, key=lambda n: n.name):
+        try:
+            out[node.name] = render(node, vendor_for(node, vendor))
+        except ConfigGenError:
+            continue
+    return out
+
+
 def build_artifact(node: Node, requested_vendor: str | None) -> ConfigArtifact:
     vendor = vendor_for(node, requested_vendor)
     content = render(node, vendor)

@@ -541,20 +541,26 @@ def plan_auto_addressing(topo: Topology) -> dict:
 
     assignments: dict[str, dict[str, str]] = {}
     gateways: dict[str, str] = {}
+    assignments6: dict[str, dict[str, str]] = {}
+    gateways6: dict[str, str] = {}
 
     def assign(node_id: str, iface_ref: str, cidr: str) -> None:
         assignments.setdefault(node_id, {})[iface_ref] = cidr
 
-    # 1) Point-to-point /30s.
-    p2p_pool = 0
-    for link_id, a_ref, b_ref, _ in p2p:
+    def assign6(node_id: str, iface_ref: str, cidr: str) -> None:
+        assignments6.setdefault(node_id, {})[iface_ref] = cidr
+
+    # 1) Point-to-point links: /30 (v4) + ULA /64 (v6) per link.
+    for p2p_pool, (link_id, a_ref, b_ref, _) in enumerate(p2p):
         na, nb = node_of(a_ref), node_of(b_ref)
         base = IPv4Address("10.255.0.0") + p2p_pool * 4
-        p2p_pool += 1
         assign(na, a_ref, f"{base + 1}/30")
         assign(nb, b_ref, f"{base + 2}/30")
+        base6 = IPv6Address("fd00:255::") + p2p_pool * 2**64  # fd00:255:0:<n>::/64
+        assign6(na, a_ref, f"{base6 + 1}/64")
+        assign6(nb, b_ref, f"{base6 + 2}/64")
 
-    # 2) LAN /24s per switch domain.
+    # 2) LAN domains: /24 (v4) + ULA /64 (v6) per switch broadcast domain.
     domains: dict[str, list[tuple[str, str]]] = {}  # root -> [(node id, iface ref)]
     for l in topo.links:
         na, nb = node_of(l.a_iface), node_of(l.b_iface)
@@ -568,21 +574,30 @@ def plan_auto_addressing(topo: Topology) -> dict:
     for members in domains.values():
         lan_index += 1
         base = IPv4Address("10.0.0.0") + lan_index * 65536  # 10.<n>.0.0/24
+        base6 = IPv6Address("fd00::") + lan_index * 2**64   # fd00:0:0:<n>::/64
         routers = [m for m in members if str(node_by_id[m[0]].kind) in ("router", "firewall")]
         hosts = [m for m in members if m not in routers]
         addr = 0
         gw_ip: str | None = None
+        gw6: str | None = None
         for nid, ref in routers:
             addr += 1
-            ip = f"{base + addr}/24"
-            assign(nid, ref, ip)
+            assign(nid, ref, f"{base + addr}/24")
+            assign6(nid, ref, f"{base6 + addr}/64")
             if gw_ip is None:
-                gw_ip = str(base + addr)
+                gw_ip, gw6 = str(base + addr), str(base6 + addr)
         addr = max(addr, 9)
         for nid, ref in hosts:
             addr += 1
             assign(nid, ref, f"{base + addr}/24")
+            assign6(nid, ref, f"{base6 + addr}/64")
             if gw_ip is not None:
                 gateways[nid] = gw_ip
+                gateways6[nid] = gw6
 
-    return {"assignments": assignments, "gateways": gateways}
+    return {
+        "assignments": assignments,
+        "gateways": gateways,
+        "assignments6": assignments6,
+        "gateways6": gateways6,
+    }

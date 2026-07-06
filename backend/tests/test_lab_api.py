@@ -225,6 +225,21 @@ async def test_auto_address_wizard_makes_topology_pingable(client):
     )
     assert ping2.json()["received"] == 2
 
+    # NG-TD-03: the wizard is dual-stack — the same p2p link also got a ULA /64,
+    # and the routers reach each other over IPv6 too.
+    p2p_ip6 = next(
+        (ip for i in r2_node["interfaces"] for ip in i["ip"] if ip.endswith("/64")),
+        None,
+    )
+    assert p2p_ip6 is not None and p2p_ip6.startswith("fd00:")
+    ping6 = await client.post(
+        f"/api/lab/{pid}/ping", json={"src": "r1", "dst": p2p_ip6.split("/")[0], "count": 2}
+    )
+    assert ping6.json()["received"] == 2
+    # The host learned an IPv6 default gateway.
+    h1_node = (await client.get(f"/api/nodes/{h1['id']}")).json()
+    assert (h1_node["intent"] or {}).get("gateway6", "").startswith("fd00:")
+
 
 async def test_lab_endpoints_require_auth(anon_client):
     resp = await anon_client.post(

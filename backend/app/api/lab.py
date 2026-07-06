@@ -377,10 +377,12 @@ async def lab_rebuild(project_id: str, r: MemoryRepository = Depends(repo)):
 
 @router.post("/{project_id}/auto-address")
 async def lab_auto_address(project_id: str, r: MemoryRepository = Depends(repo)):
-    """Auto-assign IPv4 addressing to the whole topology and persist it.
+    """Auto-assign dual-stack (IPv4 + IPv6 ULA) addressing to the whole
+    topology and persist it (NG-TD-03).
 
-    /30s for router-to-router links, /24s per switch broadcast domain, host
-    default gateways pointed at the first router in their domain.
+    /30 + /64 for router-to-router links, /24 + /64 per switch broadcast
+    domain, host default gateways (v4 and v6) pointed at the first router in
+    their domain.
     """
     topo = await _topo(r, project_id)
     plan = netlab.plan_auto_addressing(topo)
@@ -388,19 +390,23 @@ async def lab_auto_address(project_id: str, r: MemoryRepository = Depends(repo))
     changed = 0
     for node in topo.nodes:
         node_assign = plan["assignments"].get(node.id) or {}
+        node_assign6 = plan["assignments6"].get(node.id) or {}
         gateway = plan["gateways"].get(node.id)
-        if not node_assign and not gateway:
+        gateway6 = plan["gateways6"].get(node.id)
+        if not node_assign and not node_assign6 and not gateway and not gateway6:
             continue
         interfaces = []
         for iface in node.interfaces:
-            cidr = node_assign.get(iface.id)
-            interfaces.append(
-                iface.model_copy(update={"ip": [cidr]}) if cidr else iface
-            )
+            # v4 first so callers reading ip[0] keep seeing the IPv4 CIDR.
+            ips = [ip for ip in (node_assign.get(iface.id), node_assign6.get(iface.id)) if ip]
+            interfaces.append(iface.model_copy(update={"ip": ips}) if ips else iface)
         patch: dict = {"interfaces": interfaces}
-        if gateway:
+        if gateway or gateway6:
             intent = dict(node.intent or {})
-            intent["gateway"] = gateway
+            if gateway:
+                intent["gateway"] = gateway
+            if gateway6:
+                intent["gateway6"] = gateway6
             patch["intent"] = intent
         updated = await r.update_node(node.id, patch)
         await notify.node_changed(r, updated)

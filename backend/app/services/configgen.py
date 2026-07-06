@@ -15,6 +15,7 @@ security/hardening-guide.md §4 (SSTI mitigation).
 """
 from __future__ import annotations
 
+import difflib
 from pathlib import Path
 
 from jinja2 import ChainableUndefined
@@ -99,7 +100,9 @@ def _context(node: Node) -> dict:
         "hostname": node.name,
         "kind": node.kind,
         "nos": node.nos,
-        "interfaces": [i.model_dump() for i in node.interfaces],
+        # ponytail: PATCH /nodes stores interfaces as raw dicts (model_copy
+        # doesn't re-validate), so tolerate dict-or-model here.
+        "interfaces": [i.model_dump() if hasattr(i, "model_dump") else dict(i) for i in node.interfaces],
         # intent sub-trees (see config-gen/forgeos/schema.md)
         "bgp": intent.get("bgp"),
         "ospf": intent.get("ospf"),
@@ -133,6 +136,19 @@ def render(node: Node, vendor: str) -> str:
         )
     tmpl = _env().get_template(template_name)
     return tmpl.render(**_context(node)).rstrip() + "\n"
+
+
+def config_diff(old: str, new: str, name: str = "config") -> str:
+    """Unified diff between a stored config and a freshly rendered one
+    (NG-CFG-03). Empty string means no change."""
+    return "".join(
+        difflib.unified_diff(
+            old.splitlines(keepends=True),
+            new.splitlines(keepends=True),
+            fromfile=f"{name} (stored)",
+            tofile=f"{name} (regenerated)",
+        )
+    )
 
 
 def export_project(nodes: list[Node], vendor: str | None) -> dict[str, str]:

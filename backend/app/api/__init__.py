@@ -30,6 +30,7 @@ from app.api import (
     signal,
     simulate,
     system,
+    twin,
     update,
     wireless,
 )
@@ -51,6 +52,7 @@ api_router.include_router(links.router, dependencies=_require_auth)
 api_router.include_router(physical.router, dependencies=_require_auth)
 api_router.include_router(fiber.router, dependencies=_require_auth)
 api_router.include_router(report.router, dependencies=_require_auth)
+api_router.include_router(twin.router, dependencies=_require_auth)
 api_router.include_router(scenarios.router, dependencies=_require_auth)
 api_router.include_router(simulate.router, dependencies=_require_auth)
 api_router.include_router(configs.router, dependencies=_require_auth)

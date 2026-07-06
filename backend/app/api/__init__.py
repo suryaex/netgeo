@@ -18,6 +18,7 @@ from app.api import (
     configs,
     device_types,
     education,
+    fiber,
     lab,
     links,
     nodes,
@@ -47,6 +48,7 @@ api_router.include_router(projects.router, dependencies=_require_auth)
 api_router.include_router(nodes.router, dependencies=_require_auth)
 api_router.include_router(links.router, dependencies=_require_auth)
 api_router.include_router(physical.router, dependencies=_require_auth)
+api_router.include_router(fiber.router, dependencies=_require_auth)
 api_router.include_router(scenarios.router, dependencies=_require_auth)
 api_router.include_router(simulate.router, dependencies=_require_auth)
 api_router.include_router(configs.router, dependencies=_require_auth)

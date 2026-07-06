@@ -461,6 +461,77 @@ class GradeResult(_Base):
     items: list[GradeItem] = Field(default_factory=list)
 
 
+# --- fiber plant / FTTH (NG-FI-01/02/03) ------------------------------------
+
+
+class FiberKind(str, Enum):
+    fiber = "fiber"          # a fiber span: length + attenuation/km
+    splitter = "splitter"    # passive 1:N splitter
+    splice = "splice"        # fusion splice
+    connector = "connector"  # mated connector pair
+
+
+class GponClass(str, Enum):
+    """GPON optical power-budget class → usable loss (dB)."""
+
+    b_plus = "b_plus"   # 28 dB
+    c_plus = "c_plus"   # 32 dB
+    c2 = "c2"           # 32 dB (kept distinct for labelling)
+
+
+class FiberElement(_Base):
+    """One passive hop in an OLT→ONU path. Loss derives from ``kind`` + params
+    (see ``services/fiber.py``); ``loss_db`` overrides the derived value."""
+
+    kind: FiberKind
+    length_m: float = 0.0        # fiber only
+    atten_db_km: float = 0.22    # fiber only (G.652 @1550)
+    split_ratio: int = 32        # splitter only (the N in 1:N)
+    loss_db: float | None = None  # explicit override for any element
+    label: str = ""
+
+
+class FiberPath(_Base):
+    """A GPON distribution path (NG-FI-01): an ordered OLT→ONU chain of passive
+    elements, scored against ``gpon_class``'s budget."""
+
+    id: str
+    project_id: str
+    name: str
+    gpon_class: GponClass = GponClass.c_plus
+    elements: list[FiberElement] = Field(default_factory=list)
+
+
+class FiberPathCreate(_Base):
+    project_id: str
+    name: str
+    gpon_class: GponClass = GponClass.c_plus
+    elements: list[FiberElement] = Field(default_factory=list)
+
+
+class FiberPathUpdate(_Base):
+    name: str | None = None
+    gpon_class: GponClass | None = None
+    elements: list[FiberElement] | None = None
+
+
+class FiberCheck(_Base):
+    ok: bool
+    reason: str
+
+
+class LossBudget(_Base):
+    """Auto loss budget + GPON sanity checks for one path (NG-FI-02/03)."""
+
+    total_loss_db: float
+    budget_db: float
+    margin_db: float
+    passed: bool
+    total_length_m: float
+    total_split: int
+    checks: list[FiberCheck] = Field(default_factory=list)
+
+
 # --- wireless / RF planning -------------------------------------------------
 class LinkBudgetRequest(_Base):
     """Compute a single point-to-point budget. Either give an explicit

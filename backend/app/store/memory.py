@@ -19,6 +19,7 @@ from app.models import (
     Activity,
     ConfigArtifact,
     Cable,
+    FiberPath,
     GradeResult,
     Link,
     Node,
@@ -82,6 +83,8 @@ class MemoryRepository:
         self._sites: dict[str, Site] = {}
         self._racks: dict[str, Rack] = {}
         self._cables: dict[str, Cable] = {}
+        # Fiber plant (NG-FI-01)
+        self._fiber_paths: dict[str, FiberPath] = {}
         # Education activities (NG-EDU-01)
         self._activities: dict[str, Activity] = {}
         # Graded attempts (NG-EDU-03), keyed by result id.
@@ -305,6 +308,36 @@ class MemoryRepository:
         return [
             g for g in self._grade_results.values() if g.activity_id == activity_id
         ]
+
+    # --- fiber plant (NG-FI-01) ---------------------------------------------
+    async def list_fiber_paths(self, pid: str) -> list[FiberPath]:
+        return [p for p in self._fiber_paths.values() if p.project_id == pid]
+
+    async def get_fiber_path(self, fid: str) -> FiberPath:
+        try:
+            return self._fiber_paths[fid]
+        except KeyError as exc:
+            raise NotFound(fid) from exc
+
+    async def add_fiber_path(self, path: FiberPath) -> FiberPath:
+        async with self._lock:
+            self._fiber_paths[path.id] = path
+            return path
+
+    async def update_fiber_path(self, fid: str, patch: dict) -> FiberPath:
+        async with self._lock:
+            path = self._fiber_paths.get(fid)
+            if path is None:
+                raise NotFound(fid)
+            updated = path.model_copy(update={k: v for k, v in patch.items() if v is not None})
+            self._fiber_paths[fid] = updated
+            return updated
+
+    async def delete_fiber_path(self, fid: str) -> None:
+        async with self._lock:
+            if fid not in self._fiber_paths:
+                raise NotFound(fid)
+            del self._fiber_paths[fid]
 
     # --- config artifacts (append-only history) -----------------------------
     async def add_config(self, artifact: ConfigArtifact) -> ConfigArtifact:

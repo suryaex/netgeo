@@ -100,6 +100,52 @@ class RateLimitMiddleware:
 
 
 # ---------------------------------------------------------------------------
+# Request body size cap (resource-exhaustion guard)
+# ---------------------------------------------------------------------------
+
+# Every write path takes a bounded JSON body; a project archive is the largest
+# legitimate one. 16 MiB comfortably fits a big project while stopping an
+# OOM-scale paste/upload before any handler parses it.
+_MAX_BODY_BYTES = 16 * 1024 * 1024
+
+_BODY_TOO_LARGE = json.dumps(
+    {"success": False, "error": {"code": "BODY_TOO_LARGE", "message": "Request body too large."}}
+).encode()
+
+
+class MaxBodySizeMiddleware:
+    """Reject an over-large request body with 413 before it is read (pure ASGI).
+
+    Header-based: a declared ``Content-Length`` above the cap is refused.
+    ponytail: chunked uploads without a Content-Length aren't capped here — add a
+    receive-wrapper byte counter if a streaming upload path ever appears (today
+    every write endpoint takes a bounded JSON body).
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
+        if scope["type"] == "http":
+            for key, value in scope.get("headers", []):
+                if key == b"content-length":
+                    try:
+                        too_big = int(value) > _MAX_BODY_BYTES
+                    except ValueError:
+                        too_big = False
+                    if too_big:
+                        await send({
+                            "type": "http.response.start",
+                            "status": 413,
+                            "headers": [[b"content-type", b"application/json"]],
+                        })
+                        await send({"type": "http.response.body", "body": _BODY_TOO_LARGE})
+                        return
+                    break
+        await self.app(scope, receive, send)
+
+
+# ---------------------------------------------------------------------------
 # Security response headers
 # ---------------------------------------------------------------------------
 
@@ -215,6 +261,9 @@ def create_app() -> FastAPI:
 
     # RB-14: in-process rate limiter (outermost middleware so it runs before auth)
     app.add_middleware(RateLimitMiddleware)
+
+    # Reject oversized request bodies before any handler parses them.
+    app.add_middleware(MaxBodySizeMiddleware)
 
     # RB-09: baseline security response headers (+ HSTS when ENABLE_HSTS=1)
     app.add_middleware(SecurityHeadersMiddleware)

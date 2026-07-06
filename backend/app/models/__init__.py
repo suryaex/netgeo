@@ -4,6 +4,7 @@ from __future__ import annotations
 from app.models.schemas import (  # noqa: F401
     Activity,
     ActivityCreate,
+    BomItem,
     Cable,
     CableCreate,
     CableMedia,

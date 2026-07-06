@@ -532,6 +532,16 @@ class LossBudget(_Base):
     checks: list[FiberCheck] = Field(default_factory=list)
 
 
+class BomItem(_Base):
+    """One line of a project bill of materials (NG-FI-04)."""
+
+    category: str
+    item: str
+    qty: float
+    unit: str = ""
+    notes: str = ""
+
+
 # --- wireless / RF planning -------------------------------------------------
 class LinkBudgetRequest(_Base):
     """Compute a single point-to-point budget. Either give an explicit

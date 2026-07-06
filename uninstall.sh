@@ -2,12 +2,19 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # NetGeo — uninstaller (Docker stack)
 #
-# Run before a major update or to switch versions.
+# Run before a major update or to remove NetGeo from a machine.
 #
 # Usage:
-#   bash uninstall.sh           # stop + remove containers, KEEP data (volumes)
-#   bash uninstall.sh --purge   # ALSO delete Postgres + Redis data (volumes/images)
+#   bash uninstall.sh           # stop + remove containers, KEEP data + system config
+#   bash uninstall.sh --purge   # FULL clean: also delete data volumes, local images,
+#                               #   the update-watcher service, the firewall rule this
+#                               #   installer opened, and /var/lib/netgeo — restoring
+#                               #   the host to its pre-install state.
 #   bash uninstall.sh --yes     # no confirmation prompt
+#
+# Deliberately NOT touched (shared, host-level — not created for NetGeo alone):
+#   the Docker engine itself (and docker0), and Tailscale (tailscale0). Remove
+#   those by hand if you truly want them gone.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 cd "$(dirname "$0")"
@@ -22,9 +29,21 @@ for a in "$@"; do case "$a" in
   --yes|-y) ASSUME_YES=1 ;;
 esac; done
 
+# State dir + recorded install env (mirrors install.sh). install.env records the
+# HTTP_PORT that was actually opened, so we reverse the right firewall rule.
+STATE_DIR="${NETGEO_STATE_DIR:-/var/lib/netgeo}"
+_ENV_HTTP_PORT="${HTTP_PORT:-}"
+# shellcheck disable=SC1090,SC1091
+[ -f "$STATE_DIR/install.env" ] && . "$STATE_DIR/install.env" 2>/dev/null || true
+HTTP_PORT="${_ENV_HTTP_PORT:-${HTTP_PORT:-8090}}"
+
 if [[ "$ASSUME_YES" != "1" ]]; then
   echo "This will stop and remove NetGeo from this machine."
-  [[ "$PURGE" == "1" ]] && echo -e "${RED}--purge: the database (Postgres), Redis data and Docker volumes will be DELETED.${NC}"
+  if [[ "$PURGE" == "1" ]]; then
+    echo -e "${RED}--purge: DELETES the database (Postgres), Redis data and Docker volumes,${NC}"
+    echo -e "${RED}         removes local NetGeo images, the netgeo-updater service, the TCP ${HTTP_PORT}${NC}"
+    echo -e "${RED}         firewall rule, and ${STATE_DIR}. The Docker engine and Tailscale are kept.${NC}"
+  fi
   read -r -p "Type 'yes' to continue: " c; [[ "$c" == "yes" ]] || { echo "Aborted."; exit 0; }
 fi
 
@@ -32,36 +51,91 @@ fi
 DEV_CF="infra/docker-compose.yml"
 LAN_CF="infra/docker-compose.lan.yml"
 PROD_CF="infra/docker-compose.prod.yml"
-HTTP_PORT="${HTTP_PORT:-8090}"
 
 COMPOSE=""
 if docker compose version >/dev/null 2>&1; then COMPOSE="docker compose"
 elif sudo docker compose version >/dev/null 2>&1; then COMPOSE="sudo docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then COMPOSE="docker-compose"; fi
 
-if [[ -z "$COMPOSE" ]]; then warn "Docker Compose not found — nothing to stop."; say "NetGeo uninstall complete."; exit 0; fi
-
+# --purge extras: -v drops named volumes, --rmi local drops the images this
+# stack built locally (compose down leaves them otherwise).
 DOWN_FLAGS="--remove-orphans"
-[[ "$PURGE" == "1" ]] && DOWN_FLAGS="$DOWN_FLAGS -v"
+[[ "$PURGE" == "1" ]] && DOWN_FLAGS="$DOWN_FLAGS -v --rmi local"
 
-# Production stack (uses infra/.env.prod if present).
-if [[ -f "$PROD_CF" ]]; then
-  say "Stopping production stack (if running)…"
-  ENVOPT=""; [[ -f infra/.env.prod ]] && ENVOPT="--env-file infra/.env.prod"
-  HTTP_PORT="$HTTP_PORT" $COMPOSE $ENVOPT -f "$PROD_CF" down $DOWN_FLAGS 2>/dev/null || true
+if [[ -z "$COMPOSE" ]]; then
+  warn "Docker Compose not found — skipping container teardown."
+else
+  # Production stack (uses infra/.env.prod if present).
+  if [[ -f "$PROD_CF" ]]; then
+    say "Stopping production stack (if running)…"
+    ENVOPT=""; [[ -f infra/.env.prod ]] && ENVOPT="--env-file infra/.env.prod"
+    HTTP_PORT="$HTTP_PORT" $COMPOSE $ENVOPT -f "$PROD_CF" down $DOWN_FLAGS 2>/dev/null || true
+  fi
+  # Development stack + LAN gateway overlay.
+  if [[ -f "$DEV_CF" ]]; then
+    say "Stopping development stack + LAN gateway (if running)…"
+    CF="-f $DEV_CF"; [[ -f "$LAN_CF" ]] && CF="$CF -f $LAN_CF"
+    HTTP_PORT="$HTTP_PORT" $COMPOSE $CF down $DOWN_FLAGS 2>/dev/null || true
+  fi
 fi
 
-# Development stack + LAN gateway overlay.
-if [[ -f "$DEV_CF" ]]; then
-  say "Stopping development stack + LAN gateway (if running)…"
-  CF="-f $DEV_CF"; [[ -f "$LAN_CF" ]] && CF="$CF -f $LAN_CF"
-  HTTP_PORT="$HTTP_PORT" $COMPOSE $CF down $DOWN_FLAGS 2>/dev/null || true
-fi
+# ── System-config cleanup (--purge only): undo what install.sh provisioned ──
+is_wsl() { grep -qiE "(microsoft|wsl)" /proc/version 2>/dev/null; }
+
+remove_updater_service() {
+  command -v systemctl >/dev/null 2>&1 || return 0
+  local unit="/etc/systemd/system/netgeo-updater.service"
+  if [[ -f "$unit" ]] || systemctl list-unit-files 2>/dev/null | grep -q '^netgeo-updater'; then
+    sudo systemctl disable --now netgeo-updater.service >/dev/null 2>&1 || true
+    sudo rm -f "$unit" >/dev/null 2>&1 || true
+    sudo systemctl daemon-reload >/dev/null 2>&1 || true
+    say "Removed the update-watcher service (netgeo-updater)."
+  fi
+}
+
+close_firewall() {  # reverse install.sh's open_firewall for the recorded port
+  local port="$1" removed=""
+  if command -v firewall-cmd >/dev/null 2>&1 && sudo firewall-cmd --state >/dev/null 2>&1; then
+    sudo firewall-cmd --permanent --remove-port="${port}/tcp" >/dev/null 2>&1 || true
+    sudo firewall-cmd --reload >/dev/null 2>&1 || true
+    removed="firewalld"
+  elif command -v ufw >/dev/null 2>&1 && sudo ufw status 2>/dev/null | grep -qi active; then
+    sudo ufw delete allow "${port}/tcp" >/dev/null 2>&1 || true
+    removed="ufw"
+  elif command -v iptables >/dev/null 2>&1; then
+    # Drop every copy we may have inserted across re-runs.
+    while sudo iptables -C INPUT -p tcp --dport "${port}" -j ACCEPT >/dev/null 2>&1; do
+      sudo iptables -D INPUT -p tcp --dport "${port}" -j ACCEPT >/dev/null 2>&1 || break
+    done
+    removed="iptables"
+  fi
+  [[ -n "$removed" ]] && say "Closed TCP ${port} in the host firewall (${removed})."
+}
+
+remove_wsl_firewall() {  # reverse the Windows-side rule + portproxy on WSL
+  is_wsl || return 0
+  command -v powershell.exe >/dev/null 2>&1 || return 0
+  local port="$1" ps enc
+  ps="netsh interface portproxy delete v4tov4 listenaddress=0.0.0.0 listenport=${port} 2>\$null | Out-Null; Remove-NetFirewallRule -DisplayName 'NetGeo ${port}' -ErrorAction SilentlyContinue; Remove-NetFirewallHyperVRule -Name 'NetGeo-${port}' -ErrorAction SilentlyContinue"
+  enc="$(powershell.exe -NoProfile -Command "[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('${ps}'))" 2>/dev/null | tr -d '\r')"
+  if [[ -n "$enc" ]] && powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-EncodedCommand','${enc}'" >/dev/null 2>&1; then
+    say "Removed the Windows firewall rule + portproxy for TCP ${port}."
+  fi
+}
 
 if [[ "$PURGE" == "1" ]]; then
-  warn "Docker volumes (pgdata, redisdata, frontend_node_modules) deleted."
+  say "Purging system configuration installed by NetGeo…"
+  remove_updater_service
+  close_firewall "$HTTP_PORT"
+  remove_wsl_firewall "$HTTP_PORT"
+  if [[ -d "$STATE_DIR" ]]; then
+    sudo rm -rf "$STATE_DIR" 2>/dev/null || rm -rf "$STATE_DIR" 2>/dev/null || true
+    say "Removed state directory ${STATE_DIR}."
+  fi
+  warn "Data volumes + local images deleted."
+  warn "Kept (shared, not NetGeo-only): the Docker engine (docker0) and Tailscale (tailscale0)."
 else
-  say "Volumes kept (pgdata, redisdata). Use --purge to delete them."
+  say "Volumes, images and system config kept. Use --purge for a full clean."
 fi
 
 say "NetGeo uninstall complete."

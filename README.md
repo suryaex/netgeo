@@ -53,7 +53,8 @@ API docs         ->  http://<LAN-IP>:8090/docs
 | `./install.sh --down` | Stop the stack |
 | `./install.sh --reset` | Stop and delete all data |
 | `HTTP_PORT=9000 ./install.sh` | Use a different port |
-| `./uninstall.sh` | Uninstall (keep data) |
+| `./uninstall.sh` | Uninstall (keep data + system config) |
+| `./uninstall.sh --purge` | Full clean — also remove data volumes, local images, the update-watcher service, the firewall rule, and `/var/lib/netgeo` (Docker engine & Tailscale kept) |
 
 <details>
 <summary>Run backend / frontend directly (development)</summary>

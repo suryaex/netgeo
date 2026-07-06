@@ -12,6 +12,11 @@
 #                               #   the host to its pre-install state.
 #   bash uninstall.sh --yes     # no confirmation prompt
 #
+# Already deleted the repo? --purge still works from anywhere (it finds NetGeo's
+# Docker footprint by label/name, no compose files needed). Fetch + run:
+#   curl -fsSL https://raw.githubusercontent.com/suryaex/netgeo/main/uninstall.sh \
+#     | sudo bash -s -- --purge --yes
+#
 # Deliberately NOT touched (shared, host-level — not created for NetGeo alone):
 #   the Docker engine itself (and docker0), and Tailscale (tailscale0). Remove
 #   those by hand if you truly want them gone.
@@ -82,6 +87,35 @@ fi
 # ── System-config cleanup (--purge only): undo what install.sh provisioned ──
 is_wsl() { grep -qiE "(microsoft|wsl)" /proc/version 2>/dev/null; }
 
+# Repo-independent teardown: find NetGeo's Docker footprint by compose-project
+# label and name prefix, so a --purge still works even when the repo directory
+# (and its compose files) has already been deleted — the exact orphan case where
+# `docker compose down` above finds nothing to do.
+docker_purge_leftovers() {
+  local DK=""
+  if docker info >/dev/null 2>&1; then DK="docker"
+  elif sudo docker info >/dev/null 2>&1; then DK="sudo docker"
+  else return 0; fi
+
+  local ids vols nets imgs
+  ids="$($DK ps -aq --filter 'label=com.docker.compose.project=netgeo' 2>/dev/null; \
+         $DK ps -aq --filter 'name=netgeo' 2>/dev/null | sort -u)"
+  # shellcheck disable=SC2086
+  [[ -n "$ids" ]] && { $DK rm -f $ids >/dev/null 2>&1 || true; say "Removed NetGeo containers."; }
+
+  vols="$($DK volume ls -q 2>/dev/null | grep -E '^netgeo[-_]' || true)"
+  # shellcheck disable=SC2086
+  [[ -n "$vols" ]] && { $DK volume rm -f $vols >/dev/null 2>&1 || true; say "Removed NetGeo volumes."; }
+
+  nets="$($DK network ls --format '{{.Name}}' 2>/dev/null | grep -E '^netgeo[-_]' || true)"
+  for n in $nets; do $DK network rm "$n" >/dev/null 2>&1 || true; done
+  [[ -n "$nets" ]] && say "Removed NetGeo networks."
+
+  imgs="$($DK images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -E '(^|/)netgeo[-_/]' || true)"
+  # shellcheck disable=SC2086
+  [[ -n "$imgs" ]] && { $DK rmi -f $imgs >/dev/null 2>&1 || true; say "Removed NetGeo images."; }
+}
+
 remove_updater_service() {
   command -v systemctl >/dev/null 2>&1 || return 0
   local unit="/etc/systemd/system/netgeo-updater.service"
@@ -125,6 +159,7 @@ remove_wsl_firewall() {  # reverse the Windows-side rule + portproxy on WSL
 
 if [[ "$PURGE" == "1" ]]; then
   say "Purging system configuration installed by NetGeo…"
+  docker_purge_leftovers          # catch stragglers even if the repo is gone
   remove_updater_service
   close_firewall "$HTTP_PORT"
   remove_wsl_firewall "$HTTP_PORT"

@@ -56,6 +56,12 @@ API docs         ->  http://<LAN-IP>:8090/docs
 | `./uninstall.sh` | Uninstall (keep data + system config) |
 | `./uninstall.sh --purge` | Full clean — also remove data volumes, local images, the update-watcher service, the firewall rule, and `/var/lib/netgeo` (Docker engine & Tailscale kept) |
 
+> Already deleted the repo folder? `--purge` still cleans up — it finds NetGeo's
+> Docker footprint by name, no compose files needed:
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/suryaex/netgeo/main/uninstall.sh | sudo bash -s -- --purge --yes
+> ```
+
 <details>
 <summary>Run backend / frontend directly (development)</summary>
 

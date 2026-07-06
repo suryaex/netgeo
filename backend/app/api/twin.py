@@ -6,12 +6,13 @@ so an existing network can be brought into the twin from its running configs.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from app.api.deps import repo, translate_not_found
-from app.exceptions.base import AppException
-from app.models import Interface, Node
-from app.services import configimport, notify
+from app.exceptions.base import AppException, SimulationError
+from app.models import Interface, Link, Node
+from app.services import configimport, notify, reachability
 from app.store import MemoryRepository
 from app.store import NotFound as StoreNotFound
 from app.utils.ids import new_id
@@ -48,15 +49,84 @@ async def import_config(
         Interface(id=new_id(), node_id=nid, name=i["name"], ip=i["ip"])
         for i in parsed["interfaces"]
     ]
+    intent = {"static_routes": parsed["static_routes"], "imported": True}
+    for proto in ("ospf", "bgp"):
+        if parsed.get(proto):
+            intent[proto] = parsed[proto]
     node = Node(
         id=nid,
         project_id=project_id,
         name=parsed["hostname"],
         kind="router",
-        nos=body.vendor.lower(),
+        nos=body.vendor.lower() if body.vendor.lower() in ("routeros", "mikrotik") else "ios",
         interfaces=ifaces,
-        intent={"static_routes": parsed["static_routes"], "imported": True},
+        intent=intent,
     )
     created = await r.add_node(node)
     await notify.node_changed(r, created)
     return created
+
+
+@router.post("/projects/{project_id}/infer-links", response_model=list[Link], status_code=201)
+async def infer_links(project_id: str, r: MemoryRepository = Depends(repo)):
+    """Wire interfaces that share an IP subnet (NG-TW-01) so the imported set
+    becomes a connected twin. Idempotent: pairs already linked are skipped."""
+    try:
+        topo = await r.topology(project_id)
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+
+    owner = {i.id: n.id for n in topo.nodes for i in n.interfaces}
+    entries = [
+        (i.id, n.id, cidr)
+        for n in topo.nodes
+        for i in n.interfaces
+        for cidr in i.ip
+    ]
+    linked = {frozenset((l.a_iface, l.b_iface)) for l in topo.links}
+
+    created: list[Link] = []
+    for a_iface, b_iface in configimport.infer_links(entries):
+        if frozenset((a_iface, b_iface)) in linked:
+            continue
+        link = Link(id=new_id(), project_id=project_id, a_iface=a_iface, b_iface=b_iface)
+        await r.add_link(link)
+        linked.add(frozenset((a_iface, b_iface)))
+        # Best-effort UI wiring: claim peer_link_id only where the port is free.
+        for iface_id in (a_iface, b_iface):
+            node = await r.get_node(owner[iface_id])
+            ifaces = list(node.interfaces)
+            for idx, iface in enumerate(ifaces):
+                if iface.id == iface_id and iface.peer_link_id is None:
+                    ifaces[idx] = iface.model_copy(update={"peer_link_id": link.id})
+                    await r.update_node(node.id, {"interfaces": ifaces})
+                    break
+        await notify.link_changed(r, link)
+        created.append(link)
+    return created
+
+
+class ReachabilityRequest(BaseModel):
+    src: str          # node id or name
+    dst: str          # IPv4/IPv6 literal, or node id/name (first address used)
+    count: int = 3
+
+
+@router.post("/projects/{project_id}/reachability")
+async def reachability_query(
+    project_id: str, body: ReachabilityRequest, r: MemoryRepository = Depends(repo)
+):
+    """Answer "can src reach dst?" over the twin, with path + RIB evidence
+    (NG-TW-02). Runs on an isolated lab, so the live lab is untouched."""
+    try:
+        topo = await r.topology(project_id)
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+
+    def work():
+        return reachability.answer(topo, body.src, body.dst, count=min(body.count, 20))
+
+    try:
+        return await run_in_threadpool(work)
+    except ValueError as exc:
+        raise SimulationError(str(exc)) from exc

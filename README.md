@@ -2,242 +2,41 @@
 
 # NetGeo
 
-**Next-generation large-scale network simulation, planning, GIS/digital-twin, and AI-assistant platform**
+**Self-hosted network simulation, planning & digital-twin platform**
 
-*The simplicity of Cisco Packet Tracer · the depth of GNS3/EVE-NG · telecom-grade RF and optical planning —*
-*unified in a single cross-platform application built for engineers, researchers, and enterprises.*
+*Packet-realistic simulation · RF/fiber planning · config-import digital twin — one cross-platform app.*
 
 [![CI](https://github.com/suryaex/netgeo/actions/workflows/backend.yml/badge.svg)](https://github.com/suryaex/netgeo/actions)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.13+-blue)
 ![React](https://img.shields.io/badge/react-18-61dafb)
-![Status](https://img.shields.io/badge/status-alpha-orange)
 
 </div>
 
 ---
 
-## What is NetGeo?
+## Installation
 
-NetGeo is a **next-generation large-scale network simulation platform** that combines:
+**Prerequisites:** Git, Docker + Docker Compose, and a free port **8090** (override with `HTTP_PORT`).
+On Linux the installer auto-installs Docker (Fedora, Ubuntu, Debian, RHEL, Arch); on Windows/macOS install Docker Desktop first.
 
-- **Network Design and Simulation** — discrete-event simulation engine supporting L2/L3, MPLS, EVPN/VXLAN, BGP, OSPF, IS-IS, Segment Routing, QoS, and more
-- **GIS Planning** — real-world geographic context with elevation, DEM, land use, building footprints, climate, and terrain-aware propagation models
-- **Digital Twin** — live telemetry ingestion, streaming metrics, and what-if simulation against live infrastructure
-- **AI Assistant** — MCP-compatible, provider-agnostic AI that designs topologies, generates vendor configs, detects faults, and optimizes routing
-- **Telecom Validation** — end-to-end validation for fiber, wireless, optical, and IP/MPLS infrastructure from home networks to national backbone
+**One command (Linux / macOS)** — clones the repo and runs the installer:
 
-One application. The complete network engineering lifecycle — from design, through simulation and validation, all the way to deployment planning, documentation, and monitoring integration.
-
----
-
-## One-Command Install
-
-**Linux / macOS** — clones the repo and runs the installer:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/suryaex/netgeo/main/bootstrap.sh | bash
 ```
-Pass installer flags through after `--`, e.g. the production stack:
-```bash
-curl -fsSL https://raw.githubusercontent.com/suryaex/netgeo/main/bootstrap.sh | bash -s -- --prod
-```
 
-**Windows** (PowerShell) — clone, then run the installer:
-```powershell
-git clone https://github.com/suryaex/netgeo.git; cd netgeo; .\install.ps1
-```
-
-> Prefer to inspect before running? Use the manual steps in [Quick Start](#quick-start)
-> (`git clone` + `./install.sh`) — the one-liner above does exactly that.
-
-> NetGeo is designed to start in under 3 seconds and idle below 300 MB RAM, while remaining interactive with projects exceeding 100,000 simulated nodes.
-
----
-
-## Platform Modules
-
-### Workspace
-Multi-project workspace with auto-save, version history, real-time team collaboration, offline mode, and cloud sync. Maximum three clicks to any primary feature.
-
-### Simulation Engine
-Deterministic, packet-level discrete-event simulation (`backend/engine/netstack`).
-**Implemented and tested today:**
-
-| Layer | Implemented (v0.3) | Roadmap |
-|---|---|---|
-| Layer 2 | Ethernet, ARP, MAC learning, 802.1Q VLAN (access/trunk), STP (root election + blocking) | LACP, LLDP |
-| Layer 3 | IPv4, longest-prefix routing, static routes, full ICMP semantics (echo, TTL-exceeded, unreachable, frag-needed) | IPv6, RIP |
-| Dynamic routing | OSPFv2 (hello/adjacency/LSA flooding/SPF/dead-timer failover), BGP-4 (sessions, AS-path, best path, hold timer) | IS-IS, route reflectors |
-| Services | NAT44 (PAT), DHCP (full DORA), DNS, stateless ACL/firewall, priority QoS queues | MPLS/SR, EVPN/VXLAN, IPSec |
-| Link realism | serialization by bandwidth, propagation delay, seeded jitter, loss probability, bounded queues with tail drop, MTU enforcement | corruption models |
-
-Every frame is captured per link (built-in packet inspector), every run is
-bit-for-bit reproducible for a given seed, and each device exposes a live
-CLI (Cisco-like or MikroTik-like) over its real tables: `show ip route`,
-`show ip ospf neighbor`, `show ip bgp summary`, `ping`, `traceroute`,
-`conf t`, and more.
-
-Diagnostics API: `POST /api/lab/{project}/ping | traceroute | cli`,
-`GET /api/lab/{project}/captures | tables/{node}`, and a one-click
-`POST /api/lab/{project}/auto-address` wizard (/30s on router links, /24s per
-LAN, host gateways).
-
-### Wireless Simulation
-| Technology | Parameters |
-|---|---|
-| Wi-Fi 4/5/6/6E/7 | RSSI, SNR, noise floor, interference, channel plan |
-| LTE / 5G NR | Coverage, capacity, handover, beamforming |
-| Microwave | Fresnel zone, rain fade, path loss, terrain profile |
-| LoRaWAN / ZigBee / BLE | Propagation, gateway planning |
-| Satellite | Link budget, elevation angle, latency |
-
-Terrain-aware: DEM elevation, vegetation loss, building attenuation, earth curvature, weather.
-
-### Optical Network
-- GPON and XGS-PON planning with fiber budget and splitter design
-- OTN, DWDM, CWDM with channel plan and amplifier sizing
-- OTDR simulation and fiber fault localization
-
-### GIS Module
-Online and offline maps with:
-- Digital elevation model (DEM)
-- Land use, building footprints, road and rail networks
-- Population density, coastline, river data
-- Climate and weather overlays
-- Earth curvature correction for long-haul wireless and microwave links
-
-### AI Assistant
-- Design network topologies from natural-language intent
-- Generate vendor-specific configurations automatically
-- Detect misconfigurations, routing anomalies, and coverage gaps
-- Optimize routing, capacity, and redundancy
-- Generate technical documentation and reports
-- Explain network concepts interactively
-
-MCP-compatible. Provider-agnostic — works with any LLM backend.
-
-### Device Library
-| Category | Devices |
-|---|---|
-| Routing | Router, L3 Switch, Firewall |
-| Switching | L2 Switch, Access Switch |
-| Wireless | AP, Controller, BTS, Microwave |
-| Optical | OLT, ONU, DWDM Transponder |
-| Compute | Server, Client, IoT |
-| WAN | SD-WAN CPE, Satellite Terminal |
-
-All devices are data-driven and extensible via the plugin system.
-
-### Vendor Support (Plugin Architecture)
-
-| Tier | Vendors |
-|---|---|
-| Routing/Switching | MikroTik RouterOS, Cisco IOS/IOS-XE/NX-OS, Juniper JunOS, Arista EOS, Nokia SR OS |
-| Enterprise/Campus | Ubiquiti, TP-Link Omada, Ruijie, Cambium, OpenWrt |
-| Telecom | Ericsson, Huawei, ZTE, Nokia |
-| Open | Linux Networking, FRRouting, VyOS |
-
-Every vendor is implemented as a sandboxed, signed plugin. New vendors can be added without modifying the core engine.
-
-### Report Generator
-Export to PDF, DOCX, HTML, Markdown, JSON, and YAML. Reports cover topology diagrams, device inventories, IP addressing tables, link budgets, RF coverage maps, and simulation results.
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Presentation Layer                                                  │
-│  Desktop (Tauri)  ·  Web Client  ·  CLI                             │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │  REST /api/v1   WebSocket   gRPC
-┌──────────────────────────────▼──────────────────────────────────────┐
-│  Application Layer           FastAPI (async, Python 3.13+)          │
-│  Workspace Manager · Project Manager · AI Assistant                  │
-│  Simulation Orchestrator · Device Manager · Plugin Manager           │
-│  Map Manager · Report Engine · Event Bus                            │
-└──────────┬─────────────────┬────────────────────┬───────────────────┘
-           │                 │                    │
-┌──────────▼──────┐  ┌───────▼──────┐  ┌─────────▼────────┐
-│  Engine Layer   │  │  Data Layer  │  │  Plugin Layer    │
-│  Routing Engine │  │  SQLite      │  │  Vendor Drivers  │
-│  Switching Eng  │  │  PostgreSQL  │  │  Protocol Mods   │
-│  Wireless Eng   │  │  Redis       │  │  AI Tools        │
-│  Optical Engine │  │  Object Stor │  │  Report Exports  │
-│  GIS Engine     │  └──────────────┘  └──────────────────┘
-│  Packet Engine  │
-│  Validation Eng │
-└─────────────────┘
-```
-
-### Backend Stack
-
-| Component | Technology |
-|---|---|
-| Language | Python 3.13+ |
-| Framework | FastAPI (async) |
-| Concurrency | asyncio, Celery/Dramatiq |
-| Realtime | WebSocket |
-| ORM | SQLAlchemy + Pydantic |
-| Testing | Pytest |
-
-### Frontend Stack
-
-| Component | Technology |
-|---|---|
-| Framework | React 18 + TypeScript |
-| Build | Vite |
-| State | Zustand |
-| Canvas | React Flow |
-| Styling | Tailwind CSS |
-
-### Desktop Runtime
-
-Tauri (primary) for minimal footprint and fast startup. Electron as fallback for environments that require it.
-
-### Infrastructure
-
-Docker + Docker Compose (single-node). Kubernetes optional for enterprise scale.
-
----
-
-## Repository Structure
-
-| Directory | Contents |
-|---|---|
-| `backend/` | FastAPI application, simulation engine (`engine/netstack`: L2/L3/OSPF/BGP/DHCP/DNS/NAT/ACL + per-device CLI; `engine/`: DES kernel & scheduler), API routes, services |
-| `frontend/` | React desktop-class UI — workspace shell, topology canvas, panels, real-time console |
-| `network/devices/library/` | Vendor-agnostic device library (routers, switches, OLT/ONU, firewalls, AP, optical transport) |
-| `infra/` | PostgreSQL schema, migrations, Redis config, Docker Compose files, CI config |
-| `scripts/` | Operational utilities — `self-update.sh` for in-app update flow |
-| `docs/` | Architecture docs, API reference, REBRAND_PLAN |
-| `NetGeo/` | Authoritative product specification documents (vision, PRD, architecture, roadmap) |
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- **Git** + **Docker and Docker Compose**
-  - Linux: installer auto-installs Docker (Fedora, Ubuntu, Debian, RHEL, Arch)
-  - Windows/macOS: install Docker Desktop first
-- Port **8090** free (or set `HTTP_PORT`)
-
-### Install and Run
+**Manual (all platforms)**:
 
 ```bash
-# 1. Clone
 git clone https://github.com/suryaex/netgeo.git
 cd netgeo
-
-# 2. Install, build, and start
-./install.sh            # Linux/macOS
-.\install.ps1           # Windows PowerShell
+./install.sh          # Linux / macOS
+.\install.ps1         # Windows PowerShell
 ```
 
-The installer generates secrets, builds the full stack (PostgreSQL + Redis + FastAPI backend + React frontend) behind a single nginx gateway, waits for `/api/health`, and prints access URLs:
+The installer generates secrets, builds the full stack (PostgreSQL + FastAPI backend + React frontend behind an nginx gateway), waits for `/api/health`, and prints the URLs:
 
 ```
 On this machine  ->  http://localhost:8090
@@ -245,105 +44,78 @@ On the network   ->  http://<LAN-IP>:8090
 API docs         ->  http://<LAN-IP>:8090/docs
 ```
 
-### Install Options
+**Common options:**
 
 | Command | Effect |
 |---|---|
-| `./install.sh` | Build + start (dev stack, nginx LAN gateway on port 8090) |
-| `./install.sh --prod` | Production stack (immutable images, nginx, scale) |
-| `./install.sh --rebuild` | Force rebuild images (no cache) |
-| `./install.sh --no-build` | Start without rebuilding |
+| `./install.sh` | Build + start |
+| `./install.sh --rebuild` | Force rebuild (no cache) |
 | `./install.sh --down` | Stop the stack |
-| `./install.sh --reset` | Stop and DELETE all data (volumes) |
-| `./install.sh --tailscale` | Install + join Tailscale, use VPN IP |
-| `./install.sh --public` | Detect public IP and add to CORS |
-| `HTTP_PORT=9000 ./install.sh` | Override HTTP port |
-| `.\install.ps1 -Down` | Windows stop |
+| `./install.sh --reset` | Stop and delete all data |
+| `HTTP_PORT=9000 ./install.sh` | Use a different port |
 | `./uninstall.sh` | Uninstall (keep data) |
-| `./uninstall.sh --purge` | Uninstall + delete all volumes |
-| `make help` | List all Make targets |
-
-### Manual (Component by Component)
 
 <details>
-<summary>Backend, Frontend, raw Docker Compose</summary>
+<summary>Run backend / frontend directly (development)</summary>
 
 ```bash
 # Backend
 cd backend
 python3.13 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000    # http://localhost:8000/docs
+uvicorn app.main:app --reload --port 8000   # http://localhost:8000/docs
 pytest -q
 
 # Frontend
 cd frontend
 npm install
-npm run dev                                  # http://localhost:5173
-
-# Full stack (raw Docker Compose, no LAN gateway)
-docker compose -f infra/docker-compose.yml up --build
+npm run dev                                 # http://localhost:5173
 ```
 
 </details>
 
 ---
 
-## In-App Self-Update
+## Features
 
-NetGeo can check for and apply updates directly from the UI — the download icon in the top menu bar compares the running version against the latest GitHub release, then (optionally) pulls, rebuilds, and restarts.
+A pure-Python engine (no native dependencies — runs on Linux, Windows, and ARM) drives a desktop-class web UI.
 
-- `GET /api/update/check` — compare versions (read-only)
-- `POST /api/update/apply` — execute upgrade (requires `UPDATE_TOKEN`; disabled when empty)
-- `scripts/self-update.sh` — the single auditable script the backend executes: checkout latest tag + `docker compose up -d --build`
+- **Packet-realistic simulation** — a deterministic discrete-event netstack: L2 (MAC learning, 802.1Q VLANs, STP, LAG/LACP), L3 (longest-prefix routing, NAT44, ACLs, DHCP, DNS), dynamic routing (**OSPF** multi-area, **BGP** with route-reflectors & communities), VRRP, and full **IPv4 + IPv6** dual-stack. Every link is captured for packet inspection and every run is bit-for-bit reproducible for a given seed.
 
-Manual: `./scripts/self-update.sh --check` / `--apply` / `--watch`
+- **Live CLI & diagnostics** — each device speaks a Cisco-like or MikroTik-like CLI over its real tables (`show ip route`, `show ip ospf neighbor`, `ping`, `traceroute`, …). Ping / traceroute / capture APIs, pcapng export with a display-filter inspector, and a **simulation mode** with an event ledger you can replay and step back through.
 
----
+- **Digital twin** — import a running device config (**Cisco IOS-like** or **MikroTik RouterOS**, including OSPF/BGP) into the model; link inference wires devices that share a subnet into a connected twin; the **reachability engine** answers *"can A reach B?"* with evidence — ping result, traceroute path, and the source router's routing decision.
 
-## Development Roadmap
+- **RF planning** — FSPL / Hata / COST-231 propagation, coverage rasters, and point-to-point / point-to-multipoint link budgets with automatic product selection.
 
-| Phase | Focus | Status |
-|---|---|---|
-| Phase 0 — Foundation | Vision, architecture, database schema, plugin SDK, API standard | Completed |
-| Phase 1 — Core Platform | Workspace, project manager, device library, canvas, map engine, simulation MVP | Alpha |
-| Phase 2 — Network Simulation | Routing, switching, wireless, optical, traffic generator, packet analyzer | Beta |
-| Phase 3 — Enterprise | Collaboration, RBAC, plugin marketplace, AI assistant, report engine, cloud sync | Planned |
-| Phase 4 — Telecom Planning | RF planning, GPON/fiber planning, microwave planning, capacity planning | Planned |
-| Phase 5 — Digital Twin | Live monitoring, streaming telemetry, predictive AI, what-if simulation | Planned |
-| Phase 6 — Ecosystem | Public SDK, plugin marketplace, vendor certification, enterprise support | Planned |
+- **Fiber & FTTH** — GPON loss-budget planner with splitter tables, plus bill-of-materials and HTML report generation.
 
-**Success Metrics:** startup < 3 s, idle RAM < 300 MB, 1,000,000 simulated devices, 60 FPS canvas, cross-platform.
+- **Physical plant** — sites, racks, and cabling with rack-unit placement, a rack elevation view, and cable-length-driven propagation delay.
+
+- **Education** — author lab activities and auto-grade a student's topology (interface addressing, VLANs, OSPF adjacency, reachability), with timed and shareable labs.
+
+- **Addressing & config** — one-click dual-stack (IPv4 + IPv6 ULA) auto-addressing wizard, whole-project vendor config export, and a config regeneration diff view.
+
+- **Projects** — multi-project workspace with export/import archives, real-time collaboration channel, JWT + WebSocket auth, and in-app self-update from GitHub releases.
+
+Designed to start in under 3 seconds and idle below 300 MB RAM.
 
 ---
 
-## Target Users
+## Tech stack
 
-- Students and researchers
-- Network engineers and architects
-- ISPs and mobile operators
-- Data center and cloud engineers
-- Telecommunications regulators and government
-- Enterprise IT and operations teams
+**Backend:** Python 3.13+, FastAPI (async), Pydantic, PostgreSQL, Pytest.
+**Frontend:** React 18 + TypeScript, Vite, Zustand, React Flow, Tailwind CSS.
+**Infra:** Docker + Docker Compose behind an nginx gateway.
 
 ---
 
-## Security
+## Roadmap (post-1.0)
 
-- RBAC with role-based access control
-- Plugin sandbox and digital signature validation
-- Secret vault integration
-- Audit log for all simulation and configuration actions
-- OAuth2, API Key, JWT, and Personal Access Token authentication
-
----
-
-## Contributing
-
-Contributions use DCO and SemVer. Open an issue or pull request at [github.com/suryaex/netgeo](https://github.com/suryaex/netgeo).
+Picked by demand, not order: IS-IS / MPLS / Segment Routing / EVPN-VXLAN, twin drift-diff & telemetry overlay, RF interference & Monte-Carlo, a GNS3-class emulation bridge, and an MCP-compatible AI assistant.
 
 ---
 
 ## License
 
-[Apache-2.0](LICENSE) (c) Muhammad Surya Ragasin — Politeknik Negeri Sriwijaya, D4 Teknik Telekomunikasi.
+[Apache-2.0](LICENSE) © Muhammad Surya Ragasin — Politeknik Negeri Sriwijaya, D4 Teknik Telekomunikasi.

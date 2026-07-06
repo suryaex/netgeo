@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.deps import repo, translate_not_found
 from app.exceptions.base import AppException, SimulationError
@@ -27,7 +27,10 @@ class ImportConfigFailed(AppException):
 
 class ImportConfigRequest(BaseModel):
     vendor: str = "ios"
-    text: str
+    # Trust boundary: config text is untrusted and drives regex parsers. Cap it
+    # (a real device config is well under this) so a giant paste can't tie up a
+    # worker thread. 422 on overflow via pydantic.
+    text: str = Field(max_length=512 * 1024)
 
 
 @router.post("/projects/{project_id}/import-config", response_model=Node, status_code=201)

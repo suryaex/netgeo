@@ -166,6 +166,24 @@ async def test_reachability_answers_with_evidence(client):
     assert ans["route"]["next_hop"] == "10.0.0.1"  # R2's RIB decision = default via R1
 
 
+def test_parse_tolerates_junk():
+    # Untrusted input must never raise — honest partial parse.
+    p = parse_ios("\x00 random ;; not a config !!!\nnetwork boom")
+    assert p == {"hostname": "imported", "interfaces": [], "static_routes": []}
+    assert parse_routeros("garbage\n/ip address\nadd nope")["interfaces"] == []
+
+
+async def test_import_rejects_bad_mask_and_oversized(client):
+    pid = (await client.post("/api/projects", json={"name": "t"})).json()["id"]
+    # A mask that matches the regex but isn't a valid netmask → 422, not 500.
+    bad = "interface eth0\n ip address 10.0.0.1 999.0.0.0\n"
+    assert (await client.post(f"/api/projects/{pid}/import-config",
+            json={"vendor": "ios", "text": bad})).status_code == 422
+    # Oversized paste is rejected at the trust boundary.
+    assert (await client.post(f"/api/projects/{pid}/import-config",
+            json={"vendor": "ios", "text": "x" * (512 * 1024 + 1)})).status_code == 422
+
+
 async def test_reachability_unknown_source_422(client):
     pid = (await client.post("/api/projects", json={"name": "t"})).json()["id"]
     await client.post(f"/api/projects/{pid}/import-config",

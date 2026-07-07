@@ -13,6 +13,7 @@ import type { LosStatus } from '@/services/signalSim';
 import type { MapTileKey } from '@/config/mapTiles';
 import { DEFAULT_TILE } from '@/config/mapTiles';
 import { GIS_LAYERS } from '@/config/gisLayers';
+import { wirelessApi } from '@/api/client';
 
 /** Per-layer runtime state for the GIS layer tree (visibility + opacity). */
 export interface GisLayerState {
@@ -29,8 +30,27 @@ function initialGisLayers(): Record<string, GisLayerState> {
   return out;
 }
 
-export type MapTool = 'select' | 'ap' | 'cpe' | 'tower' | 'measure';
+export type MapTool = 'select' | 'ap' | 'cpe' | 'tower' | 'measure' | 'profile';
 export type MapDeviceKind = 'ap' | 'cpe' | 'tower';
+
+/**
+ * Elevation-profile tool state (Phase B1). The two picked endpoints, the fetched
+ * terrain profile + LoS/Fresnel verdict (reused from the backend `los-check`
+ * endpoint, which proxies the DEM provider), and request parameters.
+ */
+export interface ProfileSample {
+  distance_m: number;
+  elevation_m: number;
+}
+
+export interface ProfileData {
+  points: ProfileSample[];
+  totalDistanceM: number;
+  losClear: boolean;
+  fresnelClear: boolean;
+  worstObstructionM: number;
+  minClearanceRatio: number;
+}
 
 export interface MapDevice {
   id: string;
@@ -126,6 +146,15 @@ interface MapState {
   gisLayers: Record<string, GisLayerState>; // GIS layer tree state (05_MAP_ENGINE)
   gisPanelOpen: boolean;      // GIS layer panel visibility
 
+  // Elevation-profile tool (Phase B1)
+  profilePts: [number, number][]; // 0..2 picked endpoints [lat, lng]
+  profileData: ProfileData | null;
+  profileLoading: boolean;
+  profileError: string | null;
+  profileTxH: number;   // TX antenna height above ground (m)
+  profileRxH: number;   // RX antenna height above ground (m)
+  profileFreq: number;  // link frequency (GHz) for the Fresnel hint
+
   // selectors
   deviceList: () => MapDevice[];
   linkList: () => MapLink[];
@@ -150,6 +179,12 @@ interface MapState {
   setGisLayerOpacity: (id: string, opacity: number) => void;
   toggleGisPanel: (open?: boolean) => void;
 
+  // Elevation-profile tool
+  addProfilePoint: (lat: number, lng: number) => void;
+  clearProfile: () => void;
+  setProfileParams: (patch: { txH?: number; rxH?: number; freq?: number }) => void;
+  runProfile: () => Promise<void>;
+
   /** Rebuild all links (fast, synchronous FSPL only). */
   rebuildLinks: () => void;
   /** Trigger async LOS check for all current links. */
@@ -173,6 +208,14 @@ export const useMapStore = create<MapState>((set, get) => ({
   checkingLos: false,
   gisLayers: initialGisLayers(),
   gisPanelOpen: false,
+
+  profilePts: [],
+  profileData: null,
+  profileLoading: false,
+  profileError: null,
+  profileTxH: 15,
+  profileRxH: 10,
+  profileFreq: 5.8,
 
   deviceList: () => Array.from(get().devices.values()),
   linkList: () => Array.from(get().links.values()),
@@ -253,6 +296,67 @@ export const useMapStore = create<MapState>((set, get) => ({
 
   toggleGisPanel: (open) =>
     set((s) => ({ gisPanelOpen: open ?? !s.gisPanelOpen })),
+
+  addProfilePoint: (lat, lng) => {
+    // Two-click pattern (mirrors the measure tool): a 3rd click starts a fresh
+    // line. Auto-fetches once both endpoints are set.
+    const pts = get().profilePts;
+    const next: [number, number][] =
+      pts.length >= 2 ? [[lat, lng]] : [...pts, [lat, lng]];
+    set({ profilePts: next, profileError: null, ...(next.length < 2 ? { profileData: null } : {}) });
+    if (next.length === 2) void get().runProfile();
+  },
+
+  clearProfile: () =>
+    set({ profilePts: [], profileData: null, profileLoading: false, profileError: null }),
+
+  setProfileParams: (patch) => {
+    set({
+      profileTxH: patch.txH ?? get().profileTxH,
+      profileRxH: patch.rxH ?? get().profileRxH,
+      profileFreq: patch.freq ?? get().profileFreq,
+    });
+    if (get().profilePts.length === 2) void get().runProfile();
+  },
+
+  runProfile: async () => {
+    const { profilePts, profileTxH, profileRxH, profileFreq } = get();
+    if (profilePts.length !== 2) return;
+    const [aLat, aLng] = profilePts[0]!;
+    const [bLat, bLng] = profilePts[1]!;
+    set({ profileLoading: true, profileError: null });
+    try {
+      // ponytail: reuse the backend DEM + LoS/Fresnel endpoint (the pluggable,
+      // SSRF-safe provider abstraction) instead of a frontend elevation provider
+      // layer. Swap the provider server-side in app/services/elevation.py.
+      const res = await wirelessApi.losCheck({
+        a_lat: aLat, a_lon: aLng, b_lat: bLat, b_lon: bLng,
+        frequency_ghz: profileFreq, tx_height_m: profileTxH, rx_height_m: profileRxH,
+        samples: 48,
+      });
+      const points = (res.profile?.points ?? []).map((p) => ({
+        distance_m: p.distance_m,
+        elevation_m: p.elevation_m,
+      }));
+      set({
+        profileData: {
+          points,
+          totalDistanceM: res.profile?.total_distance_m ?? res.distance_m,
+          losClear: res.los_clear,
+          fresnelClear: res.fresnel_clear,
+          worstObstructionM: res.worst_obstruction_m,
+          minClearanceRatio: res.min_clearance_ratio,
+        },
+        profileLoading: false,
+      });
+    } catch (err) {
+      const msg =
+        (err as { status?: number })?.status === 503
+          ? 'Elevation provider unavailable — try again shortly.'
+          : (err as { message?: string })?.message ?? 'Failed to fetch elevation profile.';
+      set({ profileLoading: false, profileError: msg, profileData: null });
+    }
+  },
 
   updateLinkLos: (linkId, los, obstructionDb) =>
     set((s) => {

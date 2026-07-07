@@ -3,7 +3,7 @@
  * Tools: Select, Place AP, Place CPE, Place Tower, Measure Distance.
  * Also includes a rain rate slider for field-condition simulation.
  */
-import { MousePointer2, Radio, Smartphone, RadioTower, Ruler, Trash2, Droplets } from 'lucide-react';
+import { MousePointer2, Radio, Smartphone, RadioTower, Ruler, Mountain, Trash2, Droplets } from 'lucide-react';
 import { useMapStore, rainRateLabel, type MapTool } from '@/store/mapStore';
 import { cn } from '@/lib/cn';
 
@@ -20,6 +20,7 @@ const TOOLS: ToolItem[] = [
   { tool: 'cpe',     icon: Smartphone,    label: 'Place CPE / Client',   color: '#007AFF' },
   { tool: 'tower',   icon: RadioTower,    label: 'Place Tower',          color: '#FF9F0A' },
   { tool: 'measure', icon: Ruler,         label: 'Measure Distance',     color: '#34C759' },
+  { tool: 'profile', icon: Mountain,      label: 'Elevation Profile',    color: '#A0785A' },
 ];
 
 export function MapToolbar() {

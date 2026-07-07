@@ -53,6 +53,7 @@ import { MapDevicePanel } from './MapDevicePanel';
 import { MapOnboardingModal } from './MapOnboardingModal';
 import { MapLayerSwitcher } from './MapLayerSwitcher';
 import { GisLayerPanel } from './GisLayerPanel';
+import { ElevationProfilePanel } from './ElevationProfilePanel';
 import { DeviceLibraryModal } from './DeviceLibraryModal';
 import { Layers as LayersIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -281,12 +282,45 @@ function OsmTowerLayer() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Elevation-profile line — endpoints + connecting line while the tool is used  */
+/* -------------------------------------------------------------------------- */
+function ProfileLine() {
+  const pts = useMapStore((s) => s.profilePts);
+  if (pts.length === 0) return null;
+  return (
+    <>
+      {pts.length === 2 && (
+        <Polyline
+          positions={pts}
+          pathOptions={{ color: '#A0785A', weight: 2.5, opacity: 0.9, dashArray: '2 6' }}
+        />
+      )}
+      {pts.map(([lat, lng], i) => (
+        <CircleMarker
+          key={`${lat},${lng},${i}`}
+          center={[lat, lng]}
+          radius={6}
+          pathOptions={{ color: '#FFFFFF', fillColor: '#A0785A', fillOpacity: 0.95, weight: 2 }}
+        >
+          <Tooltip permanent direction="top" offset={[0, -8]} className="ng-map-label">
+            <span style={{ color: '#C79A73', fontWeight: 700, fontSize: 10 }}>
+              {i === 0 ? 'TX' : 'RX'}
+            </span>
+          </Tooltip>
+        </CircleMarker>
+      ))}
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Map event handler: device placement + distance measure                      */
 /* -------------------------------------------------------------------------- */
 function MapEventHandler() {
   const tool = useMapStore((s) => s.tool);
   const addDevice = useMapStore((s) => s.addDevice);
   const selectDevice = useMapStore((s) => s.selectDevice);
+  const addProfilePoint = useMapStore((s) => s.addProfilePoint);
   const deviceList = useMapStore((s) => s.deviceList());
   const [measureStart, setMeasureStart] = useState<[number, number] | null>(null);
 
@@ -296,6 +330,11 @@ function MapEventHandler() {
 
       if (tool === 'select') {
         selectDevice(null);
+        return;
+      }
+
+      if (tool === 'profile') {
+        addProfilePoint(lat, lng);
         return;
       }
 
@@ -573,6 +612,7 @@ const TOOL_HINTS: Record<string, string> = {
   cpe: 'Click the map to place a CPE client — auto-connects to nearest AP',
   tower: 'Click the map to place a Tower / relay node',
   measure: 'Click two points to measure distance',
+  profile: 'Click two points to draw a terrain elevation profile',
 };
 
 function ToolHint() {
@@ -741,6 +781,9 @@ export function MapView() {
         {/* OSM existing telecom towers — gated by the GIS "Telecom Towers" layer */}
         {towersVisible && <OsmTowerLayer />}
 
+        {/* Elevation-profile tool line + endpoints */}
+        <ProfileLine />
+
         {/* Links — rendered before devices so devices appear on top */}
         {links.map((link) => {
           const from = devById.get(link.fromId);
@@ -767,6 +810,7 @@ export function MapView() {
       <ToolHint />
       <WeatherBar />
       <MapLayerSwitcher />
+      <ElevationProfilePanel />
 
       {/* First-run modal */}
       {showOnboarding && <MapOnboardingModal />}

@@ -456,6 +456,45 @@ export const labApi = {
       .then((r) => r.data),
 };
 
+/* ------------------------------ Wireless / RF ---------------------------- */
+/**
+ * Terrain LoS/Fresnel check (backend `app/api/wireless.py`). When no `profile`
+ * is supplied the server fetches a real DEM elevation profile from its pinned,
+ * SSRF-safe provider and returns it alongside the verdict — the map elevation-
+ * profile tool consumes exactly this. 503 if the DEM provider is unreachable.
+ */
+export interface ElevationSample {
+  lat: number;
+  lon: number;
+  elevation_m: number;
+  distance_m: number;
+}
+export interface ElevationProfile {
+  samples: number;
+  total_distance_m: number;
+  points: ElevationSample[];
+}
+export interface LosCheckResult {
+  los_clear: boolean;
+  fresnel_clear: boolean;
+  worst_obstruction_m: number;
+  min_clearance_ratio: number;
+  distance_m: number;
+  profile: ElevationProfile | null;
+}
+export const wirelessApi = {
+  losCheck: (body: {
+    a_lat: number;
+    a_lon: number;
+    b_lat: number;
+    b_lon: number;
+    frequency_ghz?: number;
+    tx_height_m?: number;
+    rx_height_m?: number;
+    samples?: number;
+  }) => http.post<LosCheckResult>('/wireless/los-check', body).then((r) => r.data),
+};
+
 /* ----------------------------- Config-gen -------------------------------- */
 export const configsApi = {
   generate: (nodeId: string, vendor?: string) =>

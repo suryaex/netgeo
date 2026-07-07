@@ -11,7 +11,7 @@
  * cheap. Node moves are committed locally immediately, pushed to the server
  * on drag-stop only (not on every frame).
  */
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -19,6 +19,7 @@ import {
   ConnectionMode,
   Controls,
   MiniMap,
+  Panel,
   type Connection,
   type Edge,
   type Node,
@@ -28,18 +29,30 @@ import {
   type ReactFlowInstance,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Search, Plus, X } from 'lucide-react';
 import { DeviceNode, type DeviceNodeData } from './DeviceNode';
 import { PulseEdge } from './PulseEdge';
 import { useTopologyStore } from '@/store/topologyStore';
 import { useUiStore } from '@/store/uiStore';
 import { useLabStore } from '@/store/labStore';
+import { useWindowStore } from '@/store/windowStore';
 import { nodesApi, linksApi } from '@/api/client';
 import { deviceByKey } from '@/data/deviceCatalog';
 import { linkStatusColors, nodeColors } from '@/theme/tokens';
-import type { NodeModel } from '@/api/types';
+import type { LinkType, NodeModel } from '@/api/types';
+import { cn } from '@/lib/cn';
 
 const nodeTypes = { device: DeviceNode };
 const edgeTypes = { pulse: PulseEdge };
+
+/** Type-aware edge styling: fiber solid+bold, copper solid, wireless/virtual dashed. */
+const EDGE_WIDTH: Record<LinkType, number> = { fiber: 2.6, copper: 2, wireless: 2, virtual: 1.6 };
+const EDGE_DASH: Record<LinkType, string | undefined> = {
+  fiber: undefined,
+  copper: undefined,
+  wireless: '4 5',
+  virtual: '1 6',
+};
 
 export function TopologyCanvas() {
   const rfRef = useRef<ReactFlowInstance<Node<DeviceNodeData>, Edge> | null>(null);
@@ -52,6 +65,16 @@ export function TopologyCanvas() {
   const upsertLink = useTopologyStore((s) => s.upsertLink);
   const select = useTopologyStore((s) => s.select);
   const projectId = useUiStore((s) => s.projectId);
+  const openApp = useWindowStore((s) => s.toggleApp);
+
+  /** Select a node and pan/zoom the viewport to center it (search "locate"). */
+  const locateNode = useCallback(
+    (n: NodeModel) => {
+      select({ nodeId: n.id });
+      rfRef.current?.setCenter(n.x, n.y, { zoom: 1.2, duration: 400 });
+    },
+    [select],
+  );
 
   // Project store Maps -> React Flow nodes/edges (memoized by identity).
   const rfNodes: Node<DeviceNodeData>[] = useMemo(
@@ -61,7 +84,14 @@ export function TopologyCanvas() {
         type: 'device',
         position: { x: n.x, y: n.y },
         selected: n.id === selectedNodeId,
-        data: { name: n.name, kind: n.kind, nos: n.nos, mode: n.mode, status: n.status },
+        data: {
+          name: n.name,
+          kind: n.kind,
+          nos: n.nos,
+          mode: n.mode,
+          status: n.status,
+          ip: mgmtIp(n),
+        },
       })),
     [nodesMap, selectedNodeId],
   );
@@ -87,7 +117,11 @@ export function TopologyCanvas() {
           target,
           type: 'pulse',
           animated: l.type === 'wireless',
-          style: { stroke: color, strokeDasharray: l.type === 'fiber' ? '0' : '6 3' },
+          style: {
+            stroke: color,
+            strokeWidth: EDGE_WIDTH[l.type] ?? 2,
+            strokeDasharray: EDGE_DASH[l.type],
+          },
           data: {
             type: l.type,
             bandwidth: l.bandwidth,
@@ -226,13 +260,132 @@ export function TopologyCanvas() {
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--ng-border)" />
         <Controls className="!border-fg/10 !bg-fg/5 backdrop-blur" />
-        <MiniMap
-          pannable
-          zoomable
-          nodeColor={(n) => nodeColors[(n.data as DeviceNodeData).kind] ?? '#888'}
-          className="!rounded-md !border !border-fg/10 !bg-recess/30"
-        />
+
+        <Panel position="top-left" className="!m-3">
+          <CanvasToolbar
+            nodes={rfNodes.length}
+            allNodes={nodesMap}
+            onLocate={locateNode}
+            onAddDevice={() => openApp('palette', 'Device Palette')}
+          />
+        </Panel>
+
+        {/* MiniMap only once there's something to map — no empty gray box. */}
+        {rfNodes.length > 0 && (
+          <MiniMap
+            pannable
+            zoomable
+            nodeStrokeWidth={0}
+            nodeBorderRadius={3}
+            offsetScale={4}
+            nodeColor={(n) => nodeColors[(n.data as DeviceNodeData).kind] ?? '#888'}
+            style={{ width: 168, height: 112 }}
+            className="!m-3 !rounded-lg !border !border-fg/10 !bg-surface/70 !shadow-glass backdrop-blur"
+          />
+        )}
       </ReactFlow>
+    </div>
+  );
+}
+
+/* --------------------------- Canvas toolbar ------------------------------- */
+/**
+ * Slim floating toolbar (UISP-style): a device "locate" search that centers the
+ * viewport on a matched node, plus an add-device shortcut that opens the palette.
+ * ponytail: pan/zoom/fit live in React Flow's <Controls>; we don't duplicate
+ * them here, and modal select/link/measure "modes" are direct-manipulation
+ * already (drag a handle to link, drag from palette to add) — no dead buttons.
+ */
+function CanvasToolbar({
+  nodes,
+  allNodes,
+  onLocate,
+  onAddDevice,
+}: {
+  nodes: number;
+  allNodes: Map<string, NodeModel>;
+  onLocate: (n: NodeModel) => void;
+  onAddDevice: () => void;
+}) {
+  const [q, setQ] = useState('');
+  const query = q.trim().toLowerCase();
+
+  const matches = useMemo(() => {
+    if (!query) return [];
+    const out: NodeModel[] = [];
+    for (const n of allNodes.values()) {
+      if (n.name.toLowerCase().includes(query) || mgmtIp(n)?.toLowerCase().includes(query)) {
+        out.push(n);
+        if (out.length >= 6) break;
+      }
+    }
+    return out;
+  }, [allNodes, query]);
+
+  const pick = (n: NodeModel) => {
+    onLocate(n);
+    setQ('');
+  };
+
+  return (
+    <div className="w-64">
+      <div className="glass flex items-center gap-2 rounded-lg border border-fg/10 px-2.5 py-1.5 shadow-glass">
+        <Search className="h-3.5 w-3.5 shrink-0 text-fg/40" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && matches[0]) pick(matches[0]);
+            if (e.key === 'Escape') setQ('');
+          }}
+          placeholder={nodes ? 'Find device or IP…' : 'No devices yet'}
+          aria-label="Find device on canvas"
+          className="w-full bg-transparent text-xs text-fg/90 placeholder:text-fg/35 outline-none"
+        />
+        {q ? (
+          <button
+            onClick={() => setQ('')}
+            aria-label="Clear search"
+            className="grid h-5 w-5 shrink-0 place-items-center rounded text-fg/40 hover:bg-fg/10 hover:text-fg/70"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : (
+          <button
+            onClick={onAddDevice}
+            aria-label="Add device"
+            title="Add device"
+            className="grid h-5 w-5 shrink-0 place-items-center rounded text-fg/50 hover:bg-fg/10 hover:text-fg/90"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {query && (
+        <ul className="glass mt-1.5 max-h-56 overflow-auto rounded-lg border border-fg/10 py-1 shadow-glass ng-scroll">
+          {matches.length === 0 ? (
+            <li className="px-3 py-2 text-xs text-fg/40">No match for “{q}”</li>
+          ) : (
+            matches.map((n) => (
+              <li key={n.id}>
+                <button
+                  onClick={() => pick(n)}
+                  className={cn(
+                    'flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left',
+                    'hover:bg-fg/8',
+                  )}
+                >
+                  <span className="truncate text-xs font-medium text-fg/90">{n.name}</span>
+                  <span className="shrink-0 font-mono text-[10px] text-fg/45">
+                    {mgmtIp(n) ?? n.kind}
+                  </span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
     </div>
   );
 }
@@ -252,6 +405,11 @@ function nextNodeName(nodes: Iterable<NodeModel>, base: string): string {
     if (m) highest = Math.max(highest, Number(m[1]));
   }
   return `${base}${highest + 1}`;
+}
+
+/** First configured interface address — the device's management IP for the card. */
+function mgmtIp(node: NodeModel): string | undefined {
+  return node.interfaces.find((i) => i.ip.length > 0)?.ip[0];
 }
 
 function ifaceNodeId(nodes: Map<string, NodeModel>, ifaceId: string): string {

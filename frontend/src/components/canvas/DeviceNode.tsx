@@ -1,7 +1,9 @@
 /**
  * DeviceNode — custom React Flow node renderer for a NetGeo device.
- * Shows kind-colored glyph, name, NOS badge, sim/emul mode, and a live status
- * ring. Handles on all four sides allow link creation in any direction.
+ * UISP-style device card: kind-colored icon with a status badge, node name,
+ * and a secondary line (mgmt IP / kind + NOS). A kind accent bar and clean
+ * selected/hover states read as planning-grade. Handles on all four sides
+ * allow link creation in any direction (revealed on hover).
  * Memoized: with thousands of nodes, re-rendering only changed nodes matters.
  */
 import { memo } from 'react';
@@ -26,6 +28,8 @@ export interface DeviceNodeData extends Record<string, unknown> {
   nos: Nos;
   mode: NodeMode;
   status: NodeStatus;
+  /** Management IP (first configured interface address), if any. */
+  ip?: string;
 }
 
 const KIND_ICON: Record<NodeKind, typeof Router> = {
@@ -39,58 +43,96 @@ const KIND_ICON: Record<NodeKind, typeof Router> = {
   cloud: Cloud,
 };
 
-const STATUS_RING: Record<NodeStatus, string> = {
-  running: 'ring-success',
-  booting: 'ring-warning animate-pulse',
-  stopped: 'ring-fg/20',
-  degraded: 'ring-warning',
-  error: 'ring-danger',
+/** Status → badge dot color (theme-aware semantic tokens). */
+const STATUS_DOT: Record<NodeStatus, string> = {
+  running: 'bg-success',
+  booting: 'bg-warning animate-pulse',
+  stopped: 'bg-fg/30',
+  degraded: 'bg-warning',
+  error: 'bg-danger',
 };
+
+const STATUS_LABEL: Record<NodeStatus, string> = {
+  running: 'Running',
+  booting: 'Booting',
+  stopped: 'Stopped',
+  degraded: 'Degraded',
+  error: 'Error',
+};
+
+const SIDES = [
+  ['top', Position.Top],
+  ['right', Position.Right],
+  ['bottom', Position.Bottom],
+  ['left', Position.Left],
+] as const;
 
 function DeviceNodeImpl({ data, selected }: NodeProps) {
   const d = data as DeviceNodeData;
   const Icon = KIND_ICON[d.kind];
   const color = nodeColors[d.kind];
+  const secondary = d.ip ?? d.kind;
 
   return (
     <div
+      title={`${d.name} — ${STATUS_LABEL[d.status]}`}
       className={cn(
-        'group relative flex w-[112px] flex-col items-center gap-1 rounded-md px-2 py-2',
-        'glass border transition-shadow',
-        selected ? 'border-accent shadow-glass' : 'border-fg/10',
+        'group relative flex w-[184px] items-center gap-2.5 rounded-lg px-2.5 py-2',
+        'glass border transition-all duration-fast',
+        selected
+          ? 'border-accent shadow-glass ring-1 ring-accent/40'
+          : 'border-fg/10 hover:border-fg/25 hover:bg-fg/5',
       )}
     >
-      {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
+      {/* Kind accent bar */}
+      <span
+        className="absolute inset-y-2 left-0 w-0.5 rounded-full"
+        style={{ background: color }}
+        aria-hidden
+      />
+
+      {/* Connection handles (subtle; revealed on hover) */}
+      {SIDES.map(([side, position]) => (
         <Handle
           key={side}
           type="source"
-          position={Position[(side.charAt(0).toUpperCase() + side.slice(1)) as keyof typeof Position]}
+          position={position}
           id={side}
-          className="!h-2 !w-2"
+          className="!h-2 !w-2 opacity-0 transition-opacity duration-fast group-hover:opacity-100"
         />
       ))}
 
-      <div
-        className={cn('grid h-10 w-10 place-items-center rounded-full ring-2', STATUS_RING[d.status])}
-        style={{ background: `${color}22`, color }}
-      >
-        <Icon className="h-5 w-5" />
-      </div>
-
-      <span className="max-w-full truncate text-[12px] font-medium text-fg/90">{d.name}</span>
-
-      <div className="flex items-center gap-1">
-        <span className="rounded bg-fg/10 px-1 text-[9px] uppercase tracking-wide text-fg/70">
-          {d.nos}
+      {/* Icon + status badge */}
+      <span className="relative shrink-0">
+        <span
+          className="grid h-9 w-9 place-items-center rounded-md ring-1 ring-inset ring-fg/10"
+          style={{ background: `${color}1f`, color }}
+        >
+          <Icon className="h-[18px] w-[18px]" />
         </span>
         <span
           className={cn(
-            'rounded px-1 text-[9px] uppercase tracking-wide',
-            d.mode === 'emul' ? 'bg-accent/30 text-accent-soft' : 'bg-fg/10 text-fg/60',
+            'absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-recess/30',
+            STATUS_DOT[d.status],
           )}
-        >
-          {d.mode}
-        </span>
+          aria-hidden
+        />
+      </span>
+
+      {/* Name + secondary line */}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-semibold leading-tight text-fg/90">{d.name}</p>
+        <div className="mt-0.5 flex items-center gap-1.5">
+          <span className="truncate font-mono text-[10px] leading-none text-fg/55">{secondary}</span>
+          <span className="shrink-0 rounded bg-fg/10 px-1 py-0.5 text-[9px] uppercase leading-none tracking-wide text-fg/50">
+            {d.nos}
+          </span>
+          {d.mode === 'emul' && (
+            <span className="shrink-0 rounded bg-accent/25 px-1 py-0.5 text-[9px] uppercase leading-none tracking-wide text-accent-soft">
+              emul
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

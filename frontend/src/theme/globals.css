@@ -96,6 +96,16 @@ html.hc *:focus-visible {
 }
 .react-flow__edge-path {
   stroke-width: 2;
+  stroke-linecap: round;
+}
+/* Selected/hovered edge reads clearly without touching edge data/logic.
+   !important beats the per-type inline stroke-width set on each edge. */
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:focus .react-flow__edge-path {
+  stroke-width: 3.5 !important;
+}
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3 !important;
 }
 .react-flow__handle {
   width: 9px;
@@ -126,8 +136,11 @@ html.hc *:focus-visible {
 .react-flow__minimap {
   background: transparent;
 }
+/* Theme-aware viewport mask: recessed tint + hairline outline of the view. */
 .react-flow__minimap-mask {
-  fill: rgba(0, 0, 0, 0.45);
+  fill: rgb(var(--ng-recess-rgb) / 0.5);
+  stroke: rgb(var(--ng-fg-rgb) / 0.18);
+  stroke-width: 1.5;
 }
 
 /* ---- Leaflet map overrides ------------------------------------------------ */

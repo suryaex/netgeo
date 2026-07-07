@@ -22,6 +22,10 @@ Node ``intent`` fields understood by the builder (all optional):
     lag: [{"name": "po1", "members": ["eth1", "eth2"], "mode": "lacp"}]
     ospf: {"enabled": true, "router_id": "1.1.1.1", "hello": 10,
            "areas": {"eth0": 0, "eth1": 1}, "default_originate": false}
+    isis: {"enabled": true, "system_id": "1921.6800.1001", "level": 2,
+           "hello": 10, "interfaces": ["eth0", "eth1"]}
+           # "interfaces" may instead be {"eth0": 20, "eth1": 10} for per-iface
+           # metrics; a bare list uses the default metric (10). L2 single-area.
     bgp: {"asn": 65001, "router_id": "1.1.1.1",
           "neighbors": [{"ip": "10.0.0.2", "asn": 65002}],
           "networks": ["198.51.100.0/24"]}
@@ -49,6 +53,7 @@ from engine.netstack.device import Device, Host
 from engine.netstack.routing import AclRule, DhcpPool, Firewall, Router
 from engine.netstack.switching import Switch
 from engine.netstack.protocols.bgp import BgpProcess
+from engine.netstack.protocols.isis import IsisProcess
 from engine.netstack.protocols.ospf import OspfProcess
 from engine.netstack.protocols.vrrp import VrrpProcess
 
@@ -218,6 +223,25 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
             default_originate=bool(ospf_cfg.get("default_originate", False)),
         )
 
+    isis_cfg = intent.get("isis") or {}
+    if isis_cfg.get("enabled"):
+        ifaces_cfg = isis_cfg.get("interfaces")
+        ifaces: list[str] | None = None
+        metrics: dict[str, int] = {}
+        if isinstance(ifaces_cfg, dict):
+            ifaces = [str(k) for k in ifaces_cfg]
+            metrics = {str(k): int(v) for k, v in ifaces_cfg.items()}
+        elif isinstance(ifaces_cfg, list):
+            ifaces = [str(i) for i in ifaces_cfg]
+        IsisProcess(
+            dev,
+            system_id=isis_cfg.get("system_id"),
+            level=int(isis_cfg.get("level", 2)),
+            hello_interval=float(isis_cfg.get("hello", 10.0)),
+            ifaces=ifaces,
+            metrics=metrics,
+        )
+
     bgp_cfg = intent.get("bgp") or {}
     if bgp_cfg.get("asn"):
         proc = BgpProcess(
@@ -292,13 +316,14 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
 
 def _settle_time(net: Network) -> float:
     """Sim-seconds to run at build so protocols converge before first use."""
-    has_bgp = has_ospf = has_vrrp = False
+    has_bgp = has_ospf = has_vrrp = has_isis = False
     for dev in net.devices.values():
         for proc in getattr(dev, "processes", []):
             has_bgp |= getattr(proc, "proto", "") == "bgp"
             has_ospf |= getattr(proc, "proto", "") == "ospf"
             has_vrrp |= getattr(proc, "proto", "") == "vrrp"
-    if has_bgp or has_ospf:
+            has_isis |= getattr(proc, "proto", "") == "isis"
+    if has_bgp or has_ospf or has_isis:
         return 65.0
     if any(isinstance(d, Switch) for d in net.devices.values()):
         return 12.0

@@ -37,6 +37,7 @@ from engine.netstack.frames import (
     ArpPacket,
     DhcpMessage,
     DnsMessage,
+    ISIS_PDUS,
     EthernetFrame,
     IcmpMessage,
     Icmpv6Message,
@@ -51,7 +52,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from engine.netstack.network import Network
 
 # Administrative distances (Cisco-style).
-AD = {"connected": 0, "static": 1, "ebgp": 20, "ospf": 110, "rip": 120, "ibgp": 200}
+AD = {"connected": 0, "static": 1, "ebgp": 20, "ospf": 110, "isis": 115, "rip": 120, "ibgp": 200}
 
 
 @dataclass(slots=True)
@@ -345,6 +346,13 @@ class Router(L3Device):
         payload = frame.payload
         if isinstance(payload, ArpPacket):
             self._handle_arp(net, iface, payload)
+            return
+        if isinstance(payload, ISIS_PDUS):
+            # IS-IS rides on raw L2 (no IP), so it is dispatched here at the
+            # frame edge rather than in _local_deliver like OSPF/BGP.
+            for proc in self.processes:
+                if getattr(proc, "proto", "") == "isis":
+                    proc.on_frame(net, iface, payload)
             return
         if isinstance(payload, Ipv6Packet):
             self._on_ipv6(net, iface, payload)

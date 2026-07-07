@@ -30,6 +30,7 @@ _SOURCE_CODE = {
     "connected": "C",
     "static": "S",
     "ospf": "O",
+    "isis": "i",
     "ebgp": "B",
     "ibgp": "B",
     "rip": "R",
@@ -244,7 +245,7 @@ class CliSession:
         if low.startswith("show ip route"):
             if not isinstance(dev, Router):
                 return "% This device does not route\n"
-            rows = ["Codes: C - connected, S - static, O - OSPF, B - BGP\n"]
+            rows = ["Codes: C - connected, S - static, O - OSPF, i - IS-IS, B - BGP\n"]
             for r in dev.route_table_rows():
                 code = _SOURCE_CODE.get(r["source"], "?")
                 via = f"via {r['next_hop']}" if r["next_hop"] else "directly connected"
@@ -299,6 +300,24 @@ class CliSession:
                     f"{n['router_id']:<15} {n['state']:<7} {n.get('area', 0):<5} "
                     f"{n['ip']:<16} {n['iface']}"
                 )
+            return "\n".join(rows) + "\n"
+        if low.startswith("show isis neighbors") or low.startswith("show clns neighbors"):
+            proc = self._proc("isis")
+            if proc is None:
+                return "% IS-IS is not running\n"
+            rows = ["System Id       Interface  State  IP Address"]
+            for n in proc.neighbor_rows():
+                rows.append(
+                    f"{n['system_id']:<15} {n['iface']:<10} {n['state']:<6} {n['ip']}"
+                )
+            return "\n".join(rows) + "\n"
+        if low.startswith("show isis database"):
+            proc = self._proc("isis")
+            if proc is None:
+                return "% IS-IS is not running\n"
+            rows = ["LSPID                 Seq  Links"]
+            for l in proc.lsdb_rows():
+                rows.append(f"{l['system_id']:<21} {l['seq']:<4} {l['links']}")
             return "\n".join(rows) + "\n"
         if low.startswith("show ip bgp summary") or low.startswith("show bgp summary"):
             proc = self._proc("bgp")
@@ -379,7 +398,8 @@ class CliSession:
             "show: version | ip interface brief | interfaces | ip route | arp |\n"
             "      ipv6 route | ipv6 neighbors | ipv6 interface brief |\n"
             "      mac address-table | vlan | spanning-tree | ip ospf neighbor |\n"
-            "      ip bgp summary | ip nat translations | access-lists | dhcp binding\n"
+            "      isis neighbors | isis database | ip bgp summary |\n"
+            "      ip nat translations | access-lists | dhcp binding\n"
             "config: enable; conf t; interface <name>; ip address <cidr>;\n"
             "        ipv6 address <cidr>; [no] shutdown; switchport mode access|trunk;\n"
             "        switchport access vlan <n>; ip route <prefix> <next-hop>;\n"

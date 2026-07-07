@@ -8,7 +8,7 @@ inspect, and each knows how to summarise itself for packet capture.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from ipaddress import IPv4Address, IPv6Address
 from typing import Any, Union
 
@@ -326,6 +326,76 @@ class BpduFrame:
 
     def summary(self) -> str:
         return f"STP BPDU root={self.root_id} cost={self.root_cost} from={self.bridge_id}"
+
+
+# ---------------------------------------------------------------------------
+# IS-IS (OSI CLNS) control — rides directly on L2, not over IP
+# ---------------------------------------------------------------------------
+# Unlike OSPF/BGP, IS-IS PDUs are carried straight in an Ethernet frame to the
+# AllL2ISs multicast, distinguished by payload *type* (there is no EtherType —
+# real IS-IS uses 802.3 length + LLC SAP 0xFE). Sizes below approximate the
+# real PDU: common header + per-neighbour / per-prefix TLV entries.
+ALL_L1_ISS_MAC = "01:80:c2:00:00:14"
+ALL_L2_ISS_MAC = "01:80:c2:00:00:15"
+ETH_ISIS = 0x00FE  # sentinel, not a real EtherType (IS-IS = 802.3/LLC SAP 0xFE)
+
+
+@dataclass(slots=True)
+class IsisHello:
+    """IS-IS Hello (IIH). ``ip_addresses`` is the sending interface's own
+    address(es) (TLV 132) so the receiver can use it as the route next-hop;
+    ``neighbors_seen`` drives the P2P 3-way handshake."""
+
+    system_id: str
+    neighbors_seen: list[str] = field(default_factory=list)
+    ip_addresses: list[str] = field(default_factory=list)
+    hold_time: float = 30.0
+    level: int = 2
+    area_id: str = "49.0001"
+
+    @property
+    def wire_size(self) -> int:
+        return 27 + 6 * len(self.neighbors_seen) + 4 * len(self.ip_addresses)
+
+    def summary(self) -> str:
+        return (
+            f"IS-IS IIH sysid={self.system_id} L{self.level} "
+            f"seen={len(self.neighbors_seen)}"
+        )
+
+
+@dataclass(slots=True)
+class IsisLsp:
+    """IS-IS Link State PDU. ``links`` mirrors OSPF's router-LSA link list:
+    ("is", neighbour_system_id, metric) for adjacencies and
+    ("ip", "a.b.c.d/nn", metric) for reachable prefixes."""
+
+    system_id: str
+    seq: int
+    links: list[tuple[str, str, int]] = field(default_factory=list)
+    level: int = 2
+
+    @property
+    def key(self) -> str:
+        return self.system_id
+
+    @property
+    def wire_size(self) -> int:
+        return 27 + 12 * len(self.links)
+
+    def copy(self) -> "IsisLsp":
+        return IsisLsp(self.system_id, self.seq, list(self.links), self.level)
+
+    def summary(self) -> str:
+        return (
+            f"IS-IS LSP sysid={self.system_id} seq={self.seq} "
+            f"links={len(self.links)}"
+        )
+
+
+# For isinstance dispatch at the device edge (routing.py) without importing the
+# protocol module — keeps the frames layer dependency-free.
+ISIS_PDUS = (IsisHello, IsisLsp)
 
 
 # ---------------------------------------------------------------------------

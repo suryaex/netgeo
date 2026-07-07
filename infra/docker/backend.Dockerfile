@@ -34,7 +34,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq5 curl \
     && rm -rf /var/lib/apt/lists/* \
-    && groupadd -r netgeo && useradd -r -g netgeo -d /app netgeo
+    && groupadd -r -g 999 netgeo && useradd -r -u 999 -g netgeo -d /app netgeo
 
 COPY --from=builder /opt/venv /opt/venv
 

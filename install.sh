@@ -92,6 +92,13 @@ setup_updater_watcher() {
     [ -n "${PUBLIC_IP:-}" ]   && printf 'PUBLIC_IP=%s\n' "$PUBLIC_IP"
   } | { sudo tee "$STATE_DIR/install.env" >/dev/null 2>&1 || cat > "$STATE_DIR/install.env" 2>/dev/null; } || true
 
+  # The backend runs in-container as uid 999 (pinned in infra/docker/backend.Dockerfile)
+  # and writes the update trigger into this bind-mounted dir. Without this the write
+  # fails with EACCES (dir is root-owned) and the in-app "Update & restart" reports
+  # "Permission denied: .../update.request". Root (incl. the host watcher) keeps full
+  # access. Runs on fresh install AND on every update (self-update.sh re-invokes install.sh).
+  sudo chown -R 999:999 "$STATE_DIR" 2>/dev/null || chown -R 999:999 "$STATE_DIR" 2>/dev/null || true
+
   if ! command -v systemctl >/dev/null 2>&1; then
     warn "systemd not found — in-app updates need a watcher. Run it on the host:"
     warn "  bash ${repo_dir}/scripts/self-update.sh --watch"

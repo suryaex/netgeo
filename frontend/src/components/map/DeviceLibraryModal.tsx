@@ -91,29 +91,29 @@ export function DeviceLibraryModal() {
       aria-modal="true"
       aria-label="Device library"
     >
-      <div className="glass-strong relative flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/15 shadow-glass-lg animate-scale-in">
+      <div className="glass-strong relative flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-fg/15 shadow-glass-lg animate-scale-in">
         {/* Header */}
-        <div className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
+        <div className="flex items-center gap-3 border-b border-fg/10 px-6 py-4">
           <div className="grid h-9 w-9 place-items-center rounded-lg bg-accent/20 text-accent">
             <Boxes className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-semibold text-white">Device Library</h2>
-            <p className="text-xs text-white/45">
+            <h2 className="text-base font-semibold text-fg">Device Library</h2>
+            <p className="text-xs text-fg/45">
               Built-in types plus your custom appliances, Docker images, and uploads.
             </p>
           </div>
           <button
             onClick={close}
             aria-label="Close device library"
-            className="grid h-7 w-7 place-items-center rounded-md text-white/40 hover:bg-white/10 hover:text-white"
+            className="grid h-7 w-7 place-items-center rounded-md text-fg/40 hover:bg-fg/10 hover:text-fg"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-white/10 px-4 pt-3">
+        <div className="flex gap-1 border-b border-fg/10 px-4 pt-3">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -121,8 +121,8 @@ export function DeviceLibraryModal() {
               className={cn(
                 'flex items-center gap-1.5 rounded-t-lg px-3 py-2 text-xs font-medium transition-colors',
                 tab === key
-                  ? 'bg-white/10 text-white'
-                  : 'text-white/45 hover:text-white/80',
+                  ? 'bg-fg/10 text-fg'
+                  : 'text-fg/45 hover:text-fg/80',
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -170,7 +170,7 @@ function DeviceTypeList({
 
   if (isLoading) {
     return (
-      <div className="grid place-items-center py-16 text-white/40">
+      <div className="grid place-items-center py-16 text-fg/40">
         <Loader2 className="h-6 w-6 animate-spin" />
         <p className="mt-2 text-xs">Loading device types…</p>
       </div>
@@ -182,14 +182,14 @@ function DeviceTypeList({
       <div className="grid place-items-center py-16 text-center text-danger/80">
         <AlertTriangle className="h-6 w-6" />
         <p className="mt-2 text-sm">Couldn’t load device types.</p>
-        <p className="mt-1 text-xs text-white/40">{error?.message ?? 'Network error'}</p>
+        <p className="mt-1 text-xs text-fg/40">{error?.message ?? 'Network error'}</p>
       </div>
     );
   }
 
   if (!types || types.length === 0) {
     return (
-      <div className="grid place-items-center py-16 text-white/40">
+      <div className="grid place-items-center py-16 text-fg/40">
         <Boxes className="h-6 w-6" />
         <p className="mt-2 text-sm">No device types yet.</p>
       </div>
@@ -204,7 +204,7 @@ function DeviceTypeList({
         return (
           <div
             key={dt.id}
-            className="group relative flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3 transition-colors hover:border-white/20"
+            className="group relative flex flex-col gap-2 rounded-xl border border-fg/10 bg-fg/5 p-3 transition-colors hover:border-fg/20"
           >
             <div
               className="grid h-9 w-9 place-items-center rounded-lg"
@@ -213,15 +213,15 @@ function DeviceTypeList({
               <Icon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-white/90" title={dt.name}>
+              <p className="truncate text-sm font-medium text-fg/90" title={dt.name}>
                 {dt.name}
               </p>
-              <p className="truncate text-[10px] uppercase tracking-wide text-white/35">
+              <p className="truncate text-[10px] uppercase tracking-wide text-fg/35">
                 {dt.category}
               </p>
             </div>
             {dt.builtin ? (
-              <span className="absolute right-2 top-2 rounded bg-white/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-white/40">
+              <span className="absolute right-2 top-2 rounded bg-fg/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-fg/40">
                 Built-in
               </span>
             ) : (
@@ -229,7 +229,7 @@ function DeviceTypeList({
                 onClick={() => remove.mutate(dt.id)}
                 disabled={remove.isPending}
                 aria-label={`Delete ${dt.name}`}
-                className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-md text-white/30 opacity-0 transition-opacity hover:bg-danger/15 hover:text-danger group-hover:opacity-100"
+                className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-md text-fg/30 opacity-0 transition-opacity hover:bg-danger/15 hover:text-danger group-hover:opacity-100"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -270,25 +270,25 @@ function UploadIsoForm({ onDone }: { onDone: () => void }) {
         if (file) upload.mutate();
       }}
     >
-      <p className="text-xs leading-relaxed text-white/50">
-        Upload an appliance image (<code className="text-white/70">.iso</code>,{' '}
-        <code className="text-white/70">.qcow2</code>, <code className="text-white/70">.img</code>)
+      <p className="text-xs leading-relaxed text-fg/50">
+        Upload an appliance image (<code className="text-fg/70">.iso</code>,{' '}
+        <code className="text-fg/70">.qcow2</code>, <code className="text-fg/70">.img</code>)
         to register it as a bootable device type.
       </p>
 
       <label
         className={cn(
           'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center transition-colors',
-          file ? 'border-accent/50 bg-accent/5' : 'border-white/20 hover:border-white/35 hover:bg-white/5',
+          file ? 'border-accent/50 bg-accent/5' : 'border-fg/20 hover:border-fg/35 hover:bg-fg/5',
         )}
       >
-        <UploadCloud className="h-7 w-7 text-white/40" />
+        <UploadCloud className="h-7 w-7 text-fg/40" />
         {file ? (
-          <span className="text-sm text-white/90">{file.name}</span>
+          <span className="text-sm text-fg/90">{file.name}</span>
         ) : (
-          <span className="text-sm text-white/55">Click to choose an image file</span>
+          <span className="text-sm text-fg/55">Click to choose an image file</span>
         )}
-        <span className="text-[10px] text-white/35">
+        <span className="text-[10px] text-fg/35">
           {file ? `${(file.size / 1_048_576).toFixed(1)} MB` : 'ISO / qcow2 / img'}
         </span>
         <input
@@ -305,12 +305,12 @@ function UploadIsoForm({ onDone }: { onDone: () => void }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. MikroTik CHR 7.x"
-          className="w-full rounded-md border border-white/10 bg-black/20 px-2.5 py-1.5 text-sm text-white/90 outline-none focus:border-accent"
+          className="w-full rounded-md border border-fg/10 bg-recess/20 px-2.5 py-1.5 text-sm text-fg/90 outline-none focus:border-accent"
         />
       </Field>
 
       {upload.isPending && pct > 0 && (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-fg/10">
           <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} />
         </div>
       )}
@@ -320,7 +320,7 @@ function UploadIsoForm({ onDone }: { onDone: () => void }) {
       <button
         type="submit"
         disabled={!file || upload.isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
         {upload.isPending ? 'Uploading…' : 'Upload & Register'}
@@ -353,7 +353,7 @@ function DockerForm({ onDone }: { onDone: () => void }) {
         if (image.trim()) create.mutate();
       }}
     >
-      <p className="text-xs leading-relaxed text-white/50">
+      <p className="text-xs leading-relaxed text-fg/50">
         Register a device backed by a container image pulled from a registry.
       </p>
 
@@ -362,7 +362,7 @@ function DockerForm({ onDone }: { onDone: () => void }) {
           value={image}
           onChange={(e) => setImage(e.target.value)}
           placeholder="e.g. frrouting/frr:latest"
-          className="w-full rounded-md border border-white/10 bg-black/20 px-2.5 py-1.5 font-mono text-sm text-white/90 outline-none focus:border-accent"
+          className="w-full rounded-md border border-fg/10 bg-recess/20 px-2.5 py-1.5 font-mono text-sm text-fg/90 outline-none focus:border-accent"
         />
       </Field>
 
@@ -371,7 +371,7 @@ function DockerForm({ onDone }: { onDone: () => void }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Defaults to the image name"
-          className="w-full rounded-md border border-white/10 bg-black/20 px-2.5 py-1.5 text-sm text-white/90 outline-none focus:border-accent"
+          className="w-full rounded-md border border-fg/10 bg-recess/20 px-2.5 py-1.5 text-sm text-fg/90 outline-none focus:border-accent"
         />
       </Field>
 
@@ -380,7 +380,7 @@ function DockerForm({ onDone }: { onDone: () => void }) {
       <button
         type="submit"
         disabled={!image.trim() || create.isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Container className="h-4 w-4" />}
         Add Docker Device
@@ -423,7 +423,7 @@ function ManualForm({ onDone }: { onDone: () => void }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Ubiquiti LiteBeam 5AC"
-          className="w-full rounded-md border border-white/10 bg-black/20 px-2.5 py-1.5 text-sm text-white/90 outline-none focus:border-accent"
+          className="w-full rounded-md border border-fg/10 bg-recess/20 px-2.5 py-1.5 text-sm text-fg/90 outline-none focus:border-accent"
         />
       </Field>
 
@@ -431,7 +431,7 @@ function ManualForm({ onDone }: { onDone: () => void }) {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-white/90 outline-none focus:border-accent"
+          className="w-full rounded-md border border-fg/10 bg-recess/20 px-2 py-1.5 text-sm text-fg/90 outline-none focus:border-accent"
         >
           {CATEGORIES.map((c) => (
             <option key={c} value={c} className="bg-[#141A2E]">
@@ -447,7 +447,7 @@ function ManualForm({ onDone }: { onDone: () => void }) {
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
           placeholder="Notes about this device type…"
-          className="w-full resize-none rounded-md border border-white/10 bg-black/20 px-2.5 py-1.5 text-sm text-white/90 outline-none focus:border-accent"
+          className="w-full resize-none rounded-md border border-fg/10 bg-recess/20 px-2.5 py-1.5 text-sm text-fg/90 outline-none focus:border-accent"
         />
       </Field>
 
@@ -456,7 +456,7 @@ function ManualForm({ onDone }: { onDone: () => void }) {
       <button
         type="submit"
         disabled={!name.trim() || create.isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
         Create Device Type
@@ -471,7 +471,7 @@ function ManualForm({ onDone }: { onDone: () => void }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-1">
-      <span className="text-[10px] font-medium uppercase tracking-wide text-white/40">{label}</span>
+      <span className="text-[10px] font-medium uppercase tracking-wide text-fg/40">{label}</span>
       {children}
     </label>
   );

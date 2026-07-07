@@ -224,13 +224,13 @@ export function TopologyCanvas() {
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: 'smoothstep' }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgba(255,255,255,0.08)" />
-        <Controls className="!border-white/10 !bg-white/5 backdrop-blur" />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--ng-border)" />
+        <Controls className="!border-fg/10 !bg-fg/5 backdrop-blur" />
         <MiniMap
           pannable
           zoomable
           nodeColor={(n) => nodeColors[(n.data as DeviceNodeData).kind] ?? '#888'}
-          className="!rounded-md !border !border-white/10 !bg-black/30"
+          className="!rounded-md !border !border-fg/10 !bg-recess/30"
         />
       </ReactFlow>
     </div>

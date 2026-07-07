@@ -55,7 +55,7 @@ export function SettingsPanel() {
   return (
     <div className="flex h-full">
       {/* Sidebar */}
-      <nav className="w-40 shrink-0 border-r border-white/10 py-3">
+      <nav className="w-40 shrink-0 border-r border-fg/10 py-3">
         {SECTIONS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -64,7 +64,7 @@ export function SettingsPanel() {
               'flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors',
               activeSection === key
                 ? 'bg-accent/15 font-medium text-accent'
-                : 'text-white/60 hover:bg-white/5 hover:text-white/85',
+                : 'text-fg/60 hover:bg-fg/5 hover:text-fg/85',
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />
@@ -111,7 +111,7 @@ function GeneralSection() {
                 'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors',
                 theme === key
                   ? 'border-accent bg-accent/15 text-accent'
-                  : 'border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white/85',
+                  : 'border-fg/10 bg-fg/5 text-fg/60 hover:border-fg/20 hover:text-fg/85',
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -128,7 +128,7 @@ function GeneralSection() {
           <select
             value={simSpeed}
             onChange={(e) => setSimSpeed(Number(e.target.value))}
-            className="appearance-none rounded-md border border-white/10 bg-black/25 py-1.5 pl-3 pr-8 text-sm text-white/90 outline-none focus:border-accent"
+            className="appearance-none rounded-md border border-fg/10 bg-recess/25 py-1.5 pl-3 pr-8 text-sm text-fg/90 outline-none focus:border-accent"
           >
             {[0.5, 1, 2, 4, 8].map((s) => (
               <option key={s} value={s} className="bg-[#141A2E]">
@@ -136,13 +136,13 @@ function GeneralSection() {
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-fg/40" />
         </div>
       </Row>
 
       <SectionHeading>About</SectionHeading>
-      <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60">
-        <p className="font-medium text-white/80">NetGeo v{__APP_VERSION__} Alpha</p>
+      <div className="rounded-lg border border-fg/10 bg-fg/5 px-4 py-3 text-sm text-fg/60">
+        <p className="font-medium text-fg/80">NetGeo v{__APP_VERSION__} Alpha</p>
         <p className="mt-0.5 text-xs">
           Network Simulation · Planning · GIS Digital-Twin · AI — React + FastAPI
         </p>
@@ -180,7 +180,7 @@ function NosSection() {
   return (
     <div className="space-y-6">
       <SectionHeading>Built-in Network Operating Systems</SectionHeading>
-      <p className="text-xs text-white/45">
+      <p className="text-xs text-fg/45">
         These NOS entries are built into NetGeo and cannot be removed.
       </p>
 
@@ -188,13 +188,13 @@ function NosSection() {
         {BUILTIN_NOS.map((n) => (
           <div
             key={n.key}
-            className="flex items-center justify-between rounded-md border border-white/8 bg-white/5 px-3 py-2"
+            className="flex items-center justify-between rounded-md border border-fg/8 bg-fg/5 px-3 py-2"
           >
             <div>
-              <p className="text-sm font-medium text-white/85">{n.label}</p>
-              <p className="text-xs text-white/40">{n.description}</p>
+              <p className="text-sm font-medium text-fg/85">{n.label}</p>
+              <p className="text-xs text-fg/40">{n.description}</p>
             </div>
-            <span className="rounded bg-white/8 px-1.5 py-0.5 font-mono text-[10px] text-white/50">
+            <span className="rounded bg-fg/8 px-1.5 py-0.5 font-mono text-[10px] text-fg/50">
               {n.key}
             </span>
           </div>
@@ -205,7 +205,7 @@ function NosSection() {
         <SectionHeading>Custom Network OS</SectionHeading>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition-colors hover:border-accent/50 hover:text-accent"
+          className="flex items-center gap-1.5 rounded-md border border-fg/10 bg-fg/5 px-3 py-1.5 text-xs text-fg/70 transition-colors hover:border-accent/50 hover:text-accent"
         >
           <Plus className="h-3.5 w-3.5" />
           Add NOS
@@ -215,7 +215,7 @@ function NosSection() {
       {/* Add form */}
       {showForm && (
         <div className="space-y-3 rounded-lg border border-accent/20 bg-accent/5 p-4">
-          <h3 className="text-sm font-medium text-white/80">New Network OS</h3>
+          <h3 className="text-sm font-medium text-fg/80">New Network OS</h3>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Label *" hint="e.g. OpenWRT 23.05">
               <input
@@ -253,7 +253,7 @@ function NosSection() {
           <div className="flex justify-end gap-2 pt-1">
             <button
               onClick={() => setShowForm(false)}
-              className="rounded-md px-3 py-1.5 text-sm text-white/50 hover:text-white/80"
+              className="rounded-md px-3 py-1.5 text-sm text-fg/50 hover:text-fg/80"
             >
               Cancel
             </button>
@@ -261,7 +261,7 @@ function NosSection() {
               onClick={handleAdd}
               disabled={!formLabel.trim()}
               className={cn(
-                'rounded-md px-4 py-1.5 text-sm font-medium text-white transition-colors',
+                'rounded-md px-4 py-1.5 text-sm font-medium text-fg transition-colors',
                 formLabel.trim()
                   ? 'bg-accent hover:bg-accent-soft'
                   : 'cursor-not-allowed bg-accent/40',
@@ -274,7 +274,7 @@ function NosSection() {
       )}
 
       {customNos.length === 0 ? (
-        <p className="rounded-md border border-dashed border-white/10 p-4 text-center text-xs text-white/35">
+        <p className="rounded-md border border-dashed border-fg/10 p-4 text-center text-xs text-fg/35">
           No custom NOS entries yet. Click "Add NOS" to define one.
         </p>
       ) : (
@@ -290,25 +290,25 @@ function NosSection() {
 
 function CustomNosRow({ entry, onRemove }: { entry: CustomNosEntry; onRemove: () => void }) {
   return (
-    <div className="flex items-start justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2">
+    <div className="flex items-start justify-between rounded-md border border-fg/10 bg-fg/5 px-3 py-2">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-white/85">{entry.label}</p>
+          <p className="text-sm font-medium text-fg/85">{entry.label}</p>
           <span className="rounded bg-accent/15 px-1.5 py-0.5 font-mono text-[10px] text-accent">
             {entry.key}
           </span>
         </div>
         {entry.description && (
-          <p className="mt-0.5 text-xs text-white/40">{entry.description}</p>
+          <p className="mt-0.5 text-xs text-fg/40">{entry.description}</p>
         )}
         {entry.dockerImage && (
-          <p className="mt-0.5 font-mono text-[10px] text-white/30">{entry.dockerImage}</p>
+          <p className="mt-0.5 font-mono text-[10px] text-fg/30">{entry.dockerImage}</p>
         )}
       </div>
       <button
         onClick={onRemove}
         aria-label={`Remove ${entry.label}`}
-        className="ml-2 mt-0.5 shrink-0 rounded p-1 text-white/30 transition-colors hover:bg-danger/15 hover:text-danger"
+        className="ml-2 mt-0.5 shrink-0 rounded p-1 text-fg/30 transition-colors hover:bg-danger/15 hover:text-danger"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
@@ -400,16 +400,16 @@ function DeviceTypesSection() {
   return (
     <div className="space-y-5">
       <SectionHeading>Custom Device Types</SectionHeading>
-      <p className="text-xs text-white/45">
+      <p className="text-xs text-fg/45">
         Register network device types for use in map-mode emulation. Sources can be
         Docker images, local appliance images (ISO / qcow2), or manual entries.
       </p>
 
       <div className="flex items-center justify-between">
-        <span className="text-xs text-white/50">{types.length} custom type{types.length !== 1 ? 's' : ''}</span>
+        <span className="text-xs text-fg/50">{types.length} custom type{types.length !== 1 ? 's' : ''}</span>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition-colors hover:border-accent/50 hover:text-accent"
+          className="flex items-center gap-1.5 rounded-md border border-fg/10 bg-fg/5 px-3 py-1.5 text-xs text-fg/70 transition-colors hover:border-accent/50 hover:text-accent"
         >
           <Plus className="h-3.5 w-3.5" />
           Add Device Type
@@ -418,10 +418,10 @@ function DeviceTypesSection() {
 
       {showForm && (
         <div className="space-y-3 rounded-lg border border-accent/20 bg-accent/5 p-4">
-          <h3 className="text-sm font-medium text-white/80">New Device Type</h3>
+          <h3 className="text-sm font-medium text-fg/80">New Device Type</h3>
 
           {/* Kind selector */}
-          <div className="flex rounded-md border border-white/10 bg-black/20 p-0.5">
+          <div className="flex rounded-md border border-fg/10 bg-recess/20 p-0.5">
             {(['docker', 'iso', 'manual'] as const).map((k) => (
               <button
                 key={k}
@@ -429,8 +429,8 @@ function DeviceTypesSection() {
                 className={cn(
                   'flex-1 rounded px-2 py-1 text-xs capitalize transition-colors',
                   kind === k
-                    ? 'text-white'
-                    : 'text-white/50 hover:text-white/80',
+                    ? 'text-fg'
+                    : 'text-fg/50 hover:text-fg/80',
                 )}
                 style={kind === k ? { background: `${kindColor[k]}30`, color: kindColor[k] } : undefined}
               >
@@ -469,7 +469,7 @@ function DeviceTypesSection() {
           <div className="flex justify-end gap-2 pt-1">
             <button
               onClick={() => setShowForm(false)}
-              className="rounded-md px-3 py-1.5 text-sm text-white/50 hover:text-white/80"
+              className="rounded-md px-3 py-1.5 text-sm text-fg/50 hover:text-fg/80"
             >
               Cancel
             </button>
@@ -477,7 +477,7 @@ function DeviceTypesSection() {
               onClick={add}
               disabled={!name.trim()}
               className={cn(
-                'rounded-md px-4 py-1.5 text-sm font-medium text-white transition-colors',
+                'rounded-md px-4 py-1.5 text-sm font-medium text-fg transition-colors',
                 name.trim() ? 'bg-accent hover:bg-accent-soft' : 'cursor-not-allowed bg-accent/40',
               )}
             >
@@ -488,7 +488,7 @@ function DeviceTypesSection() {
       )}
 
       {types.length === 0 ? (
-        <p className="rounded-md border border-dashed border-white/10 p-4 text-center text-xs text-white/35">
+        <p className="rounded-md border border-dashed border-fg/10 p-4 text-center text-xs text-fg/35">
           No custom device types yet.
         </p>
       ) : (
@@ -496,11 +496,11 @@ function DeviceTypesSection() {
           {types.map((t) => (
             <div
               key={t.id}
-              className="flex items-start justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2"
+              className="flex items-start justify-between rounded-md border border-fg/10 bg-fg/5 px-3 py-2"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-white/85">{t.name}</p>
+                  <p className="text-sm font-medium text-fg/85">{t.name}</p>
                   <span
                     className="rounded px-1.5 py-0.5 text-[10px] capitalize"
                     style={{ background: `${kindColor[t.kind]}20`, color: kindColor[t.kind] }}
@@ -509,16 +509,16 @@ function DeviceTypesSection() {
                   </span>
                 </div>
                 {t.description && (
-                  <p className="mt-0.5 text-xs text-white/40">{t.description}</p>
+                  <p className="mt-0.5 text-xs text-fg/40">{t.description}</p>
                 )}
                 {t.source && (
-                  <p className="mt-0.5 font-mono text-[10px] text-white/30 truncate">{t.source}</p>
+                  <p className="mt-0.5 font-mono text-[10px] text-fg/30 truncate">{t.source}</p>
                 )}
               </div>
               <button
                 onClick={() => remove(t.id)}
                 aria-label={`Remove ${t.name}`}
-                className="ml-2 shrink-0 rounded p-1 text-white/30 hover:bg-danger/15 hover:text-danger"
+                className="ml-2 shrink-0 rounded p-1 text-fg/30 hover:bg-danger/15 hover:text-danger"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -528,7 +528,7 @@ function DeviceTypesSection() {
       )}
 
       <SectionHeading>Built-in Wireless Device Templates</SectionHeading>
-      <p className="text-xs text-white/45">
+      <p className="text-xs text-fg/45">
         Default device types available in map mode. These cannot be removed.
       </p>
       {[
@@ -538,13 +538,13 @@ function DeviceTypesSection() {
       ].map((t) => (
         <div
           key={t.name}
-          className="flex items-center justify-between rounded-md border border-white/8 bg-white/5 px-3 py-2"
+          className="flex items-center justify-between rounded-md border border-fg/8 bg-fg/5 px-3 py-2"
         >
           <div>
-            <p className="text-sm font-medium text-white/75">{t.name}</p>
-            <p className="text-xs text-white/35">{t.desc}</p>
+            <p className="text-sm font-medium text-fg/75">{t.name}</p>
+            <p className="text-xs text-fg/35">{t.desc}</p>
           </div>
-          <span className="rounded bg-white/8 px-1.5 py-0.5 text-[10px] text-white/40">built-in</span>
+          <span className="rounded bg-fg/8 px-1.5 py-0.5 text-[10px] text-fg/40">built-in</span>
         </div>
       ))}
     </div>
@@ -561,13 +561,13 @@ function AccountSection() {
     <div className="space-y-6">
       <SectionHeading>Signed-in account</SectionHeading>
 
-      <div className="flex items-center gap-4 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+      <div className="flex items-center gap-4 rounded-lg border border-fg/10 bg-fg/5 px-4 py-3">
         <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent/20 text-lg font-semibold text-accent">
           {username?.[0]?.toUpperCase() ?? '?'}
         </div>
         <div>
-          <p className="font-medium text-white/90">{username}</p>
-          <p className="text-xs text-white/40">Local account</p>
+          <p className="font-medium text-fg/90">{username}</p>
+          <p className="text-xs text-fg/40">Local account</p>
         </div>
       </div>
 
@@ -627,7 +627,7 @@ function ChangePasswordForm() {
       <SectionHeading>Change password</SectionHeading>
       <form
         onSubmit={handleSubmit}
-        className="space-y-3 rounded-lg border border-white/10 bg-white/5 px-4 py-4"
+        className="space-y-3 rounded-lg border border-fg/10 bg-fg/5 px-4 py-4"
       >
         <input
           type="password"
@@ -675,14 +675,14 @@ function ChangePasswordForm() {
           type="submit"
           disabled={disabled}
           className={cn(
-            'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition-all',
+            'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-fg transition-all',
             disabled
               ? 'cursor-not-allowed bg-accent/40'
               : 'bg-accent hover:bg-accent-soft active:scale-[0.98]',
           )}
         >
           {saving ? (
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-fg/30 border-t-fg" />
           ) : (
             <KeyRound className="h-4 w-4" />
           )}
@@ -696,11 +696,11 @@ function ChangePasswordForm() {
 /* ---------- Shared helpers ---------- */
 
 const inputCls =
-  'w-full rounded-md border border-white/10 bg-black/25 px-3 py-1.5 text-sm text-white/90 outline-none transition-colors focus:border-accent placeholder:text-white/25';
+  'w-full rounded-md border border-fg/10 bg-recess/25 px-3 py-1.5 text-sm text-fg/90 outline-none transition-colors focus:border-accent placeholder:text-fg/25';
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-white/45">{children}</h3>
+    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-fg/45">{children}</h3>
   );
 }
 
@@ -716,8 +716,8 @@ function Row({
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <p className="text-sm text-white/80">{label}</p>
-        {description && <p className="mt-0.5 text-xs text-white/40">{description}</p>}
+        <p className="text-sm text-fg/80">{label}</p>
+        {description && <p className="mt-0.5 text-xs text-fg/40">{description}</p>}
       </div>
       <div className="shrink-0">{children}</div>
     </div>
@@ -735,11 +735,11 @@ function FormField({
 }) {
   return (
     <div className="space-y-1">
-      <label className="block text-[11px] font-medium uppercase tracking-wide text-white/45">
+      <label className="block text-[11px] font-medium uppercase tracking-wide text-fg/45">
         {label}
       </label>
       {children}
-      {hint && <p className="text-[10px] text-white/30">{hint}</p>}
+      {hint && <p className="text-[10px] text-fg/30">{hint}</p>}
     </div>
   );
 }

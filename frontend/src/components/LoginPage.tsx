@@ -89,18 +89,18 @@ export function LoginPage() {
 
       {/* Login card */}
       <div className="relative w-full max-w-sm animate-scale-in px-4">
-        <div className="glass-strong overflow-hidden rounded-2xl border border-white/10 shadow-glass-lg">
+        <div className="glass-strong overflow-hidden rounded-2xl border border-fg/10 shadow-glass-lg">
           {/* Header stripe */}
-          <div className="border-b border-white/10 px-8 pb-6 pt-8 text-center">
+          <div className="border-b border-fg/10 px-8 pb-6 pt-8 text-center">
             <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-accent shadow-lg shadow-accent/40">
               {isSetup ? (
-                <ShieldCheck className="h-7 w-7 text-white" />
+                <ShieldCheck className="h-7 w-7 text-fg" />
               ) : (
-                <Network className="h-7 w-7 text-white" />
+                <Network className="h-7 w-7 text-fg" />
               )}
             </div>
-            <h1 className="text-xl font-semibold text-white">NetGeo</h1>
-            <p className="mt-1 text-sm text-white/50">
+            <h1 className="text-xl font-semibold text-fg">NetGeo</h1>
+            <p className="mt-1 text-sm text-fg/50">
               {isSetup ? 'First-run setup — create your admin account' : 'Network Simulation Platform'}
             </p>
           </div>
@@ -109,11 +109,11 @@ export function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4 px-8 py-6">
             {/* Username */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium uppercase tracking-wide text-white/50">
+              <label className="block text-xs font-medium uppercase tracking-wide text-fg/50">
                 Username
               </label>
               <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg/35" />
                 <input
                   ref={usernameRef}
                   type="text"
@@ -122,10 +122,10 @@ export function LoginPage() {
                   onChange={(e) => { setUsername(e.target.value); clearError(); }}
                   placeholder="admin"
                   className={cn(
-                    'w-full rounded-md border bg-black/25 py-2.5 pl-9 pr-3 text-sm text-white/90 outline-none transition-colors placeholder:text-white/25',
+                    'w-full rounded-md border bg-recess/25 py-2.5 pl-9 pr-3 text-sm text-fg/90 outline-none transition-colors placeholder:text-fg/25',
                     loginError
                       ? 'border-danger focus:border-danger'
-                      : 'border-white/10 focus:border-accent',
+                      : 'border-fg/10 focus:border-accent',
                   )}
                 />
               </div>
@@ -133,11 +133,11 @@ export function LoginPage() {
 
             {/* Password */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium uppercase tracking-wide text-white/50">
+              <label className="block text-xs font-medium uppercase tracking-wide text-fg/50">
                 {isSetup ? 'New password' : 'Password'}
               </label>
               <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg/35" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   autoComplete={isSetup ? 'new-password' : 'current-password'}
@@ -145,17 +145,17 @@ export function LoginPage() {
                   onChange={(e) => { setPassword(e.target.value); clearError(); }}
                   placeholder="••••••••"
                   className={cn(
-                    'w-full rounded-md border bg-black/25 py-2.5 pl-9 pr-10 text-sm text-white/90 outline-none transition-colors placeholder:text-white/25',
+                    'w-full rounded-md border bg-recess/25 py-2.5 pl-9 pr-10 text-sm text-fg/90 outline-none transition-colors placeholder:text-fg/25',
                     loginError || passwordTooShort
                       ? 'border-danger focus:border-danger'
-                      : 'border-white/10 focus:border-accent',
+                      : 'border-fg/10 focus:border-accent',
                   )}
                 />
                 <button
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/60"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-fg/35 hover:text-fg/60"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -171,11 +171,11 @@ export function LoginPage() {
             {/* Confirm password — setup mode only */}
             {isSetup && (
               <div className="space-y-1.5">
-                <label className="block text-xs font-medium uppercase tracking-wide text-white/50">
+                <label className="block text-xs font-medium uppercase tracking-wide text-fg/50">
                   Confirm password
                 </label>
                 <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg/35" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="new-password"
@@ -183,10 +183,10 @@ export function LoginPage() {
                     onChange={(e) => { setConfirmPassword(e.target.value); clearError(); }}
                     placeholder="••••••••"
                     className={cn(
-                      'w-full rounded-md border bg-black/25 py-2.5 pl-9 pr-3 text-sm text-white/90 outline-none transition-colors placeholder:text-white/25',
+                      'w-full rounded-md border bg-recess/25 py-2.5 pl-9 pr-3 text-sm text-fg/90 outline-none transition-colors placeholder:text-fg/25',
                       passwordsMismatch
                         ? 'border-danger focus:border-danger'
-                        : 'border-white/10 focus:border-accent',
+                        : 'border-fg/10 focus:border-accent',
                     )}
                   />
                 </div>
@@ -208,14 +208,14 @@ export function LoginPage() {
               type="submit"
               disabled={submitDisabled}
               className={cn(
-                'flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold text-white transition-all',
+                'flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold text-fg transition-all',
                 submitDisabled
                   ? 'cursor-not-allowed bg-accent/50'
                   : 'bg-accent hover:bg-accent-soft active:scale-[0.98]',
               )}
             >
               {loading ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-fg/30 border-t-fg" />
               ) : isSetup ? (
                 <ShieldCheck className="h-4 w-4" />
               ) : (
@@ -226,7 +226,7 @@ export function LoginPage() {
                 : isSetup ? 'Create account & sign in' : 'Sign in'}
             </button>
 
-            <p className="text-center text-[11px] text-white/25">
+            <p className="text-center text-[11px] text-fg/25">
               {isSetup
                 ? 'This one-time setup secures your NetGeo instance'
                 : 'Sign in with your NetGeo account'}
@@ -234,7 +234,7 @@ export function LoginPage() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-white/20">
+        <p className="mt-6 text-center text-xs text-fg/20">
           NetGeo v{__APP_VERSION__} &mdash; Network Simulation Platform
         </p>
       </div>

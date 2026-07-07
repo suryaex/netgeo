@@ -38,7 +38,7 @@ export function SimulationBar() {
   const running = simState === 'running';
 
   return (
-    <div className="flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-1 py-0.5">
+    <div className="flex items-center gap-1 rounded-md border border-fg/10 bg-fg/5 px-1 py-0.5">
       <CtrlButton label={running ? 'Pause' : 'Play'} onClick={running ? onPause : onPlay} active={running}>
         {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
       </CtrlButton>
@@ -53,7 +53,7 @@ export function SimulationBar() {
         aria-label="Simulation speed"
         value={simSpeed}
         onChange={(e) => setSimSpeed(Number(e.target.value))}
-        className="ml-1 rounded bg-transparent px-1 text-xs text-white/80 outline-none"
+        className="ml-1 rounded bg-transparent px-1 text-xs text-fg/80 outline-none"
       >
         {SPEEDS.map((s) => (
           <option key={s} value={s} className="bg-[#141A2E]">
@@ -83,7 +83,7 @@ function CtrlButton({
       title={label}
       className={cn(
         'grid h-7 w-7 place-items-center rounded transition-colors',
-        active ? 'bg-accent text-white' : 'text-white/80 hover:bg-white/10',
+        active ? 'bg-accent text-fg' : 'text-fg/80 hover:bg-fg/10',
       )}
     >
       {children}

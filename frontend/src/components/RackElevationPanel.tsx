@@ -140,7 +140,7 @@ export function RackElevationPanel() {
   }, [cables, plantQ.data]);
 
   if (!projectId) {
-    return <div className="p-6 text-sm text-white/50">Pilih project untuk melihat rack.</div>;
+    return <div className="p-6 text-sm text-fg/50">Pilih project untuk melihat rack.</div>;
   }
 
   /** Racks grouped under their site (null site_id → an "Unassigned" bucket). */
@@ -150,35 +150,35 @@ export function RackElevationPanel() {
   ].filter((b) => b.site !== null || b.racks.length > 0);
 
   return (
-    <div className="flex h-full flex-col bg-neutral-950 text-white/90">
+    <div className="flex h-full flex-col bg-neutral-950 text-fg/90">
       {/* toolbar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2 text-xs">
-        <Server size={14} className="text-white/50" />
+      <div className="flex flex-wrap items-center gap-2 border-b border-fg/10 px-3 py-2 text-xs">
+        <Server size={14} className="text-fg/50" />
         <span className="font-medium">Rack Elevation</span>
-        <span className="text-white/30">·</span>
+        <span className="text-fg/30">·</span>
         <input
           value={newSite}
           onChange={(e) => setNewSite(e.target.value)}
           placeholder="Nama site baru"
-          className="w-32 rounded bg-white/10 px-2 py-1 outline-none placeholder:text-white/30"
+          className="w-32 rounded bg-fg/10 px-2 py-1 outline-none placeholder:text-fg/30"
         />
         <button
           onClick={() => newSite.trim() && createSite.mutate(newSite.trim())}
-          className="flex items-center gap-1 rounded bg-white/10 px-2 py-1 hover:bg-white/20"
+          className="flex items-center gap-1 rounded bg-fg/10 px-2 py-1 hover:bg-fg/20"
         >
           <Plus size={12} /> Site
         </button>
-        <span className="text-white/30">·</span>
+        <span className="text-fg/30">·</span>
         <input
           value={newRackName}
           onChange={(e) => setNewRackName(e.target.value)}
           placeholder="Nama rack baru"
-          className="w-32 rounded bg-white/10 px-2 py-1 outline-none placeholder:text-white/30"
+          className="w-32 rounded bg-fg/10 px-2 py-1 outline-none placeholder:text-fg/30"
         />
         <select
           value={newRackSite}
           onChange={(e) => setNewRackSite(e.target.value)}
-          className="rounded bg-white/10 px-2 py-1 outline-none"
+          className="rounded bg-fg/10 px-2 py-1 outline-none"
         >
           <option value="">(tanpa site)</option>
           {sites.map((s) => (
@@ -192,7 +192,7 @@ export function RackElevationPanel() {
             newRackName.trim() &&
             createRack.mutate({ name: newRackName.trim(), siteId: newRackSite || null })
           }
-          className="flex items-center gap-1 rounded bg-white/10 px-2 py-1 hover:bg-white/20"
+          className="flex items-center gap-1 rounded bg-fg/10 px-2 py-1 hover:bg-fg/20"
         >
           <Plus size={12} /> Rack
         </button>
@@ -221,8 +221,8 @@ export function RackElevationPanel() {
 
       <div className="flex min-h-0 flex-1">
         {/* tray of unplaced devices */}
-        <div className="w-44 shrink-0 overflow-y-auto border-r border-white/10 p-2">
-          <div className="mb-1 text-[11px] uppercase tracking-wide text-white/40">
+        <div className="w-44 shrink-0 overflow-y-auto border-r border-fg/10 p-2">
+          <div className="mb-1 text-[11px] uppercase tracking-wide text-fg/40">
             Belum ditempatkan ({unplaced.length})
           </div>
           {unplaced.map((n) => (
@@ -235,22 +235,22 @@ export function RackElevationPanel() {
                   JSON.stringify({ nodeId: n.id, span: n.ru_span ?? 1 } satisfies Dragload),
                 )
               }
-              className="mb-1 cursor-grab rounded border border-white/10 bg-white/5 px-2 py-1 text-xs hover:bg-white/10 active:cursor-grabbing"
+              className="mb-1 cursor-grab rounded border border-fg/10 bg-fg/5 px-2 py-1 text-xs hover:bg-fg/10 active:cursor-grabbing"
               title={`${n.kind} · ${nodeWatts(n)} W`}
             >
               {n.name}
-              <span className="ml-1 text-white/40">{n.ru_span ?? 1}U</span>
+              <span className="ml-1 text-fg/40">{n.ru_span ?? 1}U</span>
             </div>
           ))}
           {unplaced.length === 0 && (
-            <div className="text-xs text-white/30">Semua perangkat sudah ditempatkan.</div>
+            <div className="text-xs text-fg/30">Semua perangkat sudah ditempatkan.</div>
           )}
         </div>
 
         {/* racks grouped by site */}
         <div className="flex-1 overflow-auto p-3">
           {bucketBySite.length === 0 && (
-            <div className="text-sm text-white/40">
+            <div className="text-sm text-fg/40">
               Belum ada rack. Buat site lalu rack dari toolbar di atas.
             </div>
           )}
@@ -262,7 +262,7 @@ export function RackElevationPanel() {
                 <div className="mb-2 flex items-center gap-2 text-sm">
                   <span className="font-medium">{bucket.site?.name ?? 'Tanpa site'}</span>
                   {bucket.site?.region && (
-                    <span className="text-white/40">· {bucket.site.region}</span>
+                    <span className="text-fg/40">· {bucket.site.region}</span>
                   )}
                   <span className="ml-2 flex items-center gap-1 text-xs text-amber-300/80">
                     <Zap size={12} /> {watts} W · {wattsToBtu(watts)} BTU/hr
@@ -282,7 +282,7 @@ export function RackElevationPanel() {
                     />
                   ))}
                   {bucket.racks.length === 0 && (
-                    <div className="text-xs text-white/30">Site ini belum punya rack.</div>
+                    <div className="text-xs text-fg/30">Site ini belum punya rack.</div>
                   )}
                 </div>
               </div>
@@ -349,12 +349,12 @@ function RackColumn({ rack, devices, onPlace, onUnplace, onError }: RackColumnPr
 
   return (
     <div className="select-none">
-      <div className="mb-1 text-xs font-medium text-white/70">
-        {rack.name} <span className="text-white/30">{ruHeight}U</span>
+      <div className="mb-1 text-xs font-medium text-fg/70">
+        {rack.name} <span className="text-fg/30">{ruHeight}U</span>
       </div>
       <div className="flex">
         {/* RU number gutter (top = highest RU) */}
-        <div className="flex flex-col text-right text-[9px] leading-none text-white/30">
+        <div className="flex flex-col text-right text-[9px] leading-none text-fg/30">
           {Array.from({ length: ruHeight }, (_, i) => ruHeight - i).map((u) => (
             <div key={u} style={{ height: RU_PX }} className="pr-1 pt-0.5">
               {u}
@@ -366,14 +366,14 @@ function RackColumn({ rack, devices, onPlace, onUnplace, onError }: RackColumnPr
           ref={bodyRef}
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
-          className="relative w-40 rounded border border-white/15 bg-black/40"
+          className="relative w-40 rounded border border-fg/15 bg-recess/40"
           style={{ height: ruHeight * RU_PX }}
         >
           {/* RU gridlines */}
           {Array.from({ length: ruHeight }, (_, i) => (
             <div
               key={i}
-              className="absolute inset-x-0 border-t border-white/5"
+              className="absolute inset-x-0 border-t border-fg/5"
               style={{ top: i * RU_PX, height: RU_PX }}
             />
           ))}

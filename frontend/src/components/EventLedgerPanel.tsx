@@ -18,7 +18,7 @@ import { cn } from '@/lib/cn';
 const TYPE_STYLES: Record<string, string> = {
   PACKET_TX: 'text-sky-300/90',
   PACKET_RX: 'text-emerald-300/90',
-  TIMER: 'text-white/40',
+  TIMER: 'text-fg/40',
 };
 
 export function EventLedgerPanel() {
@@ -77,16 +77,16 @@ export function EventLedgerPanel() {
   return (
     <div className="flex h-full flex-col text-[13px]">
       {/* Status + transport strip */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-2 border-b border-fg/10 px-2 py-1.5">
         <span
           className={cn(
             'rounded-full px-2 py-0.5 text-[11px] font-medium',
-            simMode ? 'bg-accent/25 text-accent' : 'bg-white/10 text-white/60',
+            simMode ? 'bg-accent/25 text-accent' : 'bg-fg/10 text-fg/60',
           )}
         >
           {simMode ? 'Simulation' : 'Realtime'}
         </span>
-        <span className="font-mono text-[11px] text-white/50">
+        <span className="font-mono text-[11px] text-fg/50">
           t={q.data ? q.data.sim_time.toFixed(6) : '—'}s · event {total}
           {q.data ? ` · ${q.data.pending_events} queued` : ''}
         </span>
@@ -126,7 +126,7 @@ export function EventLedgerPanel() {
             onChange={(e) => setSeekTo(e.target.value.replace(/\D/g, ''))}
             placeholder="seek #"
             aria-label="Seek to event"
-            className="w-[64px] rounded-md border border-white/10 bg-white/5 px-1.5 py-1 font-mono text-[11px] outline-none placeholder:text-white/30 focus:border-accent"
+            className="w-[64px] rounded-md border border-fg/10 bg-fg/5 px-1.5 py-1 font-mono text-[11px] outline-none placeholder:text-fg/30 focus:border-accent"
           />
           <LedgerButton
             label="Seek to event"
@@ -141,7 +141,7 @@ export function EventLedgerPanel() {
       {/* Ledger records (newest first) */}
       <div className="ng-scroll min-h-0 flex-1 overflow-auto font-mono text-[11px] leading-relaxed">
         {records.length === 0 ? (
-          <p className="p-3 text-white/35">
+          <p className="p-3 text-fg/35">
             No events yet — switch to simulation mode, launch a ping, then step.
           </p>
         ) : (
@@ -155,7 +155,7 @@ export function EventLedgerPanel() {
         )}
       </div>
 
-      <p className="border-t border-white/10 px-2 py-1 text-[10px] text-white/35">
+      <p className="border-t border-fg/10 px-2 py-1 text-[10px] text-fg/35">
         Deterministic replay: double-click any row to rewind the lab to that exact event.
         Ledger hash {q.data ? q.data.hash.slice(0, 12) : '—'}…
       </p>
@@ -176,17 +176,17 @@ function LedgerRow({
     <tr
       onDoubleClick={onJump}
       title="Double-click: rewind to this event"
-      className="cursor-default border-b border-white/5 hover:bg-white/8"
+      className="cursor-default border-b border-fg/5 hover:bg-fg/8"
     >
-      <td className="whitespace-nowrap px-2 py-0.5 text-right text-white/35">{r.seq}</td>
-      <td className="whitespace-nowrap px-1 py-0.5 text-white/40">{r.t.toFixed(6)}</td>
-      <td className={cn('whitespace-nowrap px-1 py-0.5', TYPE_STYLES[r.type] ?? 'text-white/60')}>
+      <td className="whitespace-nowrap px-2 py-0.5 text-right text-fg/35">{r.seq}</td>
+      <td className="whitespace-nowrap px-1 py-0.5 text-fg/40">{r.t.toFixed(6)}</td>
+      <td className={cn('whitespace-nowrap px-1 py-0.5', TYPE_STYLES[r.type] ?? 'text-fg/60')}>
         {r.type}
       </td>
-      <td className="whitespace-nowrap px-1 py-0.5 text-white/55">
+      <td className="whitespace-nowrap px-1 py-0.5 text-fg/55">
         {r.iface ?? nodeName(r.node)}
       </td>
-      <td className="truncate px-2 py-0.5 text-white/75">{r.info ?? ''}</td>
+      <td className="truncate px-2 py-0.5 text-fg/75">{r.info ?? ''}</td>
     </tr>
   );
 }
@@ -210,7 +210,7 @@ function LedgerButton({
       title={label}
       className={cn(
         'flex h-6 items-center gap-0.5 rounded px-1.5 transition-colors',
-        disabled ? 'text-white/25' : 'text-white/75 hover:bg-white/10 hover:text-white',
+        disabled ? 'text-fg/25' : 'text-fg/75 hover:bg-fg/10 hover:text-fg',
       )}
     >
       {children}

@@ -49,7 +49,7 @@ export function PropertiesPanel() {
   if (!node) {
     return (
       <div className="grid h-full place-items-center p-6 text-center">
-        <div className="space-y-3 text-white/40">
+        <div className="space-y-3 text-fg/40">
           <Cpu className="mx-auto h-9 w-9 opacity-60" />
           <p className="text-sm font-medium">No device selected</p>
           <p className="text-xs leading-relaxed">
@@ -92,7 +92,7 @@ export function PropertiesPanel() {
   return (
     <div className="ng-scroll h-full space-y-4 overflow-auto p-3">
       {/* Node summary header */}
-      <div className="flex items-center gap-2.5 rounded-lg border border-white/8 bg-white/4 px-3 py-2">
+      <div className="flex items-center gap-2.5 rounded-lg border border-fg/8 bg-fg/4 px-3 py-2">
         <div
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-xs font-bold uppercase"
           style={{ background: `${statusColor}20`, color: statusColor }}
@@ -100,8 +100,8 @@ export function PropertiesPanel() {
           {node.kind[0]?.toUpperCase()}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-white/90">{node.name}</p>
-          <p className="text-[10px] text-white/40">
+          <p className="truncate text-sm font-medium text-fg/90">{node.name}</p>
+          <p className="text-[10px] text-fg/40">
             {node.kind} &middot; {node.nos}
           </p>
         </div>
@@ -112,7 +112,7 @@ export function PropertiesPanel() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => name !== node.name && patch({ name })}
-          className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-white/90 outline-none transition-colors focus:border-accent"
+          className="w-full rounded-md border border-fg/10 bg-recess/20 px-2 py-1.5 text-sm text-fg/90 outline-none transition-colors focus:border-accent"
         />
       </Field>
 
@@ -121,11 +121,11 @@ export function PropertiesPanel() {
           <select
             value={node.nos}
             onChange={(e) => patch({ nos: e.target.value as Nos })}
-            className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-white/90 outline-none transition-colors focus:border-accent"
+            className="w-full rounded-md border border-fg/10 bg-recess/20 px-2 py-1.5 text-sm text-fg/90 outline-none transition-colors focus:border-accent"
           >
             {nosOptions.map((n) =>
               'disabled' in n && n.disabled ? (
-                <option key={n.value} value={n.value} disabled className="bg-[#141A2E] text-white/40">
+                <option key={n.value} value={n.value} disabled className="bg-[#141A2E] text-fg/40">
                   {n.label}
                 </option>
               ) : (
@@ -137,15 +137,15 @@ export function PropertiesPanel() {
           </select>
         </Field>
         <Field label="Mode">
-          <div className="flex rounded-md border border-white/10 bg-black/20 p-0.5">
+          <div className="flex rounded-md border border-fg/10 bg-recess/20 p-0.5">
             {(['sim', 'emul'] as NodeMode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => patch({ mode: m })}
                 className={`flex-1 rounded px-2 py-1 text-xs uppercase transition-colors ${
                   node.mode === m
-                    ? 'bg-accent text-white'
-                    : 'text-white/50 hover:text-white/80'
+                    ? 'bg-accent text-fg'
+                    : 'text-fg/50 hover:text-fg/80'
                 }`}
               >
                 {m}
@@ -156,7 +156,7 @@ export function PropertiesPanel() {
       </div>
 
       <Field label="Status">
-        <span className="inline-flex items-center gap-1.5 rounded-md bg-white/5 px-2.5 py-1 text-xs text-white/80">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-fg/5 px-2.5 py-1 text-xs text-fg/80">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: statusColor }} />
           {effectiveStatus}
         </span>
@@ -165,15 +165,15 @@ export function PropertiesPanel() {
       {node.kind === 'cloud' && <CloudUplink node={node} patch={patch} />}
 
       <section>
-        <h4 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/45">
+        <h4 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-fg/45">
           <Plug className="h-3.5 w-3.5" />
           Interfaces
-          <span className="ml-auto rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] font-normal">
+          <span className="ml-auto rounded-full bg-fg/8 px-1.5 py-0.5 text-[10px] font-normal">
             {node.interfaces.length}
           </span>
         </h4>
         {node.interfaces.length === 0 ? (
-          <p className="rounded-md border border-dashed border-white/10 p-3 text-center text-xs text-white/35">
+          <p className="rounded-md border border-dashed border-fg/10 p-3 text-center text-xs text-fg/35">
             No interfaces yet. Connect a link to provision one.
           </p>
         ) : (
@@ -181,10 +181,10 @@ export function PropertiesPanel() {
             {node.interfaces.map((i) => (
               <li
                 key={i.id}
-                className="flex items-center justify-between rounded-md bg-white/4 px-2.5 py-1.5 text-xs"
+                className="flex items-center justify-between rounded-md bg-fg/4 px-2.5 py-1.5 text-xs"
               >
-                <span className="font-mono text-white/80">{i.name}</span>
-                <span className="text-white/40">
+                <span className="font-mono text-fg/80">{i.name}</span>
+                <span className="text-fg/40">
                   {i.type} &middot; {i.speed >= 1000 ? `${(i.speed / 1000).toFixed(0)}G` : `${i.speed}M`}
                 </span>
               </li>
@@ -203,7 +203,7 @@ export function PropertiesPanel() {
               }),
             )
           }
-          className="flex flex-1 items-center justify-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-soft"
+          className="flex flex-1 items-center justify-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-medium text-fg transition-colors hover:bg-accent-soft"
         >
           <RefreshCw className="h-4 w-4" />
           Generate config
@@ -213,7 +213,7 @@ export function PropertiesPanel() {
           <button
             onClick={() => openWindow('settings', { title: 'Settings' })}
             title="Manage custom NOS in Settings"
-            className="flex items-center justify-center rounded-md border border-white/10 bg-white/5 px-2.5 py-2 text-white/50 transition-colors hover:border-accent/40 hover:text-accent"
+            className="flex items-center justify-center rounded-md border border-fg/10 bg-fg/5 px-2.5 py-2 text-fg/50 transition-colors hover:border-accent/40 hover:text-accent"
           >
             <Settings2 className="h-4 w-4" />
           </button>
@@ -226,7 +226,7 @@ export function PropertiesPanel() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-1">
-      <span className="text-[11px] font-medium uppercase tracking-wide text-white/40">{label}</span>
+      <span className="text-[11px] font-medium uppercase tracking-wide text-fg/40">{label}</span>
       {children}
     </label>
   );

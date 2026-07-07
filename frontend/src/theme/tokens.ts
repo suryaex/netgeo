@@ -73,6 +73,12 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-fg': '#EDF0F7',
     '--ng-fg-muted': '#9AA3B5',
     '--ng-fg-subtle': '#5C6577',
+    // Alpha-capable channels for the theme-aware `fg`/`recess` Tailwind aliases
+    // (replace hardcoded text-white/border-white/bg-white and bg-black wells).
+    // Dark keeps pure white/black so `text-fg/NN` is pixel-identical to the old
+    // `text-white/NN`; light inverts to ink/slate so the same class stays legible.
+    '--ng-fg-rgb': '255 255 255',
+    '--ng-recess-rgb': '0 0 0',
     '--ng-glass-bg': 'rgba(20,25,36,0.62)',
     '--ng-glass-border': 'rgba(255,255,255,0.08)',
     '--ng-elevate': '0 16px 50px rgba(0,0,0,0.45)',
@@ -95,6 +101,8 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-fg': '#101626',
     '--ng-fg-muted': '#566076',
     '--ng-fg-subtle': '#8A93A6',
+    '--ng-fg-rgb': '16 22 38', // ink — legible foreground/hairline on light surfaces
+    '--ng-recess-rgb': '15 23 42', // slate — subtle recessed wells on light surfaces
     '--ng-glass-bg': 'rgba(255,255,255,0.70)',
     '--ng-glass-border': 'rgba(15,23,42,0.10)',
     '--ng-elevate': '0 16px 50px rgba(15,23,42,0.18)',
@@ -117,6 +125,8 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-fg': '#FFFFFF',
     '--ng-fg-muted': '#E6E6E6',
     '--ng-fg-subtle': '#BFBFBF',
+    '--ng-fg-rgb': '255 255 255',
+    '--ng-recess-rgb': '0 0 0',
     '--ng-glass-bg': '#000000',
     '--ng-glass-border': '#FFFFFF',
     '--ng-elevate': '0 0 0 1px #FFFFFF',

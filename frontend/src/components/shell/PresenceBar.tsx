@@ -26,14 +26,14 @@ export function PresenceBar() {
           <span
             key={p.id}
             title={p.name}
-            className="grid h-6 w-6 place-items-center rounded-full border border-black/40 text-[10px] font-semibold text-white shadow"
+            className="grid h-6 w-6 place-items-center rounded-full border border-black/40 text-[10px] font-semibold text-fg shadow"
             style={{ background: p.color }}
           >
             {p.name?.[0]?.toUpperCase() ?? '?'}
           </span>
         ))}
         {overflow > 0 && (
-          <span className="grid h-6 w-6 place-items-center rounded-full border border-black/40 bg-white/15 text-[10px] font-semibold text-white/80">
+          <span className="grid h-6 w-6 place-items-center rounded-full border border-black/40 bg-fg/15 text-[10px] font-semibold text-fg/80">
             +{overflow}
           </span>
         )}

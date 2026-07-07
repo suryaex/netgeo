@@ -53,23 +53,23 @@ export function MapOnboardingModal() {
       className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
       onClick={(e) => e.target === e.currentTarget && dismiss()}
     >
-      <div className="glass-strong relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/15 shadow-glass-lg animate-scale-in">
+      <div className="glass-strong relative w-full max-w-lg overflow-hidden rounded-2xl border border-fg/15 shadow-glass-lg animate-scale-in">
         {/* Close */}
         <button
           onClick={dismiss}
           aria-label="Skip onboarding"
-          className="absolute right-4 top-4 grid h-7 w-7 place-items-center rounded-md text-white/40 hover:bg-white/10 hover:text-white"
+          className="absolute right-4 top-4 grid h-7 w-7 place-items-center rounded-md text-fg/40 hover:bg-fg/10 hover:text-fg"
         >
           <X className="h-4 w-4" />
         </button>
 
         {/* Header */}
-        <div className="border-b border-white/10 px-8 pb-5 pt-8 text-center">
+        <div className="border-b border-fg/10 px-8 pb-5 pt-8 text-center">
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-accent/20 text-accent">
             <Radio className="h-6 w-6" />
           </div>
-          <h2 className="text-lg font-semibold text-white">Start a Network Design</h2>
-          <p className="mt-1 text-sm text-white/55">
+          <h2 className="text-lg font-semibold text-fg">Start a Network Design</h2>
+          <p className="mt-1 text-sm text-fg/55">
             Click the map to place devices. Links and signal coverage are drawn automatically.
           </p>
         </div>
@@ -83,8 +83,8 @@ export function MapOnboardingModal() {
                 key={opt.title}
                 onClick={() => pick(opt)}
                 className={cn(
-                  'group flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 p-4 text-left',
-                  'transition-all duration-fast hover:border-white/20 hover:bg-white/10',
+                  'group flex items-center gap-4 rounded-xl border border-fg/10 bg-fg/5 p-4 text-left',
+                  'transition-all duration-fast hover:border-fg/20 hover:bg-fg/10',
                 )}
               >
                 <div
@@ -94,18 +94,18 @@ export function MapOnboardingModal() {
                   <Icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-medium text-white/90">{opt.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-white/50">{opt.description}</p>
+                  <p className="font-medium text-fg/90">{opt.title}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-fg/50">{opt.description}</p>
                 </div>
               </button>
             );
           })}
         </div>
 
-        <div className="border-t border-white/10 px-6 py-3 text-center">
+        <div className="border-t border-fg/10 px-6 py-3 text-center">
           <button
             onClick={dismiss}
-            className="text-xs text-white/35 hover:text-white/60 transition-colors"
+            className="text-xs text-fg/35 hover:text-fg/60 transition-colors"
           >
             Skip — I'll explore on my own
           </button>

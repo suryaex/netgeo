@@ -25,9 +25,15 @@ export default {
         'panel-2': 'var(--ng-panel-2)',
         hairline: 'var(--ng-border)',
         'hairline-strong': 'var(--ng-border-strong)',
-        fg: 'var(--ng-fg)',
+        // Alpha-capable foreground: `text-fg/NN`, `border-fg/NN`, `bg-fg/NN`
+        // replace the old hardcoded `*-white/NN`. White in dark (pixel-identical),
+        // ink in light, white in high-contrast — one class, all three themes.
+        fg: 'rgb(var(--ng-fg-rgb) / <alpha-value>)',
         'fg-muted': 'var(--ng-fg-muted)',
         'fg-subtle': 'var(--ng-fg-subtle)',
+        // Recessed wells/fields: `bg-recess/NN` replaces the old `bg-black/NN`.
+        // Black in dark (pixel-identical), slate tint in light.
+        recess: 'rgb(var(--ng-recess-rgb) / <alpha-value>)',
         primary: {
           DEFAULT: 'var(--ng-primary)',
           fg: '#FFFFFF',

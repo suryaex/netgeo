@@ -48,7 +48,7 @@ export function Dock() {
       aria-label="Application dock"
       className="pointer-events-auto fixed bottom-4 left-1/2 z-[1000] -translate-x-1/2"
     >
-      <ul className="glass-strong flex items-end gap-1 rounded-2xl border border-white/15 px-2 py-2 shadow-dock">
+      <ul className="glass-strong flex items-end gap-1 rounded-2xl border border-fg/15 px-2 py-2 shadow-dock">
         {ITEMS.map(({ kind, title, icon: Icon }) => {
           const isOpen = openKinds.has(kind);
           return (
@@ -61,10 +61,10 @@ export function Dock() {
                 className={cn(
                   'group grid h-12 w-12 place-items-center rounded-md transition-transform duration-fast',
                   'hover:-translate-y-1.5 hover:scale-110',
-                  'bg-white/5 hover:bg-white/10',
+                  'bg-fg/5 hover:bg-fg/10',
                 )}
               >
-                <Icon className="h-6 w-6 text-white/85 group-hover:text-white" />
+                <Icon className="h-6 w-6 text-fg/85 group-hover:text-fg" />
               </button>
               <span
                 className={cn(

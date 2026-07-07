@@ -21,7 +21,7 @@ export function MapLayerSwitcher() {
   return (
     <div className="pointer-events-auto absolute bottom-10 left-4 z-[1000]">
       <div
-        className="glass-strong flex gap-1 rounded-xl border border-white/15 p-1 shadow-glass-lg"
+        className="glass-strong flex gap-1 rounded-xl border border-fg/15 p-1 shadow-glass-lg"
         role="group"
         aria-label="Map layer"
       >
@@ -34,7 +34,7 @@ export function MapLayerSwitcher() {
               aria-pressed={active}
               className={cn(
                 'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors',
-                active ? 'bg-accent/25 text-accent' : 'text-white/55 hover:bg-white/10 hover:text-white',
+                active ? 'bg-accent/25 text-accent' : 'text-fg/55 hover:bg-fg/10 hover:text-fg',
               )}
             >
               <Icon className="h-3.5 w-3.5" />

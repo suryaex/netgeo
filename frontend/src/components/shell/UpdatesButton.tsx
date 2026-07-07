@@ -149,7 +149,7 @@ export function UpdatesButton() {
         aria-label="Updates"
         title={available ? `Update available: ${info?.latest}` : 'Check for updates'}
         className={cn(
-          'relative grid h-7 w-7 place-items-center rounded-md hover:bg-white/10',
+          'relative grid h-7 w-7 place-items-center rounded-md hover:bg-fg/10',
           available && 'text-accent',
         )}
       >
@@ -160,29 +160,29 @@ export function UpdatesButton() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-9 z-[1000] w-72 rounded-lg border border-white/10 bg-black/80 p-3 text-[13px] text-white/85 shadow-xl backdrop-blur">
+        <div className="absolute right-0 top-9 z-[1000] w-72 rounded-lg border border-fg/10 bg-panel dark:bg-black/80 p-3 text-[13px] text-fg/85 shadow-xl backdrop-blur">
           <div className="mb-2 flex items-center justify-between">
             <span className="font-semibold">Software update</span>
             <button
               onClick={() => void check()}
               disabled={busy}
-              className="grid h-6 w-6 place-items-center rounded hover:bg-white/10 disabled:opacity-50"
+              className="grid h-6 w-6 place-items-center rounded hover:bg-fg/10 disabled:opacity-50"
               title="Check again"
             >
               <RefreshCw className={cn('h-3.5 w-3.5', busy && 'animate-spin')} />
             </button>
           </div>
 
-          <div className="space-y-1 text-white/70">
+          <div className="space-y-1 text-fg/70">
             <div>
               Current:{' '}
-              <span className="tabular-nums text-white">
+              <span className="tabular-nums text-fg">
                 {info?.current ?? (checking ? '…' : '—')}
               </span>
             </div>
             <div>
               Latest:{' '}
-              <span className="tabular-nums text-white">
+              <span className="tabular-nums text-fg">
                 {info
                   ? (info.latest ?? 'Could not reach GitHub')
                   : (checking ? '…' : '—')}
@@ -195,32 +195,32 @@ export function UpdatesButton() {
           {available ? (
             <>
               {info?.notes && (
-                <p className="mt-2 max-h-24 overflow-auto whitespace-pre-wrap text-xs text-white/60">
+                <p className="mt-2 max-h-24 overflow-auto whitespace-pre-wrap text-xs text-fg/60">
                   {plainNotes(info.notes)}
                 </p>
               )}
               <button
                 onClick={() => void apply()}
                 disabled={busy || info?.can_apply === false}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-accent px-3 py-1.5 font-medium text-white disabled:opacity-50"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-accent px-3 py-1.5 font-medium text-fg disabled:opacity-50"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Update &amp; restart
               </button>
               {info?.token_required && (
-                <p className="mt-1 text-[11px] text-white/40">
+                <p className="mt-1 text-[11px] text-fg/40">
                   You&apos;ll be asked for the update token (UPDATE_TOKEN).
                 </p>
               )}
             </>
           ) : checking ? (
-            <p className="mt-2 text-xs text-white/50">Checking for updates…</p>
+            <p className="mt-2 text-xs text-fg/50">Checking for updates…</p>
           ) : upToDate ? (
             <p className="mt-2 text-xs text-success">You&apos;re up to date.</p>
           ) : null}
 
           {status && (
-            <p className="mt-2 border-t border-white/10 pt-2 text-xs text-white/70">
+            <p className="mt-2 border-t border-fg/10 pt-2 text-xs text-fg/70">
               <span className="font-medium capitalize">{status.state}</span>
               {status.message ? ` — ${status.message}` : ''}
             </p>

@@ -59,13 +59,13 @@ export function CloudUplink({
   return (
     <section className="space-y-2 rounded-md border border-accent/30 bg-accent/5 p-2.5">
       <div className="flex items-center justify-between">
-        <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/60">
+        <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-fg/60">
           <Globe className="h-3.5 w-3.5" /> Real-world uplink
         </h4>
         <button
           onClick={() => void load()}
           title="Re-scan adapters"
-          className="grid h-6 w-6 place-items-center rounded hover:bg-white/10"
+          className="grid h-6 w-6 place-items-center rounded hover:bg-fg/10"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
         </button>
@@ -87,11 +87,11 @@ export function CloudUplink({
 
       {/* Adapter selector */}
       <label className="block space-y-1">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-white/45">
+        <span className="text-[10px] font-medium uppercase tracking-wide text-fg/45">
           Host adapter
         </span>
         {ifaces == null ? (
-          <p className="text-xs text-white/40">Detecting adapters…</p>
+          <p className="text-xs text-fg/40">Detecting adapters…</p>
         ) : ifaces.length === 0 ? (
           <p className="text-xs text-warning">No adapters detected.</p>
         ) : (
@@ -100,7 +100,7 @@ export function CloudUplink({
             onChange={(e) =>
               setUplink({ adapter: e.target.value, mode: uplink?.mode ?? 'nat' })
             }
-            className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-white/90 outline-none focus:border-accent"
+            className="w-full rounded-md border border-fg/10 bg-recess/20 px-2 py-1.5 text-sm text-fg/90 outline-none focus:border-accent"
           >
             {!selected && <option value="">Select adapter…</option>}
             {ifaces.map((i) => (
@@ -118,15 +118,15 @@ export function CloudUplink({
 
       {/* NAT vs bridge */}
       <label className="block space-y-1">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-white/45">Mode</span>
-        <div className="flex rounded-md border border-white/10 bg-black/20 p-0.5">
+        <span className="text-[10px] font-medium uppercase tracking-wide text-fg/45">Mode</span>
+        <div className="flex rounded-md border border-fg/10 bg-recess/20 p-0.5">
           {(['nat', 'bridge'] as UplinkMode[]).map((m) => (
             <button
               key={m}
               onClick={() => selected && setUplink({ adapter: selected, mode: m })}
               disabled={!selected}
               className={`flex-1 rounded px-2 py-1 text-xs uppercase ${
-                uplink?.mode === m ? 'bg-accent text-white' : 'text-white/60'
+                uplink?.mode === m ? 'bg-accent text-fg' : 'text-fg/60'
               } disabled:opacity-40`}
             >
               {m}
@@ -135,7 +135,7 @@ export function CloudUplink({
         </div>
       </label>
 
-      <p className="text-[10px] leading-snug text-white/40">
+      <p className="text-[10px] leading-snug text-fg/40">
         <b>NAT</b>: sim reaches the internet via the host (outbound). <b>Bridge</b>: place sim
         nodes directly on the adapter&apos;s L2 segment. Applied by the emulation backend when the
         node runs in <code>emul</code> mode.

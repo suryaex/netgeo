@@ -27,7 +27,7 @@ export function DiagnosticsPanel() {
   const [tab, setTab] = useState<Tab>('ping');
   return (
     <div className="flex h-full flex-col text-[13px]">
-      <div className="flex items-center gap-1 border-b border-white/10 px-2 py-1.5">
+      <div className="flex items-center gap-1 border-b border-fg/10 px-2 py-1.5">
         <TabButton active={tab === 'ping'} onClick={() => setTab('ping')} icon={Activity}>
           Ping
         </TabButton>
@@ -67,7 +67,7 @@ function TabButton({
       onClick={onClick}
       className={cn(
         'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors',
-        active ? 'bg-accent text-white' : 'text-white/55 hover:bg-white/8 hover:text-white/85',
+        active ? 'bg-accent text-fg' : 'text-fg/55 hover:bg-fg/8 hover:text-fg/85',
       )}
     >
       <Icon className="h-3.5 w-3.5" />
@@ -113,7 +113,7 @@ function SrcDstRow({
         value={src}
         onChange={(e) => setSrc(e.target.value)}
         aria-label="Source device"
-        className="min-w-[130px] rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs outline-none focus:border-accent"
+        className="min-w-[130px] rounded-md border border-fg/10 bg-fg/5 px-2 py-1.5 text-xs outline-none focus:border-accent"
       >
         <option value="">source device…</option>
         {options.map((o) => (
@@ -122,7 +122,7 @@ function SrcDstRow({
           </option>
         ))}
       </select>
-      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-white/35" />
+      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-fg/35" />
       <input
         value={dst}
         onChange={(e) => setDst(e.target.value)}
@@ -130,7 +130,7 @@ function SrcDstRow({
         placeholder="IPv4/IPv6 or device"
         aria-label="Destination"
         spellCheck={false}
-        className="w-[190px] rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs outline-none placeholder:text-white/30 focus:border-accent"
+        className="w-[190px] rounded-md border border-fg/10 bg-fg/5 px-2 py-1.5 text-xs outline-none placeholder:text-fg/30 focus:border-accent"
       />
       <datalist id="ng-diag-dst-options">
         {options.map((o) => (
@@ -143,8 +143,8 @@ function SrcDstRow({
         className={cn(
           'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
           !src || !dst || running
-            ? 'bg-white/10 text-white/35'
-            : 'bg-accent text-white hover:bg-accent/85',
+            ? 'bg-fg/10 text-fg/35'
+            : 'bg-accent text-fg hover:bg-accent/85',
         )}
       >
         {running ? 'Running…' : runLabel}
@@ -182,8 +182,8 @@ function PingTool() {
       />
       <ErrorNote message={m.error?.message} />
       {m.data && (
-        <div className="mt-3 rounded-lg border border-white/10 bg-black/25 p-3 font-mono text-xs leading-relaxed">
-          <p className="text-white/60">
+        <div className="mt-3 rounded-lg border border-fg/10 bg-recess/25 p-3 font-mono text-xs leading-relaxed">
+          <p className="text-fg/60">
             {m.data.src} → {m.data.dst}
           </p>
           {m.data.rtts_ms.map((rtt, i) => (
@@ -231,17 +231,17 @@ function TraceTool() {
       />
       <ErrorNote message={m.error?.message} />
       {m.data && (
-        <div className="mt-3 rounded-lg border border-white/10 bg-black/25 p-3 font-mono text-xs leading-relaxed">
-          <p className="text-white/60">
+        <div className="mt-3 rounded-lg border border-fg/10 bg-recess/25 p-3 font-mono text-xs leading-relaxed">
+          <p className="text-fg/60">
             {m.data.src} → {m.data.dst}
           </p>
           {m.data.hops.map((h) => (
             <p key={h.hop}>
-              <span className="text-white/40">{String(h.hop).padStart(2)} </span>
-              <span className={h.address ? 'text-emerald-300/90' : 'text-white/30'}>
+              <span className="text-fg/40">{String(h.hop).padStart(2)} </span>
+              <span className={h.address ? 'text-emerald-300/90' : 'text-fg/30'}>
                 {h.address ?? '*'}
               </span>
-              {h.rtt_ms !== null && <span className="text-white/50"> {h.rtt_ms} ms</span>}
+              {h.rtt_ms !== null && <span className="text-fg/50"> {h.rtt_ms} ms</span>}
             </p>
           ))}
           <p className={cn('mt-1', m.data.reached ? 'text-success' : 'text-warning')}>
@@ -283,7 +283,7 @@ function CaptureTool() {
           value={linkId}
           onChange={(e) => setLinkId(e.target.value)}
           aria-label="Capture link filter"
-          className="rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs outline-none focus:border-accent"
+          className="rounded-md border border-fg/10 bg-fg/5 px-2 py-1.5 text-xs outline-none focus:border-accent"
         >
           <option value="">all links</option>
           {linkOptions.map((l) => (
@@ -301,31 +301,31 @@ function CaptureTool() {
           aria-label="Display filter"
           spellCheck={false}
           className={cn(
-            'w-[240px] rounded-md border bg-white/5 px-2 py-1.5 font-mono text-[11px] outline-none placeholder:text-white/25',
-            filterError ? 'border-danger/60' : 'border-white/10 focus:border-accent',
+            'w-[240px] rounded-md border bg-fg/5 px-2 py-1.5 font-mono text-[11px] outline-none placeholder:text-fg/25',
+            filterError ? 'border-danger/60' : 'border-fg/10 focus:border-accent',
           )}
         />
         <button
           onClick={() => setFilter(filterDraft.trim())}
-          className="rounded-md bg-white/10 px-2 py-1.5 text-xs text-white/70 hover:bg-white/15"
+          className="rounded-md bg-fg/10 px-2 py-1.5 text-xs text-fg/70 hover:bg-fg/15"
         >
           Apply
         </button>
         <button
           onClick={() => setView(view === 'frames' ? 'conversations' : 'frames')}
-          className="rounded-md bg-white/10 px-2 py-1.5 text-xs text-white/70 hover:bg-white/15"
+          className="rounded-md bg-fg/10 px-2 py-1.5 text-xs text-fg/70 hover:bg-fg/15"
           title="Toggle conversation view"
         >
           {view === 'frames' ? 'Conversations' : 'Frames'}
         </button>
         <button
           onClick={() => void labApi.downloadPcapng(projectId!, linkId || undefined)}
-          className="rounded-md bg-accent/80 px-2 py-1.5 text-xs font-medium text-white hover:bg-accent"
+          className="rounded-md bg-accent/80 px-2 py-1.5 text-xs font-medium text-fg hover:bg-accent"
           title="Download as .pcapng — opens in Wireshark"
         >
           .pcapng
         </button>
-        <span className="text-xs text-white/40">
+        <span className="text-xs text-fg/40">
           {q.data?.length ?? 0} frames · auto-refresh
         </span>
       </div>
@@ -335,9 +335,9 @@ function CaptureTool() {
       {view === 'conversations' && <ConversationView records={q.data ?? []} />}
 
       {view === 'frames' && (
-      <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-white/10 bg-black/25 font-mono text-[11px] leading-relaxed">
+      <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-fg/10 bg-recess/25 font-mono text-[11px] leading-relaxed">
         {(q.data ?? []).length === 0 ? (
-          <p className="p-3 text-white/35">
+          <p className="p-3 text-fg/35">
             No frames captured yet — run a ping or let protocols talk.
           </p>
         ) : (
@@ -351,15 +351,15 @@ function CaptureTool() {
                     key={`${r.frame_id}-${r.t}-${r.dir}-${r.iface}`}
                     onClick={() => setSelected(r)}
                     className={cn(
-                      'cursor-pointer border-b border-white/5 hover:bg-white/8',
+                      'cursor-pointer border-b border-fg/5 hover:bg-fg/8',
                       r.dir === 'drop' && 'text-danger/80',
                     )}
                   >
-                    <td className="whitespace-nowrap px-2 py-0.5 text-white/40">
+                    <td className="whitespace-nowrap px-2 py-0.5 text-fg/40">
                       {r.t.toFixed(6)}
                     </td>
-                    <td className="px-1 py-0.5 uppercase text-white/50">{r.dir}</td>
-                    <td className="whitespace-nowrap px-1 py-0.5 text-white/50">{r.iface}</td>
+                    <td className="px-1 py-0.5 uppercase text-fg/50">{r.dir}</td>
+                    <td className="whitespace-nowrap px-1 py-0.5 text-fg/50">{r.iface}</td>
                     <td className="truncate px-2 py-0.5 text-emerald-200/85">{r.info}</td>
                   </tr>
                 ))}
@@ -370,10 +370,10 @@ function CaptureTool() {
       )}
 
       {view === 'frames' && selected && (
-        <div className="max-h-[130px] overflow-auto rounded-lg border border-white/10 bg-black/40 p-2 font-mono text-[11px] text-sky-200/85">
+        <div className="max-h-[130px] overflow-auto rounded-lg border border-fg/10 bg-recess/40 p-2 font-mono text-[11px] text-sky-200/85">
           {Object.entries(selected.layers).map(([layer, fields]) => (
             <p key={layer}>
-              <span className="text-white/50">{layer}:</span> {JSON.stringify(fields)}
+              <span className="text-fg/50">{layer}:</span> {JSON.stringify(fields)}
             </p>
           ))}
         </div>
@@ -409,13 +409,13 @@ function ConversationView({ records }: { records: CaptureRecord[] }) {
   }, [records]);
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-white/10 bg-black/25 font-mono text-[11px] leading-relaxed">
+    <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-fg/10 bg-recess/25 font-mono text-[11px] leading-relaxed">
       {rows.length === 0 ? (
-        <p className="p-3 text-white/35">No conversations in the current capture.</p>
+        <p className="p-3 text-fg/35">No conversations in the current capture.</p>
       ) : (
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/10 text-left text-white/40">
+            <tr className="border-b border-fg/10 text-left text-fg/40">
               <th className="px-2 py-1 font-normal">Endpoint A</th>
               <th className="px-2 py-1 font-normal">Endpoint B</th>
               <th className="px-2 py-1 font-normal">Proto</th>
@@ -425,12 +425,12 @@ function ConversationView({ records }: { records: CaptureRecord[] }) {
           </thead>
           <tbody>
             {rows.map((c) => (
-              <tr key={`${c.a}|${c.b}|${c.proto}`} className="border-b border-white/5">
+              <tr key={`${c.a}|${c.b}|${c.proto}`} className="border-b border-fg/5">
                 <td className="px-2 py-0.5 text-emerald-200/85">{c.a}</td>
                 <td className="px-2 py-0.5 text-emerald-200/85">{c.b}</td>
-                <td className="px-2 py-0.5 uppercase text-white/55">{c.proto}</td>
-                <td className="px-2 py-0.5 text-right text-white/60">{c.frames}</td>
-                <td className="px-2 py-0.5 text-right text-white/60">{c.bytes}</td>
+                <td className="px-2 py-0.5 uppercase text-fg/55">{c.proto}</td>
+                <td className="px-2 py-0.5 text-right text-fg/60">{c.frames}</td>
+                <td className="px-2 py-0.5 text-right text-fg/60">{c.bytes}</td>
               </tr>
             ))}
           </tbody>
@@ -491,7 +491,7 @@ function TablesTool() {
         value={nodeRef}
         onChange={(e) => setNodeRef(e.target.value)}
         aria-label="Device tables"
-        className="w-fit min-w-[180px] rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs outline-none focus:border-accent"
+        className="w-fit min-w-[180px] rounded-md border border-fg/10 bg-fg/5 px-2 py-1.5 text-xs outline-none focus:border-accent"
       >
         <option value="">select device…</option>
         {options.map((o) => (
@@ -507,12 +507,12 @@ function TablesTool() {
           <TableCard title="Interfaces">
             {t.interfaces.map((i) => (
               <p key={i.name} className="flex flex-wrap items-center gap-1.5">
-                <span className="text-white/75">{i.name}</span>
+                <span className="text-fg/75">{i.name}</span>
                 <Badge tone={i.up ? 'ok' : 'bad'}>{i.up ? 'up' : 'down'}</Badge>
                 {i.stp && i.stp.state !== 'forwarding' && (
                   <Badge tone="warn">STP {i.stp.state}</Badge>
                 )}
-                <span className="text-white/45">
+                <span className="text-fg/45">
                   {[...i.ips, ...(i.ips6 ?? [])].join(', ') || i.link_local || '—'}
                 </span>
               </p>
@@ -529,9 +529,9 @@ function TablesTool() {
           {(t.arp?.length ?? 0) > 0 && (
             <TableCard title="ARP cache">
               {t.arp!.map((a) => (
-                <p key={a.ip} className="text-white/60">
-                  {a.ip} <span className="text-white/35">→</span> {a.mac}{' '}
-                  <span className="text-white/35">({a.iface})</span>
+                <p key={a.ip} className="text-fg/60">
+                  {a.ip} <span className="text-fg/35">→</span> {a.mac}{' '}
+                  <span className="text-fg/35">({a.iface})</span>
                 </p>
               ))}
             </TableCard>
@@ -539,9 +539,9 @@ function TablesTool() {
           {(t.neighbors6?.length ?? 0) > 0 && (
             <TableCard title="IPv6 neighbors (NDP)">
               {t.neighbors6!.map((a) => (
-                <p key={a.ip} className="text-white/60">
-                  {a.ip} <span className="text-white/35">→</span> {a.mac}{' '}
-                  <span className="text-white/35">({a.iface})</span>
+                <p key={a.ip} className="text-fg/60">
+                  {a.ip} <span className="text-fg/35">→</span> {a.mac}{' '}
+                  <span className="text-fg/35">({a.iface})</span>
                 </p>
               ))}
             </TableCard>
@@ -550,7 +550,7 @@ function TablesTool() {
           {(t.mac_table?.length ?? 0) > 0 && (
             <TableCard title="MAC address table">
               {t.mac_table!.map((m, i) => (
-                <p key={i} className="text-white/60">
+                <p key={i} className="text-fg/60">
                   vlan {m.vlan} · {m.mac} → {m.port}
                 </p>
               ))}
@@ -560,7 +560,7 @@ function TablesTool() {
           {(t.ospf_neighbors?.length ?? 0) > 0 && (
             <TableCard title="OSPF neighbors">
               {t.ospf_neighbors!.map((n) => (
-                <p key={n.router_id} className="flex items-center gap-1.5 text-white/60">
+                <p key={n.router_id} className="flex items-center gap-1.5 text-fg/60">
                   {n.router_id} via {n.iface}
                   <Badge tone={n.state.toLowerCase() === 'full' ? 'ok' : 'warn'}>{n.state}</Badge>
                 </p>
@@ -570,12 +570,12 @@ function TablesTool() {
           {(t.bgp_peers?.length ?? 0) > 0 && (
             <TableCard title="BGP peers">
               {t.bgp_peers!.map((p) => (
-                <p key={p.neighbor} className="flex items-center gap-1.5 text-white/60">
+                <p key={p.neighbor} className="flex items-center gap-1.5 text-fg/60">
                   {p.neighbor} (AS{p.remote_as})
                   <Badge tone={p.state.toLowerCase() === 'established' ? 'ok' : 'warn'}>
                     {p.state}
                   </Badge>
-                  <span className="text-white/35">{p.prefixes_received} pfx</span>
+                  <span className="text-fg/35">{p.prefixes_received} pfx</span>
                 </p>
               ))}
             </TableCard>
@@ -590,11 +590,11 @@ function RouteTable({ title, rows }: { title: string; rows: RouteRow[] }) {
   return (
     <TableCard title={title}>
       {rows.map((r, i) => (
-        <p key={i} className="text-white/60">
-          <span className="text-white/40">{sourceCode(r.source)}</span> {r.prefix}{' '}
-          <span className="text-white/35">[{r.ad}/{r.metric}]</span>{' '}
+        <p key={i} className="text-fg/60">
+          <span className="text-fg/40">{sourceCode(r.source)}</span> {r.prefix}{' '}
+          <span className="text-fg/35">[{r.ad}/{r.metric}]</span>{' '}
           {r.next_hop ? `via ${r.next_hop}` : 'directly connected'}
-          {r.iface ? <span className="text-white/35">, {r.iface}</span> : null}
+          {r.iface ? <span className="text-fg/35">, {r.iface}</span> : null}
         </p>
       ))}
     </TableCard>
@@ -606,8 +606,8 @@ const sourceCode = (s: string) =>
 
 function TableCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-black/25 p-3">
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-white/40">
+    <div className="rounded-lg border border-fg/10 bg-recess/25 p-3">
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-fg/40">
         {title}
       </p>
       {children}

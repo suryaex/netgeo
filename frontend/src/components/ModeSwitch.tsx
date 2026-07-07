@@ -36,7 +36,7 @@ export function ModeSwitch() {
 
   return (
     <div
-      className="flex items-center rounded-md border border-white/10 bg-white/5 p-0.5"
+      className="flex items-center rounded-md border border-fg/10 bg-fg/5 p-0.5"
       role="group"
       aria-label="Lab mode"
     >
@@ -78,7 +78,7 @@ function ModeButton({
       aria-pressed={active}
       className={cn(
         'flex items-center gap-1.5 rounded px-2 py-1 text-xs transition-colors',
-        active ? 'bg-accent text-white' : 'text-white/50 hover:text-white/80',
+        active ? 'bg-accent text-fg' : 'text-fg/50 hover:text-fg/80',
       )}
     >
       <Icon className="h-3.5 w-3.5" />

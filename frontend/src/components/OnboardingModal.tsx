@@ -102,12 +102,12 @@ export function OnboardingModal({ onClose }: OnboardingModalProps) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       {/* Card */}
-      <div className="glass-strong relative w-full max-w-md overflow-hidden rounded-2xl border border-white/15 shadow-glass-lg animate-scale-in">
+      <div className="glass-strong relative w-full max-w-md overflow-hidden rounded-2xl border border-fg/15 shadow-glass-lg animate-scale-in">
         {/* Close */}
         <button
           onClick={onClose}
           aria-label="Close onboarding"
-          className="absolute right-4 top-4 grid h-7 w-7 place-items-center rounded-md text-white/40 hover:bg-white/10 hover:text-white"
+          className="absolute right-4 top-4 grid h-7 w-7 place-items-center rounded-md text-fg/40 hover:bg-fg/10 hover:text-fg"
         >
           <X className="h-4 w-4" />
         </button>
@@ -120,16 +120,16 @@ export function OnboardingModal({ onClose }: OnboardingModalProps) {
           >
             <Icon className="h-7 w-7" />
           </div>
-          <h2 className="text-lg font-semibold text-white">{current.title}</h2>
+          <h2 className="text-lg font-semibold text-fg">{current.title}</h2>
         </div>
 
         {/* Body */}
         <div className="px-8 pb-2">
-          <p className="text-center text-sm leading-relaxed text-white/70">
+          <p className="text-center text-sm leading-relaxed text-fg/70">
             {current.description}
           </p>
           {current.hint && (
-            <p className="mt-3 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-center text-xs text-white/50">
+            <p className="mt-3 rounded-md border border-fg/10 bg-fg/5 px-3 py-2 text-center text-xs text-fg/50">
               {current.hint}
             </p>
           )}
@@ -144,22 +144,22 @@ export function OnboardingModal({ onClose }: OnboardingModalProps) {
               aria-label={`Go to step ${i + 1}`}
               className={cn(
                 'h-1.5 rounded-full transition-all duration-std',
-                i === step ? 'w-6 bg-accent' : 'w-1.5 bg-white/20 hover:bg-white/40',
+                i === step ? 'w-6 bg-accent' : 'w-1.5 bg-fg/20 hover:bg-fg/40',
               )}
             />
           ))}
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between border-t border-white/10 px-6 py-4">
+        <div className="flex items-center justify-between border-t border-fg/10 px-6 py-4">
           <button
             onClick={() => setStep((s) => s - 1)}
             disabled={isFirst}
             className={cn(
               'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
               isFirst
-                ? 'cursor-not-allowed text-white/20'
-                : 'text-white/60 hover:bg-white/10 hover:text-white',
+                ? 'cursor-not-allowed text-fg/20'
+                : 'text-fg/60 hover:bg-fg/10 hover:text-fg',
             )}
           >
             <ChevronLeft className="h-4 w-4" /> Back
@@ -168,14 +168,14 @@ export function OnboardingModal({ onClose }: OnboardingModalProps) {
           {isLast ? (
             <button
               onClick={onClose}
-              className="flex items-center gap-1.5 rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-soft"
+              className="flex items-center gap-1.5 rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-fg transition-colors hover:bg-accent-soft"
             >
               Get started
             </button>
           ) : (
             <button
               onClick={() => setStep((s) => s + 1)}
-              className="flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/15"
+              className="flex items-center gap-1.5 rounded-md bg-fg/10 px-3 py-1.5 text-sm text-fg transition-colors hover:bg-fg/15"
             >
               Next <ChevronRight className="h-4 w-4" />
             </button>

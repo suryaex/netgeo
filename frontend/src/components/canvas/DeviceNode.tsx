@@ -42,7 +42,7 @@ const KIND_ICON: Record<NodeKind, typeof Router> = {
 const STATUS_RING: Record<NodeStatus, string> = {
   running: 'ring-success',
   booting: 'ring-warning animate-pulse',
-  stopped: 'ring-white/20',
+  stopped: 'ring-fg/20',
   degraded: 'ring-warning',
   error: 'ring-danger',
 };
@@ -57,7 +57,7 @@ function DeviceNodeImpl({ data, selected }: NodeProps) {
       className={cn(
         'group relative flex w-[112px] flex-col items-center gap-1 rounded-md px-2 py-2',
         'glass border transition-shadow',
-        selected ? 'border-accent shadow-glass' : 'border-white/10',
+        selected ? 'border-accent shadow-glass' : 'border-fg/10',
       )}
     >
       {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
@@ -77,16 +77,16 @@ function DeviceNodeImpl({ data, selected }: NodeProps) {
         <Icon className="h-5 w-5" />
       </div>
 
-      <span className="max-w-full truncate text-[12px] font-medium text-white/90">{d.name}</span>
+      <span className="max-w-full truncate text-[12px] font-medium text-fg/90">{d.name}</span>
 
       <div className="flex items-center gap-1">
-        <span className="rounded bg-white/10 px-1 text-[9px] uppercase tracking-wide text-white/70">
+        <span className="rounded bg-fg/10 px-1 text-[9px] uppercase tracking-wide text-fg/70">
           {d.nos}
         </span>
         <span
           className={cn(
             'rounded px-1 text-[9px] uppercase tracking-wide',
-            d.mode === 'emul' ? 'bg-accent/30 text-accent-soft' : 'bg-white/10 text-white/60',
+            d.mode === 'emul' ? 'bg-accent/30 text-accent-soft' : 'bg-fg/10 text-fg/60',
           )}
         >
           {d.mode}

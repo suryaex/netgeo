@@ -63,7 +63,7 @@ export function ConfigViewer({ win }: { win: WindowInstance }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-white/10 px-2 py-1.5">
+      <div className="flex items-center gap-2 border-b border-fg/10 px-2 py-1.5">
         <div className="ng-scroll flex flex-1 gap-1 overflow-x-auto">
           {artifacts.map((a, i) => (
             <button
@@ -71,7 +71,7 @@ export function ConfigViewer({ win }: { win: WindowInstance }) {
               onClick={() => setActive(i)}
               className={cn(
                 'shrink-0 rounded-md px-2 py-1 text-xs',
-                i === active ? 'bg-accent text-white' : 'bg-white/5 text-white/60 hover:bg-white/10',
+                i === active ? 'bg-accent text-fg' : 'bg-fg/5 text-fg/60 hover:bg-fg/10',
               )}
             >
               {a.vendor} · {a.format}
@@ -82,28 +82,28 @@ export function ConfigViewer({ win }: { win: WindowInstance }) {
           onClick={copy}
           disabled={!current}
           aria-label="Copy config"
-          className="grid h-7 w-7 place-items-center rounded text-white/70 hover:bg-white/10 disabled:opacity-40"
+          className="grid h-7 w-7 place-items-center rounded text-fg/70 hover:bg-fg/10 disabled:opacity-40"
         >
           {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
         </button>
         <button
           onClick={regenerate}
           aria-label="Regenerate config"
-          className="grid h-7 w-7 place-items-center rounded text-white/70 hover:bg-white/10"
+          className="grid h-7 w-7 place-items-center rounded text-fg/70 hover:bg-fg/10"
         >
           <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
         </button>
       </div>
 
-      <div className="ng-scroll flex-1 overflow-auto bg-black/40 p-3">
+      <div className="ng-scroll flex-1 overflow-auto bg-recess/40 p-3">
         {error ? (
           <p className="text-sm text-danger">{error}</p>
         ) : loading && artifacts.length === 0 ? (
-          <p className="text-sm text-white/40">Generating…</p>
+          <p className="text-sm text-fg/40">Generating…</p>
         ) : !current ? (
           <Empty>No config artifacts yet. Click regenerate to build one.</Empty>
         ) : (
-          <pre className="whitespace-pre-wrap font-mono text-[12.5px] leading-relaxed text-white/85">
+          <pre className="whitespace-pre-wrap font-mono text-[12.5px] leading-relaxed text-fg/85">
             {current.content}
           </pre>
         )}
@@ -114,7 +114,7 @@ export function ConfigViewer({ win }: { win: WindowInstance }) {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid h-full place-items-center p-6 text-center text-white/40">
+    <div className="grid h-full place-items-center p-6 text-center text-fg/40">
       <div className="space-y-2">
         <FileCode2 className="mx-auto h-8 w-8" />
         <p className="text-xs">{children}</p>

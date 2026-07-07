@@ -489,11 +489,11 @@ function SignalLegend() {
       <button
         onClick={() => void triggerLosCheck()}
         disabled={checkingLos}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-black/60 px-3 py-1.5 text-xs text-white/70 backdrop-blur transition-colors hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-fg/15 bg-recess/60 px-3 py-1.5 text-xs text-fg/70 backdrop-blur transition-colors hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
       >
         {checkingLos ? (
           <>
-            <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border-2 border-white/30 border-t-white/80" />
+            <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border-2 border-fg/30 border-t-fg/80" />
             Checking LOS…
           </>
         ) : (
@@ -502,8 +502,8 @@ function SignalLegend() {
       </button>
 
       {/* Signal legend */}
-      <div className="rounded-xl border border-white/15 bg-black/60 px-3 py-2 shadow-glass backdrop-blur">
-        <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-white/40">
+      <div className="rounded-xl border border-fg/15 bg-recess/60 px-3 py-2 shadow-glass backdrop-blur">
+        <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-fg/40">
           Signal Quality
         </p>
         <div className="flex flex-col gap-0.5">
@@ -515,15 +515,15 @@ function SignalLegend() {
           ].map(({ label, color, range }) => (
             <div key={label} className="flex items-center gap-2">
               <span className="h-2 w-5 rounded-sm" style={{ background: color }} />
-              <span className="text-[10px] text-white/70">{label}</span>
-              <span className="ml-auto text-[9px] text-white/35">{range}</span>
+              <span className="text-[10px] text-fg/70">{label}</span>
+              <span className="ml-auto text-[9px] text-fg/35">{range}</span>
             </div>
           ))}
         </div>
 
-        <div className="my-1.5 border-t border-white/10" />
+        <div className="my-1.5 border-t border-fg/10" />
 
-        <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/40">
+        <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-fg/40">
           LOS Status
         </p>
         <div className="flex flex-col gap-0.5">
@@ -542,7 +542,7 @@ function SignalLegend() {
                   display: 'block',
                 }}
               />
-              <span className="text-[10px] text-white/70">{label}</span>
+              <span className="text-[10px] text-fg/70">{label}</span>
             </div>
           ))}
         </div>
@@ -550,7 +550,7 @@ function SignalLegend() {
         {/* Weather indicator */}
         {rainRate > 0 && (
           <>
-            <div className="my-1.5 border-t border-white/10" />
+            <div className="my-1.5 border-t border-fg/10" />
             <div className="flex items-center gap-1.5">
               <span className="text-xs">🌧</span>
               <span className="text-[10px] text-blue-300">
@@ -579,7 +579,7 @@ function ToolHint() {
   const tool = useMapStore((s) => s.tool);
   return (
     <div className="pointer-events-none absolute bottom-6 left-1/2 z-[1000] -translate-x-1/2">
-      <div className="rounded-full border border-white/15 bg-black/55 px-4 py-1.5 text-xs text-white/55 shadow-glass backdrop-blur">
+      <div className="rounded-full border border-fg/15 bg-recess/55 px-4 py-1.5 text-xs text-fg/55 shadow-glass backdrop-blur">
         {TOOL_HINTS[tool] ?? ''}
       </div>
     </div>
@@ -670,8 +670,8 @@ function GisLayerToggle() {
       aria-pressed={open}
       title="GIS layers"
       className={cn(
-        'pointer-events-auto absolute right-4 top-16 z-[1001] grid h-9 w-9 place-items-center rounded-lg border border-white/15 shadow-glass backdrop-blur transition-colors',
-        open ? 'bg-accent/25 text-accent' : 'bg-black/55 text-white/70 hover:text-white',
+        'pointer-events-auto absolute right-4 top-16 z-[1001] grid h-9 w-9 place-items-center rounded-lg border border-fg/15 shadow-glass backdrop-blur transition-colors',
+        open ? 'bg-accent/25 text-accent' : 'bg-recess/55 text-fg/70 hover:text-fg',
       )}
     >
       <LayersIcon className="h-4 w-4" />
@@ -685,12 +685,12 @@ function GisLayerToggle() {
 function GradientLegend() {
   return (
     <div className="pointer-events-none absolute right-4 top-3 z-[1000]">
-      <div className="glass-strong rounded-xl border border-white/15 px-3 py-2 shadow-glass">
-        <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-white/40">
+      <div className="glass-strong rounded-xl border border-fg/15 px-3 py-2 shadow-glass">
+        <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-fg/40">
           Signal Strength
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/60">Weak</span>
+          <span className="text-[10px] text-fg/60">Weak</span>
           <span
             className="h-2.5 w-28 rounded-full"
             style={{
@@ -698,7 +698,7 @@ function GradientLegend() {
                 'linear-gradient(90deg, #FF453A 0%, #FFCC00 40%, #A3E635 70%, #34C759 100%)',
             }}
           />
-          <span className="text-[10px] text-white/60">Strong</span>
+          <span className="text-[10px] text-fg/60">Strong</span>
         </div>
       </div>
     </div>

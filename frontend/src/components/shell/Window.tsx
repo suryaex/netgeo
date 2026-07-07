@@ -85,7 +85,7 @@ export function Window({ win, children, toolbar }: WindowProps) {
       className={cn(
         'absolute flex flex-col overflow-hidden rounded-lg border animate-scale-in',
         'glass-strong shadow-window',
-        isFocused ? 'border-white/20' : 'border-white/10 opacity-95',
+        isFocused ? 'border-fg/20' : 'border-fg/10 opacity-95',
       )}
     >
       {/* Titlebar */}
@@ -95,7 +95,7 @@ export function Window({ win, children, toolbar }: WindowProps) {
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onDoubleClick={() => toggleMaximize(win.id)}
-        className="flex h-9 shrink-0 cursor-default select-none items-center gap-3 border-b border-white/10 px-3"
+        className="flex h-9 shrink-0 cursor-default select-none items-center gap-3 border-b border-fg/10 px-3"
       >
         <div className="group flex items-center gap-2">
           <button
@@ -121,7 +121,7 @@ export function Window({ win, children, toolbar }: WindowProps) {
           </button>
         </div>
 
-        <span className="flex-1 truncate text-center text-[13px] font-medium text-ink/80 dark:text-white/80">
+        <span className="flex-1 truncate text-center text-[13px] font-medium text-ink/80 dark:text-fg/80">
           {win.title}
         </span>
 

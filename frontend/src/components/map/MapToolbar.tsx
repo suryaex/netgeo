@@ -37,7 +37,7 @@ export function MapToolbar() {
 
   return (
     <div className="pointer-events-auto absolute left-4 top-1/2 z-[1000] -translate-y-1/2">
-      <div className="glass-strong flex flex-col gap-1 rounded-xl border border-white/15 p-1.5 shadow-glass-lg">
+      <div className="glass-strong flex flex-col gap-1 rounded-xl border border-fg/15 p-1.5 shadow-glass-lg">
 
         {/* Placement tools */}
         {TOOLS.map(({ tool: t, icon: Icon, label, color }) => (
@@ -51,7 +51,7 @@ export function MapToolbar() {
               'group relative grid h-10 w-10 place-items-center rounded-lg transition-all duration-fast',
               tool === t
                 ? 'shadow-lg'
-                : 'text-white/50 hover:bg-white/10 hover:text-white',
+                : 'text-fg/50 hover:bg-fg/10 hover:text-fg',
             )}
             style={
               tool === t
@@ -68,7 +68,7 @@ export function MapToolbar() {
         ))}
 
         {/* Delete separator */}
-        <div className="my-0.5 border-t border-white/10" />
+        <div className="my-0.5 border-t border-fg/10" />
         <button
           onClick={handleDelete}
           title="Delete selected device"
@@ -78,14 +78,14 @@ export function MapToolbar() {
             'grid h-10 w-10 place-items-center rounded-lg transition-all duration-fast',
             selectedId
               ? 'text-danger/80 hover:bg-danger/10 hover:text-danger'
-              : 'cursor-not-allowed text-white/20',
+              : 'cursor-not-allowed text-fg/20',
           )}
         >
           <Trash2 className="h-5 w-5" />
         </button>
 
         {/* Rain rate separator */}
-        <div className="my-0.5 border-t border-white/10" />
+        <div className="my-0.5 border-t border-fg/10" />
 
         {/* Rain indicator button (opens tooltip with slider) */}
         <div className="group relative">
@@ -96,7 +96,7 @@ export function MapToolbar() {
               'grid h-10 w-10 place-items-center rounded-lg transition-all duration-fast',
               rainRate > 0
                 ? 'text-blue-300'
-                : 'text-white/40 hover:bg-white/10 hover:text-white/80',
+                : 'text-fg/40 hover:bg-fg/10 hover:text-fg/80',
             )}
             style={rainRate > 0 ? { background: 'rgba(59,130,246,0.15)' } : undefined}
           >
@@ -105,9 +105,9 @@ export function MapToolbar() {
 
           {/* Rain slider popover */}
           <div className="pointer-events-auto absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 hidden w-56 group-hover:block group-focus-within:block">
-            <div className="glass-strong rounded-lg border border-white/15 p-3 shadow-glass-lg">
+            <div className="glass-strong rounded-lg border border-fg/15 p-3 shadow-glass-lg">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-white/50">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-fg/50">
                   Rain Rate
                 </span>
                 <span className="font-mono text-xs text-blue-300">
@@ -121,12 +121,12 @@ export function MapToolbar() {
                 onChange={(e) => setRainRate(Number(e.target.value))}
                 className="w-full accent-blue-400"
               />
-              <div className="mt-1 flex justify-between text-[9px] text-white/30">
+              <div className="mt-1 flex justify-between text-[9px] text-fg/30">
                 <span>Clear</span>
                 <span>Drizzle</span>
                 <span>Heavy</span>
               </div>
-              <p className="mt-1.5 text-center text-[10px] text-white/45">
+              <p className="mt-1.5 text-center text-[10px] text-fg/45">
                 {rainRateLabel(rainRate)}
               </p>
             </div>

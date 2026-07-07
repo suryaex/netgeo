@@ -37,17 +37,17 @@ export function GisLayerPanel() {
       aria-label="GIS layers"
       className="pointer-events-auto absolute right-4 top-28 z-[1000] w-72 animate-fade-in"
     >
-      <div className="glass-strong flex max-h-[70vh] flex-col overflow-hidden rounded-xl border border-white/15 shadow-glass-lg">
+      <div className="glass-strong flex max-h-[70vh] flex-col overflow-hidden rounded-xl border border-fg/15 shadow-glass-lg">
         {/* Header */}
-        <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+        <div className="flex items-center gap-2 border-b border-fg/10 px-3 py-2">
           <Layers className="h-4 w-4 text-accent" />
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-white/70">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-fg/70">
             GIS Layers
           </h2>
           <button
             onClick={() => togglePanel(false)}
             aria-label="Close layer panel"
-            className="ml-auto grid h-6 w-6 place-items-center rounded text-white/50 hover:bg-white/10 hover:text-white"
+            className="ml-auto grid h-6 w-6 place-items-center rounded text-fg/50 hover:bg-fg/10 hover:text-fg"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -64,7 +64,7 @@ export function GisLayerPanel() {
                 <button
                   onClick={() => setCollapsed((c) => ({ ...c, [group]: !c[group] }))}
                   aria-expanded={!isCollapsed}
-                  className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[11px] font-semibold text-white/60 hover:bg-white/5 hover:text-white/85"
+                  className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[11px] font-semibold text-fg/60 hover:bg-fg/5 hover:text-fg/85"
                 >
                   <ChevronRight
                     className={cn(
@@ -81,7 +81,7 @@ export function GisLayerPanel() {
                 </button>
 
                 {!isCollapsed && (
-                  <ul className="ml-2 space-y-0.5 border-l border-white/8 pl-2">
+                  <ul className="ml-2 space-y-0.5 border-l border-fg/8 pl-2">
                     {layers.map((layer) => {
                       const state = gisLayers[layer.id];
                       const planned = layer.kind === 'planned';
@@ -92,8 +92,8 @@ export function GisLayerPanel() {
                             className={cn(
                               'flex items-center gap-2 rounded px-1 py-0.5 text-[11px]',
                               planned
-                                ? 'cursor-not-allowed text-white/30'
-                                : 'cursor-pointer text-white/75 hover:bg-white/5',
+                                ? 'cursor-not-allowed text-fg/30'
+                                : 'cursor-pointer text-fg/75 hover:bg-fg/5',
                             )}
                             title={layer.description ?? layer.label}
                           >
@@ -108,7 +108,7 @@ export function GisLayerPanel() {
                             <span className="flex-1 truncate">{layer.label}</span>
                             {planned && (
                               <span
-                                className="flex items-center gap-0.5 text-[8px] uppercase text-white/25"
+                                className="flex items-center gap-0.5 text-[8px] uppercase text-fg/25"
                                 title="Spec'd — provider not yet wired"
                               >
                                 <Lock className="h-2.5 w-2.5" /> soon
@@ -130,7 +130,7 @@ export function GisLayerPanel() {
                                 aria-label={`${layer.label} opacity`}
                                 className="h-1 flex-1 accent-accent"
                               />
-                              <span className="w-7 text-right font-mono text-[9px] text-white/40">
+                              <span className="w-7 text-right font-mono text-[9px] text-fg/40">
                                 {Math.round(state.opacity * 100)}%
                               </span>
                             </div>
@@ -145,7 +145,7 @@ export function GisLayerPanel() {
           })}
         </div>
 
-        <p className="border-t border-white/10 px-3 py-1.5 text-[9px] text-white/30">
+        <p className="border-t border-fg/10 px-3 py-1.5 text-[9px] text-fg/30">
           Layers stack above the basemap. Disabled rows await a data provider.
         </p>
       </div>

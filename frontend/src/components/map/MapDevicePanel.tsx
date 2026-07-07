@@ -36,10 +36,10 @@ export function MapDevicePanel() {
 
   return (
     <div className="pointer-events-auto absolute right-4 top-16 z-[1000] w-72 animate-fade-in">
-      <div className="glass-strong overflow-hidden rounded-xl border border-white/15 shadow-glass-lg">
+      <div className="glass-strong overflow-hidden rounded-xl border border-fg/15 shadow-glass-lg">
         {/* Header */}
         <div
-          className="flex items-center gap-2.5 border-b border-white/10 px-4 py-3"
+          className="flex items-center gap-2.5 border-b border-fg/10 px-4 py-3"
           style={{ background: `${meta.color}15` }}
         >
           <div
@@ -49,13 +49,13 @@ export function MapDevicePanel() {
             <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white/90">{device.name}</p>
-            <p className="text-[10px] text-white/40">{meta.label}</p>
+            <p className="truncate text-sm font-semibold text-fg/90">{device.name}</p>
+            <p className="text-[10px] text-fg/40">{meta.label}</p>
           </div>
           <button
             onClick={() => selectDevice(null)}
             aria-label="Close panel"
-            className="grid h-6 w-6 place-items-center rounded-md text-white/40 hover:bg-white/10 hover:text-white"
+            className="grid h-6 w-6 place-items-center rounded-md text-fg/40 hover:bg-fg/10 hover:text-fg"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -67,21 +67,21 @@ export function MapDevicePanel() {
             <input
               value={device.name}
               onChange={(e) => patch({ name: e.target.value })}
-              className="w-full rounded-md border border-white/10 bg-black/20 px-2.5 py-1.5 text-sm text-white/90 outline-none transition-colors focus:border-accent"
+              className="w-full rounded-md border border-fg/10 bg-recess/20 px-2.5 py-1.5 text-sm text-fg/90 outline-none transition-colors focus:border-accent"
             />
           </Field>
 
           {/* Coordinates */}
-          <div className="flex items-center gap-1.5 rounded-md bg-white/5 px-3 py-2">
-            <MapPin className="h-3.5 w-3.5 shrink-0 text-white/40" />
-            <span className="font-mono text-[11px] text-white/60">
+          <div className="flex items-center gap-1.5 rounded-md bg-fg/5 px-3 py-2">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-fg/40" />
+            <span className="font-mono text-[11px] text-fg/60">
               {device.lat.toFixed(6)}, {device.lng.toFixed(6)}
             </span>
           </div>
 
           {/* Signal Settings */}
           <section>
-            <h4 className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/40">
+            <h4 className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-fg/40">
               <Signal className="h-3 w-3" /> Signal Settings
             </h4>
             <div className="space-y-2.5">
@@ -93,7 +93,7 @@ export function MapDevicePanel() {
                     onChange={(e) => patch({ txPower: Number(e.target.value) })}
                     className="flex-1 accent-accent"
                   />
-                  <span className="w-8 text-right font-mono text-xs text-white/70">
+                  <span className="w-8 text-right font-mono text-xs text-fg/70">
                     {device.txPower}
                   </span>
                 </div>
@@ -103,7 +103,7 @@ export function MapDevicePanel() {
                 <select
                   value={device.frequency}
                   onChange={(e) => patch({ frequency: Number(e.target.value) })}
-                  className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-white/90 outline-none focus:border-accent"
+                  className="w-full rounded-md border border-fg/10 bg-recess/20 px-2 py-1.5 text-sm text-fg/90 outline-none focus:border-accent"
                 >
                   <option value={2.4}  className="bg-[#141A2E]">2.4 GHz</option>
                   <option value={5}    className="bg-[#141A2E]">5 GHz</option>
@@ -121,7 +121,7 @@ export function MapDevicePanel() {
                     onChange={(e) => patch({ range: Number(e.target.value) })}
                     className="flex-1 accent-accent"
                   />
-                  <span className="w-14 text-right font-mono text-xs text-white/70">
+                  <span className="w-14 text-right font-mono text-xs text-fg/70">
                     {device.range}m
                   </span>
                 </div>
@@ -131,7 +131,7 @@ export function MapDevicePanel() {
 
           {/* Antenna Height */}
           <section>
-            <h4 className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/40">
+            <h4 className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-fg/40">
               <Mountain className="h-3 w-3" /> Antenna Height (m AGL)
             </h4>
             <div className="flex items-center gap-2">
@@ -141,7 +141,7 @@ export function MapDevicePanel() {
                 onChange={(e) => patch({ antennaHeight: Number(e.target.value) })}
                 className="flex-1 accent-accent"
               />
-              <span className="w-10 text-right font-mono text-xs text-white/70">
+              <span className="w-10 text-right font-mono text-xs text-fg/70">
                 {device.antennaHeight}m
               </span>
             </div>
@@ -153,14 +153,14 @@ export function MapDevicePanel() {
               value={device.ip}
               onChange={(e) => patch({ ip: e.target.value })}
               placeholder="192.168.1.1/24"
-              className="w-full rounded-md border border-white/10 bg-black/20 px-2.5 py-1.5 font-mono text-sm text-white/90 outline-none transition-colors focus:border-accent"
+              className="w-full rounded-md border border-fg/10 bg-recess/20 px-2.5 py-1.5 font-mono text-sm text-fg/90 outline-none transition-colors focus:border-accent"
             />
           </Field>
 
           {/* Links & Signal Quality */}
           {myLinks.length > 0 && (
             <section>
-              <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-white/40">
+              <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-fg/40">
                 Connected Links
               </h4>
               <ul className="space-y-1.5">
@@ -171,22 +171,22 @@ export function MapDevicePanel() {
                   return (
                     <li
                       key={l.id}
-                      className="space-y-1 rounded-md bg-white/5 px-2.5 py-2 text-xs"
+                      className="space-y-1 rounded-md bg-fg/5 px-2.5 py-2 text-xs"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-white/60">{l.distance.toLocaleString()} m</span>
+                        <span className="text-fg/60">{l.distance.toLocaleString()} m</span>
                         <span className="font-semibold" style={{ color: rc }}>
                           {effectiveRssi.toFixed(1)} dBm
                         </span>
                       </div>
                       {(l.rainDb > 0 || l.obstructionDb > 0) && (
-                        <div className="text-[10px] text-white/40 space-y-0.5">
+                        <div className="text-[10px] text-fg/40 space-y-0.5">
                           {l.rainDb > 0 && <p>Rain: −{l.rainDb.toFixed(1)} dB</p>}
                           {l.obstructionDb > 0 && <p>Terrain: −{l.obstructionDb.toFixed(1)} dB</p>}
                         </div>
                       )}
                       <div className="flex items-center justify-between">
-                        <span className="text-white/35">Fresnel r₁: {l.fresnelM} m</span>
+                        <span className="text-fg/35">Fresnel r₁: {l.fresnelM} m</span>
                         <span className="text-[10px] font-semibold" style={{ color: losBadge.color }}>
                           {losBadge.label}
                         </span>
@@ -198,7 +198,7 @@ export function MapDevicePanel() {
 
               {/* Quick RSSI at range edge */}
               {device.kind !== 'cpe' && (
-                <div className="mt-2 rounded-md bg-white/5 px-3 py-2 text-[11px] text-white/50">
+                <div className="mt-2 rounded-md bg-fg/5 px-3 py-2 text-[11px] text-fg/50">
                   Edge RSSI @ {device.range}m:{' '}
                   <span
                     className="font-semibold"
@@ -219,7 +219,7 @@ export function MapDevicePanel() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className={cn('block space-y-1')}>
-      <span className="text-[10px] font-medium uppercase tracking-wide text-white/40">{label}</span>
+      <span className="text-[10px] font-medium uppercase tracking-wide text-fg/40">{label}</span>
       {children}
     </label>
   );

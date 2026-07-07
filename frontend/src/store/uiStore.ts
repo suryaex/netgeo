@@ -14,7 +14,11 @@ export type ViewMode = 'topology' | 'map';
 function initialTheme(): ThemeMode {
   const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null;
   if (saved === 'light' || saved === 'dark' || saved === 'high-contrast') return saved;
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  // Dark-first: the glass shell is built for the dark surface. Light mode isn't
+  // at parity yet (many panels hardcode light-on-dark text), so default to dark
+  // instead of following the OS — otherwise an OS-light user gets an unreadable
+  // white-on-white UI. Users can still pick Light in Settings.
+  return 'dark';
 }
 
 interface UiState {

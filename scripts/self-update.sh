@@ -23,6 +23,16 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# The watcher runs as root while the repo is owned by the deploy user, so Git's
+# "dubious ownership" guard aborts fetch/checkout ("detected dubious ownership").
+# Trust this repo for EVERY git call via env — independent of $HOME / --global,
+# which is unreliable under systemd (HOME may be unset, so `git config --global`
+# silently no-ops). GIT_CONFIG_* is honoured by every git invocation.
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0="safe.directory"
+export GIT_CONFIG_VALUE_0="$REPO_DIR"
+
 GITHUB_REPO="${GITHUB_REPO:-suryaex/netgeo}"
 UPDATE_BRANCH="${UPDATE_BRANCH:-main}"
 STATE_DIR="${NETGEO_STATE_DIR:-/var/lib/netgeo}"

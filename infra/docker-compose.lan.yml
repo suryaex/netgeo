@@ -27,7 +27,10 @@ services:
       frontend:
         condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/api/health"]
+      # 127.0.0.1, not localhost: busybox wget resolves localhost to ::1 first
+      # and nginx listens IPv4-only, so `localhost` gives "connection refused"
+      # and the gateway is wrongly marked unhealthy while traffic works fine.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/api/health"]
       interval: 10s
       timeout: 5s
       retries: 5

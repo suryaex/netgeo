@@ -77,6 +77,9 @@ services:
       # Shared update-state dir (trigger/status) for the host-side update watcher
       # — see scripts/self-update.sh and install.sh. Docker socket stays out.
       - ${NETGEO_STATE_DIR:-/var/lib/netgeo}:/var/lib/netgeo
+      # Vendor config templates: configgen resolves repo-root/config-gen, which
+      # lands on /config-gen inside the container (/app is the backend root).
+      - ../config-gen:/config-gen:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
       interval: 15s

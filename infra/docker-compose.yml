@@ -85,6 +85,9 @@ services:
       # installed by install.sh) which pulls + rebuilds + restarts. Keeps the
       # docker socket OUT of the backend container.
       - ${NETGEO_STATE_DIR:-/var/lib/netgeo}:/var/lib/netgeo
+      # Vendor config templates: configgen resolves repo-root/config-gen, which
+      # lands on /config-gen inside the container (/app is the backend root).
+      - ../config-gen:/config-gen:ro
     # --reload untuk dev (override CMD image).
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     depends_on:

@@ -161,12 +161,12 @@ function OsmTowerLayer() {
         setLoading(true);
 
         // Safety net: never let the loading indicator hang. If the request is
-        // still pending after 10 s (slow/unreachable Overpass, rate-limit),
+        // still pending after 27 s (slow/unreachable Overpass, rate-limit),
         // clear the flag regardless of whether the promise has settled.
         clearSafety();
         safetyRef.current = setTimeout(() => {
           if (mounted) setLoading(false);
-        }, 10_000);
+        }, 27_000);
 
         fetchOsmTowers(
           bounds.getSouth(),
@@ -332,7 +332,7 @@ function OsmBuildingsLayer({ densityMode }: { densityMode: boolean }) {
         clearSafety();
         safetyRef.current = setTimeout(() => {
           if (mounted) setLoading(false);
-        }, 10_000);
+        }, 27_000);
 
         fetchOsmBuildings(bounds.getSouth(), bounds.getWest(), bounds.getNorth(), bounds.getEast())
           .then((result) => {
@@ -524,7 +524,11 @@ function RfCoverageLayer() {
             for (let y = 0; y < res.rows; y++) {
               const srcRow = res.values[res.rows - 1 - y];
               for (let x = 0; x < res.cols; x++) {
-                ctx.fillStyle = rssiRampCss(srcRow?.[x] ?? -120);
+                const dbm = srcRow?.[x] ?? -120;
+                // Below usable sensitivity: leave the cell transparent so the
+                // overlay reads as a coverage footprint, not a full-map tint.
+                if (dbm < -95) continue;
+                ctx.fillStyle = rssiRampCss(dbm);
                 ctx.fillRect(x, y, 1, 1);
               }
             }
@@ -652,6 +656,7 @@ function ProfileLine() {
 /* -------------------------------------------------------------------------- */
 function MapEventHandler() {
   const tool = useMapStore((s) => s.tool);
+  const setTool = useMapStore((s) => s.setTool);
   const addDevice = useMapStore((s) => s.addDevice);
   const selectDevice = useMapStore((s) => s.selectDevice);
   const addProfilePoint = useMapStore((s) => s.addProfilePoint);
@@ -698,6 +703,9 @@ function MapEventHandler() {
         antennaHeight: kind === 'tower' ? 30 : 6, // metres AGL
         ip: '',
       });
+      // Multi-point flow (UISP-style): after an AP goes down, the natural next
+      // step is placing its CPE clients — switch so the hint guides the user.
+      if (kind === 'ap') setTool('cpe');
     },
   });
 

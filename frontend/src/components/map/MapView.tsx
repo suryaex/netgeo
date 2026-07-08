@@ -21,6 +21,7 @@ import {
   MapContainer,
   TileLayer,
   Circle,
+  Polygon,
   Polyline,
   CircleMarker,
   Popup,
@@ -44,7 +45,10 @@ import {
   fetchOsmTowers,
   towerLabel,
   towerKind,
+  fetchOsmBuildings,
+  densityColors,
   type OsmTower,
+  type OsmBuilding,
 } from '@/services/osmService';
 import { MAP_TILES, type TileLayerConfig } from '@/config/mapTiles';
 import { GIS_LAYERS } from '@/config/gisLayers';
@@ -275,6 +279,125 @@ function OsmTowerLayer() {
           }}
         >
           Loading OSM towers…
+        </div>
+      )}
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* OSM building footprints — Phase B2 population & building density            */
+/* -------------------------------------------------------------------------- */
+/**
+ * OsmBuildingsLayer — fetches OSM building footprints for the viewport and
+ * renders them as translucent polygons. When `densityMode` is on the same
+ * footprints are shaded on a green→red ramp by local building count, giving a
+ * population-density proxy without a second data provider.
+ *
+ * Only loads at zoom >= 16 (footprints are dense); mirrors the tower layer's
+ * debounce + stale-response + safety-timeout handling.
+ */
+function OsmBuildingsLayer({ densityMode }: { densityMode: boolean }) {
+  const map = useMap();
+  const [buildings, setBuildings] = useState<OsmBuilding[]>([]);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const safetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reqSeqRef = useRef(0);
+
+  useEffect(() => {
+    let mounted = true;
+    const clearSafety = () => {
+      if (safetyRef.current) {
+        clearTimeout(safetyRef.current);
+        safetyRef.current = null;
+      }
+    };
+
+    const load = () => {
+      if (map.getZoom() < 16) {
+        setBuildings([]);
+        setLoading(false);
+        clearSafety();
+        return;
+      }
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        const bounds = map.getBounds();
+        const seq = ++reqSeqRef.current;
+        setLoading(true);
+        clearSafety();
+        safetyRef.current = setTimeout(() => {
+          if (mounted) setLoading(false);
+        }, 10_000);
+
+        fetchOsmBuildings(bounds.getSouth(), bounds.getWest(), bounds.getNorth(), bounds.getEast())
+          .then((result) => {
+            if (!mounted || seq !== reqSeqRef.current) return;
+            setBuildings(result);
+          })
+          .catch(() => {
+            if (!mounted || seq !== reqSeqRef.current) return;
+            setBuildings([]);
+          })
+          .finally(() => {
+            if (!mounted || seq !== reqSeqRef.current) return;
+            clearSafety();
+            setLoading(false);
+          });
+      }, 600);
+    };
+
+    map.on('moveend', load);
+    map.on('zoomend', load);
+    load();
+
+    return () => {
+      mounted = false;
+      map.off('moveend', load);
+      map.off('zoomend', load);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      clearSafety();
+    };
+  }, [map]);
+
+  const colors = densityMode ? densityColors(buildings.map((b) => b.center)) : null;
+
+  return (
+    <>
+      {buildings.map((b, i) => {
+        const color = (colors ? colors[i] : null) ?? '#4C9AFF';
+        return (
+          <Polygon
+            key={b.id}
+            positions={b.ring}
+            pathOptions={{
+              color,
+              weight: densityMode ? 0.5 : 1,
+              fillColor: color,
+              fillOpacity: densityMode ? 0.55 : 0.2,
+              opacity: densityMode ? 0.5 : 0.6,
+            }}
+          />
+        );
+      })}
+
+      {loading && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            left: 60,
+            zIndex: 1001,
+            background: 'rgba(0,0,0,0.65)',
+            color: '#4C9AFF',
+            borderRadius: 6,
+            padding: '2px 8px',
+            fontSize: 10,
+            pointerEvents: 'none',
+          }}
+        >
+          {densityMode ? 'Loading density…' : 'Loading buildings…'}
         </div>
       )}
     </>
@@ -757,6 +880,8 @@ export function MapView() {
   const deviceLibraryOpen = useMapStore((s) => s.deviceLibraryOpen);
   const devById = useMapStore((s) => s.devices);
   const towersVisible = useMapStore((s) => s.gisLayers['util-tower']?.visible ?? false);
+  const buildingsVisible = useMapStore((s) => s.gisLayers['pop-buildings']?.visible ?? false);
+  const densityVisible = useMapStore((s) => s.gisLayers['pop-density']?.visible ?? false);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -780,6 +905,11 @@ export function MapView() {
 
         {/* OSM existing telecom towers — gated by the GIS "Telecom Towers" layer */}
         {towersVisible && <OsmTowerLayer />}
+
+        {/* OSM building footprints / density — one fetch, density shading wins */}
+        {(buildingsVisible || densityVisible) && (
+          <OsmBuildingsLayer densityMode={densityVisible} />
+        )}
 
         {/* Elevation-profile tool line + endpoints */}
         <ProfileLine />

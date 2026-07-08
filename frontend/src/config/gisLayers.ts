@@ -156,8 +156,26 @@ export const GIS_LAYERS: GisLayerDef[] = [
   { id: 'env-protected', group: 'environment', label: 'Protected Area', kind: 'planned', defaultVisible: false, defaultOpacity: 1 },
 
   // --- Population ------------------------------------------------------------
-  { id: 'pop-density', group: 'population', label: 'Density', kind: 'planned', defaultVisible: false, defaultOpacity: 1 },
-  { id: 'pop-buildings', group: 'population', label: 'Building Distribution', kind: 'planned', defaultVisible: false, defaultOpacity: 1 },
+  {
+    id: 'pop-density',
+    group: 'population',
+    label: 'Density',
+    kind: 'feature',
+    defaultVisible: false,
+    defaultOpacity: 1,
+    minZoom: 16,
+    description: 'Building-density heat (OSM footprints binned per ~110 m cell).',
+  },
+  {
+    id: 'pop-buildings',
+    group: 'population',
+    label: 'Building Distribution',
+    kind: 'feature',
+    defaultVisible: false,
+    defaultOpacity: 1,
+    minZoom: 16,
+    description: 'Live OSM building footprints from the Overpass API.',
+  },
 
   // --- Weather --------------------------------------------------------------
   { id: 'weather-rain', group: 'weather', label: 'Rain', kind: 'planned', defaultVisible: false, defaultOpacity: 1, description: 'Requires a weather tile provider/API key (plugin).' },

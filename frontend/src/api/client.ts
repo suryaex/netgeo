@@ -541,6 +541,21 @@ export const rfApi = {
 };
 
 /* ----------------------------- Config-gen -------------------------------- */
+/** Unified diff of a node's stored config vs a freshly regenerated one (NG-CFG-03). */
+export interface ConfigDiff {
+  node_id: string;
+  vendor: string;
+  had_stored: boolean;
+  changed: boolean;
+  /** Empty string when there is no change. `+`/`-`-prefixed unified-diff text. */
+  diff: string;
+}
+/** Whole-project vendor export (NG-CFG-01): device name → rendered config text. */
+export interface ProjectConfigExport {
+  project_id: string;
+  vendor: string;
+  configs: Record<string, string>;
+}
 export const configsApi = {
   generate: (nodeId: string, vendor?: string) =>
     http
@@ -548,6 +563,33 @@ export const configsApi = {
       .then((r) => r.data),
   forNode: (nodeId: string) =>
     http.get<ConfigArtifact[]>('/configs', { params: { node_id: nodeId } }).then((r) => r.data),
+  /** Preview diff for one node; `vendor` omitted → the node's native NOS. */
+  diff: (nodeId: string, vendor?: string) =>
+    http
+      .get<ConfigDiff>(`/nodes/${nodeId}/config/diff`, { params: { vendor: vendor || undefined } })
+      .then((r) => r.data),
+  /** Render every device's config for the project (native, or one target vendor). */
+  exportProject: (projectId: string, vendor?: string) =>
+    http
+      .get<ProjectConfigExport>(`/projects/${projectId}/configs/export`, {
+        params: { vendor: vendor || undefined },
+      })
+      .then((r) => r.data),
+  /** Download the whole-project export as one `.cfg` text file, device by device.
+   *  ponytail: single concatenated file (no zip dep); split per-device only if asked. */
+  downloadProjectConfigs: async (projectId: string, vendor?: string) => {
+    const { configs, vendor: v } = await configsApi.exportProject(projectId, vendor);
+    const text =
+      Object.entries(configs)
+        .map(([name, cfg]) => `! ===== ${name} =====\n${cfg}`)
+        .join('\n\n') || '! no configs generated\n';
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `netgeo-${projectId.slice(0, 8)}-${v}.cfg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };
 
 /* --------------------------- Device types -------------------------------- */

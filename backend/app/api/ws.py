@@ -201,6 +201,11 @@ async def ws_console(
     try:
         while True:
             raw = await ws.receive_text()
+            if raw == "ping":
+                # Channel keepalive (same convention as the other WS routes) —
+                # not a CLI command. Real `ping` arrives JSON-wrapped as input.
+                await ws.send_text("pong")
+                continue
             # The frontend sends JSON-wrapped input: {"type":"input","data":"<cmd>"}.
             # Fall back to treating the raw string as the command if parsing fails.
             cmd = raw

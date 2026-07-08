@@ -73,6 +73,9 @@ services:
       # ports so the app works whether you hit it via the gateway or Vite direct.
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5180,http://localhost:3000,http://localhost:8090}
       EMULATION_BACKEND: "null"
+      # Persist first-run admin + password changes across container recreates
+      # (default ~/.config is ephemeral and unwritable for uid 999).
+      NETGEO_AUTH_STORE: /var/lib/netgeo/auth.json
     ports:
       - "8000:8000"
     volumes:

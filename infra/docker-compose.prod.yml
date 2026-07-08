@@ -71,6 +71,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       ENABLE_HSTS: "true"
       EMULATION_BACKEND: ${EMULATION_BACKEND:-null}
+      NETGEO_AUTH_STORE: /var/lib/netgeo/auth.json
     networks: [internal]
     volumes:
       # Shared update-state dir (trigger/status) for the host-side update watcher

@@ -116,8 +116,9 @@ export function GisLayerPanel() {
                             )}
                           </label>
 
-                          {/* Opacity slider for visible tile layers */}
-                          {checked && layer.kind === 'tile' && state && (
+                          {/* Opacity slider for visible tile layers + the RF
+                              coverage raster (both are translucent overlays). */}
+                          {checked && (layer.kind === 'tile' || layer.id === 'rf-coverage') && state && (
                             <div className="ml-5 mt-0.5 flex items-center gap-1.5">
                               <input
                                 type="range"

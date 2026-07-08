@@ -495,6 +495,51 @@ export const wirelessApi = {
   }) => http.post<LosCheckResult>('/wireless/los-check', body).then((r) => r.data),
 };
 
+/* ------------------------------ RF planning ------------------------------ */
+/**
+ * RF coverage raster (NG-RF-02, backend `app/api/rf.py`). One transmitter site
+ * per placed AP/tower; the server returns a best-server RSSI grid (dBm per cell)
+ * over the requested bbox. Deterministic — identical request → identical raster.
+ * 422 on cell-cap overflow / bad geometry / unknown technology or model.
+ */
+export interface CoverageSite {
+  lat: number;
+  lon: number;
+  height_m: number;
+  tx_power_dbm?: number;
+  freq_mhz?: number;
+  tx_gain_dbi?: number;
+}
+export interface CoverageRasterRequest {
+  sites: CoverageSite[];
+  technology?: string;
+  model_id?: string;
+  rows: number;
+  cols: number;
+  min_lat: number;
+  min_lon: number;
+  max_lat: number;
+  max_lon: number;
+  rx_height_m?: number;
+  rx_gain_dbi?: number;
+  misc_loss_db?: number;
+}
+export interface CoverageRasterResult {
+  model_id: string;
+  technology: string;
+  rows: number;
+  cols: number;
+  bounds: { min_lat: number; min_lon: number; max_lat: number; max_lon: number };
+  values: number[][]; // best-server dBm, row-major (rows × cols); row 0 = south
+  legend: { label: string; min_dbm: number }[];
+  study_key: string;
+  site_count: number;
+}
+export const rfApi = {
+  coverage: (body: CoverageRasterRequest) =>
+    http.post<CoverageRasterResult>('/rf/coverage', body).then((r) => r.data),
+};
+
 /* ----------------------------- Config-gen -------------------------------- */
 export const configsApi = {
   generate: (nodeId: string, vendor?: string) =>

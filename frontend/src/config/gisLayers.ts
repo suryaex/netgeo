@@ -115,6 +115,16 @@ export const GIS_LAYERS: GisLayerDef[] = [
     minZoom: 12,
     description: 'Live BTS/mast/microwave towers from the Overpass API.',
   },
+  {
+    id: 'rf-coverage',
+    group: 'utilities',
+    label: 'RF Coverage (best-server)',
+    kind: 'feature',
+    defaultVisible: false,
+    defaultOpacity: 0.55,
+    description:
+      'Predicted best-server RSSI raster over the viewport, computed from placed AP/Tower radios (backend RF engine).',
+  },
   { id: 'util-fiber', group: 'utilities', label: 'Fiber Route', kind: 'planned', defaultVisible: false, defaultOpacity: 1 },
   { id: 'util-power', group: 'utilities', label: 'Power Line', kind: 'planned', defaultVisible: false, defaultOpacity: 1 },
   { id: 'util-datacenter', group: 'utilities', label: 'Data Center', kind: 'planned', defaultVisible: false, defaultOpacity: 1 },

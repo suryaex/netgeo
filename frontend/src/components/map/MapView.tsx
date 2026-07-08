@@ -16,7 +16,7 @@
  *  - LOS checking spinner
  */
 import 'leaflet/dist/leaflet.css';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -37,10 +37,13 @@ import {
   linkColor,
   haversineM,
   rainRateLabel,
+  rssiRampCss,
+  coverageGrid,
   type MapDevice,
   type MapLink,
   type MapDeviceKind,
 } from '@/store/mapStore';
+import { rfApi, type CoverageSite } from '@/api/client';
 import {
   fetchOsmTowers,
   towerLabel,
@@ -401,6 +404,214 @@ function OsmBuildingsLayer({ densityMode }: { densityMode: boolean }) {
         </div>
       )}
     </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* RF coverage raster — Phase B4 best-server RSSI overlay                       */
+/* -------------------------------------------------------------------------- */
+/**
+ * RfCoverageLayer — asks the backend RF engine for a best-server RSSI raster
+ * over the current viewport (one transmitter per placed AP/Tower), paints it to
+ * an offscreen canvas coloured by the shared RSSI ramp, and drops it on the map
+ * as a single translucent `L.imageOverlay`.
+ *
+ * ponytail: one canvas → one image overlay beats thousands of <Rectangle>s; the
+ * browser's bilinear scaling of the tiny cols×rows canvas gives a smooth heat
+ * surface for free. Recompute on pan/zoom / device edits; opacity is a cheap
+ * setOpacity, never a refetch. Mirrors the tower layer's debounce + stale-guard
+ * + safety-timeout so a slow/failed request never wedges the UI.
+ */
+function RfCoverageLayer() {
+  const map = useMap();
+  const deviceMap = useMapStore((s) => s.devices);
+  const opacity = useMapStore((s) => s.gisLayers['rf-coverage']?.opacity ?? 0.55);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'empty' | 'error'>('idle');
+  const [siteCount, setSiteCount] = useState(0);
+  const overlayRef = useRef<L.ImageOverlay | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const safetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reqSeqRef = useRef(0);
+
+  // AP/Tower devices → transmitter sites (device edits change this reference).
+  const sites = useMemo<CoverageSite[]>(
+    () =>
+      Array.from(deviceMap.values())
+        .filter((d) => d.kind === 'ap' || d.kind === 'tower')
+        .map((d) => ({
+          lat: d.lat,
+          lon: d.lng,
+          height_m: d.antennaHeight,
+          tx_power_dbm: d.txPower,
+          freq_mhz: d.frequency * 1000, // GHz → MHz
+        })),
+    [deviceMap],
+  );
+
+  // Dedicated pane so the raster sits above the basemap/GIS tiles but below all
+  // vector overlays (rings, towers, device dots, links) → devices stay visible.
+  useEffect(() => {
+    if (!map.getPane('rfCoverage')) {
+      const p = map.createPane('rfCoverage');
+      p.style.zIndex = '350'; // tilePane=200 < 350 < overlayPane=400
+      p.style.pointerEvents = 'none';
+    }
+  }, [map]);
+
+  useEffect(() => {
+    let mounted = true;
+    const clearSafety = () => {
+      if (safetyRef.current) {
+        clearTimeout(safetyRef.current);
+        safetyRef.current = null;
+      }
+    };
+    const removeOverlay = () => {
+      overlayRef.current?.remove();
+      overlayRef.current = null;
+    };
+
+    const load = () => {
+      setSiteCount(sites.length);
+      if (sites.length === 0) {
+        removeOverlay();
+        setStatus('empty');
+        clearSafety();
+        return;
+      }
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        const b = map.getBounds();
+        const south = b.getSouth();
+        const west = b.getWest();
+        const north = b.getNorth();
+        const east = b.getEast();
+        const midLat = (south + north) / 2;
+        const midLon = (west + east) / 2;
+        const widthM = haversineM(midLat, west, midLat, east);
+        const heightM = haversineM(south, midLon, north, midLon);
+        const { rows, cols } = coverageGrid(widthM / Math.max(heightM, 1e-6));
+
+        const seq = ++reqSeqRef.current;
+        setStatus('loading');
+        clearSafety();
+        safetyRef.current = setTimeout(() => {
+          if (mounted && seq === reqSeqRef.current) setStatus('error');
+        }, 12_000);
+
+        rfApi
+          .coverage({
+            sites,
+            technology: 'wifi_5ghz',
+            model_id: 'fspl',
+            rows,
+            cols,
+            min_lat: south,
+            min_lon: west,
+            max_lat: north,
+            max_lon: east,
+            rx_height_m: 1.5,
+          })
+          .then((res) => {
+            if (!mounted || seq !== reqSeqRef.current) return;
+            // Paint one pixel per cell; flip vertically (backend row 0 = south,
+            // canvas y=0 = north) so the overlay aligns to its bounds.
+            const canvas = document.createElement('canvas');
+            canvas.width = res.cols;
+            canvas.height = res.rows;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            for (let y = 0; y < res.rows; y++) {
+              const srcRow = res.values[res.rows - 1 - y];
+              for (let x = 0; x < res.cols; x++) {
+                ctx.fillStyle = rssiRampCss(srcRow?.[x] ?? -120);
+                ctx.fillRect(x, y, 1, 1);
+              }
+            }
+            const url = canvas.toDataURL();
+            const imgBounds: [[number, number], [number, number]] = [
+              [res.bounds.min_lat, res.bounds.min_lon],
+              [res.bounds.max_lat, res.bounds.max_lon],
+            ];
+            removeOverlay();
+            overlayRef.current = L.imageOverlay(url, imgBounds, {
+              opacity,
+              interactive: false,
+              pane: 'rfCoverage',
+            }).addTo(map);
+            setStatus('ok');
+          })
+          .catch(() => {
+            if (!mounted || seq !== reqSeqRef.current) return;
+            removeOverlay();
+            setStatus('error');
+          })
+          .finally(() => {
+            if (!mounted || seq !== reqSeqRef.current) return;
+            clearSafety();
+          });
+      }, 600);
+    };
+
+    map.on('moveend', load);
+    map.on('zoomend', load);
+    load();
+
+    return () => {
+      mounted = false;
+      map.off('moveend', load);
+      map.off('zoomend', load);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      clearSafety();
+      removeOverlay();
+    };
+    // opacity intentionally excluded — handled by the setOpacity effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, sites]);
+
+  // Opacity is a cheap live update — never trigger a recompute for it.
+  useEffect(() => {
+    overlayRef.current?.setOpacity(opacity);
+  }, [opacity]);
+
+  return (
+    <div className="pointer-events-none absolute bottom-10 left-4 z-[1000]">
+      <div className="rounded-xl border border-fg/15 bg-recess/60 px-3 py-2 shadow-glass backdrop-blur">
+        <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-fg/40">
+          RF Coverage
+          {status === 'loading' && (
+            <span className="inline-block h-2 w-2 animate-spin rounded-full border-2 border-fg/25 border-t-fg/70" />
+          )}
+        </p>
+
+        {status === 'empty' ? (
+          <p className="max-w-[150px] text-[10px] leading-snug text-fg/45">
+            Place an AP or Tower to compute best-server coverage.
+          </p>
+        ) : status === 'error' ? (
+          <p className="max-w-[150px] text-[10px] leading-snug text-danger/80">
+            Coverage compute failed — pan or retry.
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-fg/60">−95</span>
+              <span
+                className="h-2.5 w-24 rounded-full"
+                style={{
+                  background:
+                    'linear-gradient(90deg, #FF453A 0%, #FFCC00 40%, #A3E635 70%, #34C759 100%)',
+                }}
+              />
+              <span className="text-[10px] text-fg/60">−55</span>
+            </div>
+            <p className="mt-1 text-[9px] text-fg/35">
+              dBm · best-server · {siteCount} site{siteCount === 1 ? '' : 's'}
+            </p>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -882,6 +1093,7 @@ export function MapView() {
   const towersVisible = useMapStore((s) => s.gisLayers['util-tower']?.visible ?? false);
   const buildingsVisible = useMapStore((s) => s.gisLayers['pop-buildings']?.visible ?? false);
   const densityVisible = useMapStore((s) => s.gisLayers['pop-density']?.visible ?? false);
+  const coverageVisible = useMapStore((s) => s.gisLayers['rf-coverage']?.visible ?? false);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -910,6 +1122,9 @@ export function MapView() {
         {(buildingsVisible || densityVisible) && (
           <OsmBuildingsLayer densityMode={densityVisible} />
         )}
+
+        {/* RF coverage raster — best-server RSSI overlay for placed AP/Towers */}
+        {coverageVisible && <RfCoverageLayer />}
 
         {/* Elevation-profile tool line + endpoints */}
         <ProfileLine />

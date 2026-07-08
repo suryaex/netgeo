@@ -114,6 +114,61 @@ export function rssiColor(rssi: number): string {
   return '#FF453A';                   // weak
 }
 
+/**
+ * Continuous RSSI→CSS-color ramp for the coverage raster. Same four anchor
+ * colours as `rssiColor` / the map's gradient legend (strong green → weak red),
+ * but linearly interpolated in RGB so a raster reads as a smooth heat surface.
+ * Clamped at both ends: ≥ −55 dBm is fully green, ≤ −95 dBm fully red.
+ */
+const RSSI_STOPS: [number, number, number, number][] = [
+  [-95, 255, 69, 58], // weak — red    (#FF453A)
+  [-80, 255, 204, 0], // fair — yellow (#FFCC00)
+  [-70, 163, 230, 53], // good — lime   (#A3E635)
+  [-55, 52, 199, 89], // strong — green (#34C759)
+];
+export function rssiRampCss(dbm: number): string {
+  if (dbm <= RSSI_STOPS[0]![0]) {
+    const s = RSSI_STOPS[0]!;
+    return `rgb(${s[1]},${s[2]},${s[3]})`;
+  }
+  const last = RSSI_STOPS[RSSI_STOPS.length - 1]!;
+  if (dbm >= last[0]) return `rgb(${last[1]},${last[2]},${last[3]})`;
+  for (let i = 1; i < RSSI_STOPS.length; i++) {
+    const hi = RSSI_STOPS[i]!;
+    if (dbm <= hi[0]) {
+      const lo = RSSI_STOPS[i - 1]!;
+      const t = (dbm - lo[0]) / (hi[0] - lo[0]);
+      const r = Math.round(lo[1] + t * (hi[1] - lo[1]));
+      const g = Math.round(lo[2] + t * (hi[2] - lo[2]));
+      const b = Math.round(lo[3] + t * (hi[3] - lo[3]));
+      return `rgb(${r},${g},${b})`;
+    }
+  }
+  return `rgb(${last[1]},${last[2]},${last[3]})`; // unreachable
+}
+
+/**
+ * Pick a coverage-raster grid resolution for a viewport whose ground size has
+ * the given width/height ratio. Keeps cells ~square (nicer heat surface) and
+ * rows*cols under `cap` (mirrors backend MAX_COVERAGE_CELLS = 4096).
+ */
+export function coverageGrid(
+  aspect: number,
+  cap = 4096,
+  maxSide = 64,
+): { rows: number; cols: number } {
+  const a = aspect > 0 && Number.isFinite(aspect) ? aspect : 1;
+  let cols = maxSide;
+  let rows = maxSide;
+  if (a >= 1) rows = Math.max(8, Math.round(maxSide / a));
+  else cols = Math.max(8, Math.round(maxSide * a));
+  while (rows * cols > cap) {
+    cols = Math.max(1, Math.floor(cols * 0.9));
+    rows = Math.max(1, Math.floor(rows * 0.9));
+  }
+  return { rows, cols };
+}
+
 /** Link color accounting for LOS status. */
 export function linkColor(link: MapLink): string {
   if (link.los === 'blocked') return '#FF453A';

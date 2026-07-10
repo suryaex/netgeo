@@ -35,9 +35,9 @@ import { PulseEdge } from './PulseEdge';
 import { useTopologyStore } from '@/store/topologyStore';
 import { useUiStore } from '@/store/uiStore';
 import { useLabStore } from '@/store/labStore';
-import { useWindowStore } from '@/store/windowStore';
+import { useTopoUiStore } from '@/store/topoUiStore';
 import { nodesApi, linksApi } from '@/api/client';
-import { deviceByKey } from '@/data/deviceCatalog';
+import { placeDevice } from '@/lib/placeDevice';
 import { linkStatusColors, nodeColors } from '@/theme/tokens';
 import type { LinkType, NodeModel } from '@/api/types';
 import { cn } from '@/lib/cn';
@@ -60,12 +60,11 @@ export function TopologyCanvas() {
   const linksMap = useTopologyStore((s) => s.links);
   const selectedNodeId = useTopologyStore((s) => s.selectedNodeId);
   const moveNode = useTopologyStore((s) => s.moveNode);
-  const upsertNode = useTopologyStore((s) => s.upsertNode);
-  const removeNode = useTopologyStore((s) => s.removeNode);
   const upsertLink = useTopologyStore((s) => s.upsertLink);
   const select = useTopologyStore((s) => s.select);
   const projectId = useUiStore((s) => s.projectId);
-  const openApp = useWindowStore((s) => s.toggleApp);
+  const openPicker = useTopoUiStore((s) => s.openPicker);
+  const setFit = useTopoUiStore((s) => s.setFit);
 
   /** Select a node and pan/zoom the viewport to center it (search "locate"). */
   const locateNode = useCallback(
@@ -193,51 +192,36 @@ export function TopologyCanvas() {
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      if (!projectId) return;
+      if (!projectId || !rfRef.current) return;
       const key = e.dataTransfer.getData('application/netgeo-device');
-      const tpl = deviceByKey[key];
-      if (!tpl || !rfRef.current) return;
+      if (!key) return;
       const pos = rfRef.current.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-
-      const tempId = `tmp-node-${Date.now()}`;
-      // Suggest a sensible per-device-type default (EdgeRouter1, EdgeRouter2, …)
-      // by scanning existing node names — never a global count. The backend is
-      // the authority and may rewrite this to break ties; we adopt its result.
-      const base = tpl.label.replace(/\s/g, '');
-      const draft: NodeModel = {
-        id: tempId,
-        project_id: projectId,
-        name: nextNodeName(nodesMap.values(), base),
-        kind: tpl.kind,
-        nos: tpl.defaultNos,
-        mode: 'sim',
-        x: pos.x,
-        y: pos.y,
-        interfaces: [],
-        config_ref: null,
-        status: 'stopped',
-      };
-      upsertNode(draft);
-      select({ nodeId: tempId });
-      void nodesApi
-        .create({ project_id: projectId, name: draft.name, kind: draft.kind, nos: draft.nos, mode: 'sim', x: pos.x, y: pos.y })
-        .then((real) => {
-          // Replace the optimistic node with the server's authoritative copy.
-          // Without removing the temp first, the differing ids would leave two
-          // nodes sharing the same name on the canvas.
-          removeNode(tempId);
-          upsertNode(real);
-          select({ nodeId: real.id });
-        })
-        .catch(() => {});
+      placeDevice(projectId, key, pos);
     },
-    [nodesMap, upsertNode, removeNode, select, projectId],
+    [projectId],
+  );
+
+  /* --- Double-click empty canvas → quick-add at that point (design §5.2) ---- */
+  const onDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      // Only the empty pane, not a node/edge/control, opens the picker.
+      const el = e.target as HTMLElement;
+      if (!el.classList.contains('react-flow__pane') || !rfRef.current) return;
+      const pos = rfRef.current.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      openPicker(pos);
+    },
+    [openPicker],
   );
 
   return (
-    <div className="h-full w-full" onDragOver={onDragOver} onDrop={onDrop}>
+    <div className="h-full w-full" onDragOver={onDragOver} onDrop={onDrop} onDoubleClick={onDoubleClick}>
       <ReactFlow
-        onInit={(inst) => (rfRef.current = inst)}
+        onInit={(inst) => {
+          rfRef.current = inst;
+          // Register the fit action so the global `F` shortcut and the command
+          // palette can fit the view without holding the React Flow instance.
+          setFit(() => inst.fitView({ duration: 400 }));
+        }}
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
@@ -266,7 +250,7 @@ export function TopologyCanvas() {
             nodes={rfNodes.length}
             allNodes={nodesMap}
             onLocate={locateNode}
-            onAddDevice={() => openApp('palette', 'Device Palette')}
+            onAddDevice={() => openPicker()}
           />
         </Panel>
 
@@ -391,22 +375,6 @@ function CanvasToolbar({
 }
 
 /* ----------------------------- helpers ----------------------------------- */
-/**
- * Suggest the next auto-name for a device type by finding the highest existing
- * "<base><n>" suffix among current nodes and incrementing it. Purely a sensible
- * default — the backend enforces final uniqueness and returns the real name.
- */
-function nextNodeName(nodes: Iterable<NodeModel>, base: string): string {
-  const escaped = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`^${escaped}(\\d+)$`);
-  let highest = 0;
-  for (const n of nodes) {
-    const m = re.exec(n.name);
-    if (m) highest = Math.max(highest, Number(m[1]));
-  }
-  return `${base}${highest + 1}`;
-}
-
 /** First configured interface address — the device's management IP for the card. */
 function mgmtIp(node: NodeModel): string | undefined {
   return node.interfaces.find((i) => i.ip.length > 0)?.ip[0];

@@ -31,6 +31,8 @@ interface UiState {
   simMetrics: Record<string, number> | null;
   projectId: string | null;
   viewMode: ViewMode;
+  /** Command palette (Ctrl/⌘+K) visibility — global, works in any workspace. */
+  commandOpen: boolean;
 
   setTheme: (mode: ThemeMode) => void;
   /** Cycle Dark → Light → High Contrast → Dark. */
@@ -45,6 +47,7 @@ interface UiState {
   ) => void;
   setProject: (id: string | null) => void;
   setViewMode: (mode: ViewMode) => void;
+  setCommandOpen: (open: boolean) => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -55,6 +58,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   simMetrics: null,
   projectId: null,
   viewMode: 'topology',
+  commandOpen: false,
 
   setTheme: (mode) => {
     applyTheme(mode);
@@ -79,4 +83,5 @@ export const useUiStore = create<UiState>((set, get) => ({
     }),
   setProject: (projectId) => set({ projectId }),
   setViewMode: (viewMode) => set({ viewMode }),
+  setCommandOpen: (commandOpen) => set({ commandOpen }),
 }));

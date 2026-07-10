@@ -1,0 +1,184 @@
+/**
+ * TopBar — compact (~56px) global bar (design §3.1). Left: brand + project +
+ * saved state. Center: the command bar (opens the ⌘K palette). Right: the
+ * simulation transport (Run), lab-mode switch, auto-address, presence,
+ * connection, updates (bell), theme, settings, clock and the user menu.
+ *
+ * This is the AppShell's top chrome; module navigation lives in NavigationRail,
+ * not here. It reuses the existing SimulationBar / ModeSwitch / PresenceBar /
+ * UpdatesButton so no simulation or collaboration behaviour is duplicated.
+ */
+import { useEffect, useRef, useState } from 'react';
+import { Check, LogOut, Moon, Search, Settings2, Sun, Wand2, Wifi, WifiOff } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ConnState } from '@/api/ws';
+import { labApi } from '@/api/client';
+import { useUiStore } from '@/store/uiStore';
+import { useAuthStore } from '@/store/authStore';
+import { useWindowStore } from '@/store/windowStore';
+import { useTopologyStore } from '@/store/topologyStore';
+import { SimulationBar } from '@/components/SimulationBar';
+import { ModeSwitch } from '@/components/ModeSwitch';
+import { UpdatesButton } from '@/components/shell/UpdatesButton';
+import { PresenceBar } from '@/components/shell/PresenceBar';
+import { cn } from '@/lib/cn';
+
+interface TopBarProps {
+  projectName: string;
+  conn: ConnState;
+}
+
+export function TopBar({ projectName, conn }: TopBarProps) {
+  const theme = useUiStore((s) => s.theme);
+  const toggleTheme = useUiStore((s) => s.toggleTheme);
+  const setCommandOpen = useUiStore((s) => s.setCommandOpen);
+  const projectId = useUiStore((s) => s.projectId);
+  const dirty = useTopologyStore((s) => s.dirty);
+  const username = useAuthStore((s) => s.username);
+  const logout = useAuthStore((s) => s.logout);
+  const toggleApp = useWindowStore((s) => s.toggleApp);
+  const queryClient = useQueryClient();
+  const [clock, setClock] = useState(() => new Date());
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const autoAddress = useMutation({
+    mutationFn: () => labApi.autoAddress(projectId!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['topology', projectId] }),
+  });
+
+  useEffect(() => {
+    const t = setInterval(() => setClock(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const online = conn === 'open';
+
+  return (
+    <header className="glass-strong z-[900] flex h-14 shrink-0 items-center gap-3 border-b border-fg/10 px-3 text-[13px] text-fg/85">
+      {/* Brand + project + saved state */}
+      <div className="flex items-center gap-2 font-semibold">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent text-sm font-bold text-fg">N</span>
+        <span className="hidden text-sm sm:inline">NetGeo</span>
+      </div>
+      <span className="text-fg/25">/</span>
+      <span className="max-w-[160px] truncate text-fg/70">{projectName}</span>
+      <span
+        className={cn(
+          'hidden items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] md:inline-flex',
+          dirty ? 'text-warning' : 'text-success',
+        )}
+        title={dirty ? 'Unsaved local changes' : 'All changes saved'}
+      >
+        {dirty ? <span className="h-1.5 w-1.5 rounded-full bg-warning" /> : <Check className="h-3.5 w-3.5" />}
+        {dirty ? 'Unsaved' : 'Saved'}
+      </span>
+
+      {/* Command bar (center) */}
+      <div className="mx-2 flex flex-1 justify-center">
+        <button
+          onClick={() => setCommandOpen(true)}
+          className="flex w-full max-w-xl items-center gap-2 rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-left text-xs text-fg/40 transition-colors hover:border-fg/20 hover:bg-fg/8"
+          aria-label="Open command palette"
+        >
+          <Search className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1 truncate">Search devices, IPs, or run a command…</span>
+          <kbd className="hidden shrink-0 rounded border border-fg/15 px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
+        </button>
+      </div>
+
+      {/* Right cluster */}
+      <SimulationBar />
+      <ModeSwitch />
+
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => projectId && autoAddress.mutate()}
+          disabled={!projectId || autoAddress.isPending}
+          aria-label="Auto-assign IP addressing"
+          title="Auto-address: assign IPv4 plan to the whole topology"
+          className={cn(
+            'grid h-8 w-8 place-items-center rounded-md transition-colors',
+            autoAddress.isPending ? 'animate-pulse text-accent' : 'text-fg/60 hover:bg-fg/10 hover:text-fg',
+          )}
+        >
+          <Wand2 className="h-4 w-4" />
+        </button>
+
+        <PresenceBar />
+
+        <div
+          className={cn('flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs', online ? 'text-success' : 'text-warning')}
+          title={`Realtime channel: ${conn}`}
+        >
+          {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+          <span className="hidden lg:inline">{conn}</span>
+        </div>
+
+        <UpdatesButton />
+
+        <button
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
+          className="grid h-8 w-8 place-items-center rounded-md text-fg/60 hover:bg-fg/10 hover:text-fg"
+        >
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </button>
+
+        <button
+          onClick={() => toggleApp('settings', 'Settings')}
+          aria-label="Open settings"
+          className="grid h-8 w-8 place-items-center rounded-md text-fg/60 hover:bg-fg/10 hover:text-fg"
+        >
+          <Settings2 className="h-4 w-4" />
+        </button>
+
+        <time className="hidden tabular-nums text-fg/50 lg:inline">
+          {clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </time>
+
+        <div className="relative" ref={userMenuRef}>
+          <button
+            onClick={() => setUserMenuOpen((v) => !v)}
+            aria-label="User menu"
+            className="grid h-8 w-8 place-items-center rounded-full bg-accent/25 text-xs font-semibold text-accent transition-colors hover:bg-accent/40"
+          >
+            {username?.[0]?.toUpperCase() ?? '?'}
+          </button>
+
+          {userMenuOpen && (
+            <div className="glass-strong absolute right-0 top-10 z-[1000] min-w-[160px] overflow-hidden rounded-lg border border-fg/15 shadow-glass-lg animate-fade-in">
+              <div className="border-b border-fg/10 px-3 py-2">
+                <p className="text-xs font-medium text-fg/80">{username}</p>
+                <p className="text-[10px] text-fg/40">Local account</p>
+              </div>
+              <button
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  toggleApp('settings', 'Settings');
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-xs text-fg/70 hover:bg-fg/8 hover:text-fg"
+              >
+                <Settings2 className="h-3.5 w-3.5" /> Settings
+              </button>
+              <button
+                onClick={logout}
+                className="flex w-full items-center gap-2 px-3 py-2 text-xs text-danger/80 hover:bg-danger/10 hover:text-danger"
+              >
+                <LogOut className="h-3.5 w-3.5" /> Sign out
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}

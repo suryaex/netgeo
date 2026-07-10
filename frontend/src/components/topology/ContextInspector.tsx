@@ -1,0 +1,68 @@
+/**
+ * ContextInspector — right slide-in that hosts the existing PropertiesPanel
+ * (design §5.3). It is NOT a permanent panel: it appears only when an object is
+ * selected, can be pinned open, and closes on Esc (handled globally in
+ * useShortcuts) or its close button. ~360px, resizing is deferred to a later
+ * phase. The panel body is the untouched PropertiesPanel component.
+ */
+import { Pin, PinOff, X } from 'lucide-react';
+import { PropertiesPanel } from '@/components/PropertiesPanel';
+import { useTopologyStore } from '@/store/topologyStore';
+import { useTopoUiStore } from '@/store/topoUiStore';
+import { cn } from '@/lib/cn';
+
+export function ContextInspector() {
+  const selectedNodeId = useTopologyStore((s) => s.selectedNodeId);
+  const selectedLinkId = useTopologyStore((s) => s.selectedLinkId);
+  const select = useTopologyStore((s) => s.select);
+  const pinned = useTopoUiStore((s) => s.inspectorPinned);
+  const togglePin = useTopoUiStore((s) => s.togglePin);
+
+  const hasSelection = Boolean(selectedNodeId || selectedLinkId);
+  const visible = hasSelection || pinned;
+  if (!visible) return null;
+
+  const close = () => {
+    select({ nodeId: null, linkId: null });
+    if (pinned) togglePin();
+  };
+
+  return (
+    <aside
+      aria-label="Selection inspector"
+      className={cn(
+        'panel absolute right-0 top-0 z-[420] flex h-full w-[360px] max-w-[85vw] flex-col border-l border-fg/10 shadow-glass-lg',
+        'animate-fade-in',
+      )}
+    >
+      <div className="flex shrink-0 items-center justify-between border-b border-fg/10 px-3 py-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-fg/50">Inspector</span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={togglePin}
+            aria-label={pinned ? 'Unpin inspector' : 'Pin inspector'}
+            aria-pressed={pinned}
+            title={pinned ? 'Unpin (auto-hide when nothing selected)' : 'Pin open'}
+            className={cn(
+              'grid h-6 w-6 place-items-center rounded transition-colors',
+              pinned ? 'text-accent hover:bg-fg/10' : 'text-fg/50 hover:bg-fg/10 hover:text-fg/80',
+            )}
+          >
+            {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={close}
+            aria-label="Close inspector"
+            title="Close (Esc)"
+            className="grid h-6 w-6 place-items-center rounded text-fg/50 transition-colors hover:bg-fg/10 hover:text-fg/80"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <PropertiesPanel />
+      </div>
+    </aside>
+  );
+}

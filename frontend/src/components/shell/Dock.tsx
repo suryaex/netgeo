@@ -7,8 +7,6 @@ import {
   Activity,
   ListVideo,
   Network,
-  PanelRightOpen,
-  SlidersHorizontal,
   TerminalSquare,
   FileCode2,
   ListChecks,
@@ -24,10 +22,10 @@ interface DockItem {
   icon: typeof Network;
 }
 
+// Secondary tools only — the primary canvas (Topology), device picker (was
+// "Device Palette") and inspector (was "Properties") now live in the shell,
+// not as floating windows, so they're intentionally absent here.
 const ITEMS: DockItem[] = [
-  { kind: 'topology', title: 'Topology', icon: Network },
-  { kind: 'palette', title: 'Device Palette', icon: PanelRightOpen },
-  { kind: 'properties', title: 'Properties', icon: SlidersHorizontal },
   { kind: 'console', title: 'Console', icon: TerminalSquare },
   { kind: 'diagnostics', title: 'Diagnostics', icon: Activity },
   { kind: 'ledger', title: 'Event Ledger', icon: ListVideo },

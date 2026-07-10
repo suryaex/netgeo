@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronsRight, Rewind, Search, StepBack, StepForward } from 'lucide-react';
 import { labApi, type LedgerRecord } from '@/api/client';
+import { parseLedgerInfo } from '@/lib/parseLedgerInfo';
 import { useLabStore } from '@/store/labStore';
 import { useTopologyStore } from '@/store/topologyStore';
 import { useTopoUiStore } from '@/store/topoUiStore';
@@ -173,17 +174,29 @@ export function EventLedgerPanel() {
         </div>
       </div>
 
-      {/* Ledger records (newest first) */}
-      <div className="ng-scroll min-h-0 flex-1 overflow-auto font-mono text-[11px] leading-relaxed">
+      {/* Ledger records (newest first) — design §6.4 columns, derived client-side */}
+      <div className="ng-scroll min-h-0 flex-1 overflow-auto text-[11px] leading-relaxed">
         {records.length === 0 ? (
-          <p className="p-3 text-fg/35">
+          <p className="p-3 font-mono text-fg/35">
             No events yet — switch to simulation mode, launch a ping, then step.
           </p>
         ) : filtered.length === 0 ? (
-          <p className="p-3 text-fg/35">No events match “{filter}”.</p>
+          <p className="p-3 font-mono text-fg/35">No events match “{filter}”.</p>
         ) : (
-          <table className="w-full">
-            <tbody>
+          <table className="w-full border-collapse">
+            <thead className="sticky top-0 z-10">
+              <tr className="glass-strong text-left font-display text-[9px] uppercase tracking-wider text-fg/45">
+                <th className="px-2 py-1.5 font-medium">Time</th>
+                <th className="px-1 py-1.5 font-medium">Device</th>
+                <th className="px-1 py-1.5 font-medium">Layer</th>
+                <th className="px-1 py-1.5 font-medium">Event</th>
+                <th className="px-1 py-1.5 font-medium">Source</th>
+                <th className="px-1 py-1.5 font-medium">Destination</th>
+                <th className="px-1 py-1.5 font-medium">Proto</th>
+                <th className="px-2 py-1.5 font-medium">Result</th>
+              </tr>
+            </thead>
+            <tbody className="font-mono">
               {filtered.map((r) => (
                 <LedgerRow
                   key={r.seq}
@@ -217,22 +230,40 @@ function LedgerRow({
   onPick: () => void;
   onJump: () => void;
 }) {
+  const c = parseLedgerInfo(r.info);
+  const dim = 'text-fg/25';
   return (
     <tr
       onClick={onPick}
       onDoubleClick={onJump}
-      title="Click: locate & highlight · Double-click: rewind to this event"
+      title={`Click: locate & highlight · Double-click: rewind to this event\n${r.info ?? ''}`}
       className="cursor-pointer border-b border-fg/5 hover:bg-fg/8"
     >
-      <td className="whitespace-nowrap px-2 py-0.5 text-right text-fg/35">{r.seq}</td>
-      <td className="whitespace-nowrap px-1 py-0.5 text-fg/40">{r.t.toFixed(6)}</td>
+      <td className="whitespace-nowrap px-2 py-0.5 tabular-nums text-fg/40">{r.t.toFixed(6)}</td>
+      <td className="max-w-[110px] truncate px-1 py-0.5 text-fg/70">{nodeName(r.node)}</td>
+      <td className={cn('whitespace-nowrap px-1 py-0.5', c.layer === '—' ? dim : 'text-fg/50')}>
+        {c.layer}
+      </td>
       <td className={cn('whitespace-nowrap px-1 py-0.5', TYPE_STYLES[r.type] ?? 'text-fg/60')}>
         {r.type}
       </td>
-      <td className="whitespace-nowrap px-1 py-0.5 text-fg/55">
-        {r.iface ?? nodeName(r.node)}
+      <td className={cn('max-w-[130px] truncate px-1 py-0.5', c.source === '—' ? dim : 'text-fg/65')}>
+        {c.source}
       </td>
-      <td className="truncate px-2 py-0.5 text-fg/75">{r.info ?? ''}</td>
+      <td className={cn('max-w-[130px] truncate px-1 py-0.5', c.destination === '—' ? dim : 'text-fg/65')}>
+        {c.destination}
+      </td>
+      <td className={cn('whitespace-nowrap px-1 py-0.5', c.proto === '—' ? dim : 'text-fg/55')}>
+        {c.proto}
+      </td>
+      <td
+        className={cn(
+          'whitespace-nowrap px-2 py-0.5 font-medium',
+          c.result === 'FAILED' ? 'text-danger' : c.result === 'OK' ? 'text-success/80' : dim,
+        )}
+      >
+        {c.result}
+      </td>
     </tr>
   );
 }

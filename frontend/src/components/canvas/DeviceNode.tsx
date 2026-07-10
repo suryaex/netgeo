@@ -56,6 +56,15 @@ const STATUS_DOT: Record<NodeStatus, string> = {
   error: 'bg-danger',
 };
 
+/** Status → 2.5D beacon glow under the tile (icons25d.png reference style). */
+const STATUS_GLOW: Record<NodeStatus, string> = {
+  running: 'bg-success',
+  booting: 'bg-warning',
+  stopped: 'bg-fg/20',
+  degraded: 'bg-warning',
+  error: 'bg-danger',
+};
+
 const STATUS_LABEL: Record<NodeStatus, string> = {
   running: 'Running',
   booting: 'Booting',
@@ -108,11 +117,20 @@ function DeviceNodeImpl({ data, selected }: NodeProps) {
         />
       ))}
 
-      {/* Icon + status badge */}
+      {/* Icon tile with 2.5D beacon glow + status badge */}
       <span className="relative shrink-0">
+        {/* Beacon: soft status-colored glow pooling at the tile's base */}
         <span
-          className="grid h-9 w-9 place-items-center rounded-md ring-1 ring-inset ring-fg/10"
-          style={{ background: `${color}1f`, color }}
+          className={cn(
+            'pointer-events-none absolute -bottom-1 left-1/2 h-1.5 w-8 -translate-x-1/2 rounded-full opacity-70 blur-[5px]',
+            STATUS_GLOW[d.status],
+          )}
+          aria-hidden
+        />
+        {/* Tile: subtle top-lit gradient in the kind color + lift shadow */}
+        <span
+          className="relative grid h-9 w-9 place-items-center rounded-lg shadow-soft ring-1 ring-inset ring-fg/15"
+          style={{ background: `linear-gradient(155deg, ${color}38, ${color}12)`, color }}
         >
           <Icon className="h-[18px] w-[18px]" />
         </span>

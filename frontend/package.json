@@ -1,7 +1,7 @@
 {
   "name": "netgeo-frontend",
   "private": true,
-  "version": "1.2.014",
+  "version": "1.2.015",
   "type": "module",
   "description": "NetGeo — network simulation, planning, GIS digital-twin & AI workspace (React 18 + Vite + Tailwind + React Flow + Leaflet).",
   "scripts": {
@@ -11,6 +11,9 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@fontsource-variable/geist": "^5.2.9",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@tanstack/react-query": "^5.51.0",
     "@types/leaflet": "^1.9.21",
     "@xyflow/react": "^12.3.0",

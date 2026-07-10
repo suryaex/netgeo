@@ -28,6 +28,28 @@ interface TopBarProps {
   conn: ConnState;
 }
 
+/** NetGeo topology mark (logo.png): a hub node linked to three satellites,
+ * in the primary accent. Inline SVG so it inherits theme + scales crisply. */
+function NetGeoMark() {
+  return (
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent/15 ring-1 ring-inset ring-accent/30">
+      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] text-accent" fill="none" aria-hidden>
+        <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.9">
+          <line x1="12" y1="12" x2="12" y2="4.5" />
+          <line x1="12" y1="12" x2="5.5" y2="17.5" />
+          <line x1="12" y1="12" x2="18.5" y2="17.5" />
+        </g>
+        <g fill="currentColor">
+          <circle cx="12" cy="4.5" r="2.1" />
+          <circle cx="5.5" cy="17.5" r="2.1" />
+          <circle cx="18.5" cy="17.5" r="2.1" />
+        </g>
+        <circle cx="12" cy="12" r="2.8" fill="currentColor" />
+      </svg>
+    </span>
+  );
+}
+
 export function TopBar({ projectName, conn }: TopBarProps) {
   const theme = useUiStore((s) => s.theme);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
@@ -66,8 +88,8 @@ export function TopBar({ projectName, conn }: TopBarProps) {
     <header className="glass-strong z-[900] flex h-14 shrink-0 items-center gap-3 border-b border-fg/10 px-3 text-[13px] text-fg/85">
       {/* Brand + project + saved state */}
       <div className="flex items-center gap-2 font-semibold">
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent text-sm font-bold text-fg">N</span>
-        <span className="hidden text-sm sm:inline">NetGeo</span>
+        <NetGeoMark />
+        <span className="hidden font-display text-sm tracking-tight sm:inline">NetGeo</span>
       </div>
       <span className="text-fg/25">/</span>
       <span className="max-w-[160px] truncate text-fg/70">{projectName}</span>

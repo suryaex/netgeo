@@ -14,8 +14,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
-        mono: ['JetBrains Mono', 'SF Mono', 'ui-monospace', 'Menlo', 'monospace'],
+        // Bundled variable fonts (see main.tsx) with system fallbacks so text
+        // stays legible before the woff2 loads. `display` = Geist for headings.
+        sans: ['Inter Variable', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        display: ['Geist Variable', 'Inter Variable', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        mono: ['JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', 'ui-monospace', 'Menlo', 'monospace'],
       },
       colors: {
         // --- Theme-aware semantic aliases (CSS-variable backed) ---------------

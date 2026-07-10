@@ -66,6 +66,7 @@ function getDefaultRect(kind: WindowKind): Rect {
   const DOCK_H = 60;
   const PAD = 20;
   const SIDE_W = 280;
+  const RAIL_W = 64; // AppShell navigation rail
 
   switch (kind) {
     case 'palette':
@@ -87,16 +88,24 @@ function getDefaultRect(kind: WindowKind): Rect {
         h: Math.max(300, vh - MENU_H - DOCK_H - PAD * 2),
       };
     }
-    case 'console':
-      return { x: 220, y: 380, w: 720, h: 320 };
+    // Console / diagnostics / ledger open as a bottom drawer (design.md §14 /
+    // §6.4), not a centered floating window — full width above the dock.
+    case 'console': {
+      const h = Math.min(340, Math.round(vh * 0.38));
+      return { x: RAIL_W + PAD, y: vh - DOCK_H - h - PAD, w: vw - RAIL_W - PAD * 2, h };
+    }
     case 'config':
       return { x: 300, y: 140, w: 680, h: 520 };
     case 'scenarios':
       return { x: 360, y: 180, w: 560, h: 460 };
-    case 'diagnostics':
-      return { x: 280, y: 160, w: 720, h: 480 };
-    case 'ledger':
-      return { x: Math.max(PAD, vw - 760 - PAD), y: MENU_H + 100, w: 760, h: 440 };
+    case 'diagnostics': {
+      const h = Math.min(380, Math.round(vh * 0.42));
+      return { x: RAIL_W + PAD, y: vh - DOCK_H - h - PAD, w: vw - RAIL_W - PAD * 2, h };
+    }
+    case 'ledger': {
+      const h = Math.min(300, Math.round(vh * 0.34));
+      return { x: RAIL_W + PAD, y: vh - DOCK_H - h - PAD, w: vw - RAIL_W - PAD * 2, h };
+    }
     case 'racks':
       return {
         x: Math.max(PAD, (vw - 860) / 2),

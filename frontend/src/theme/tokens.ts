@@ -90,22 +90,25 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-info': semantic.info,
   },
   light: {
-    '--ng-bg-0': '#EEF1F8',
-    '--ng-bg-1': '#DDE4F2',
-    '--ng-surface': 'rgba(255,255,255,0.78)',
-    '--ng-surface-2': 'rgba(248,250,255,0.85)',
-    '--ng-panel': '#FFFFFF',
-    '--ng-panel-2': '#F4F6FB',
-    '--ng-border': 'rgba(15,23,42,0.10)',
-    '--ng-border-strong': 'rgba(15,23,42,0.18)',
+    // Layered light (per Stitch light variants): the canvas ground sits a step
+    // darker than panels so surfaces read as surfaces instead of one glaring
+    // white field; borders are strong enough to carry the hierarchy.
+    '--ng-bg-0': '#E7EBF3',
+    '--ng-bg-1': '#D6DDEA',
+    '--ng-surface': 'rgba(249,250,253,0.88)',
+    '--ng-surface-2': 'rgba(242,245,251,0.90)',
+    '--ng-panel': '#F7F9FC',
+    '--ng-panel-2': '#EDF1F8',
+    '--ng-border': 'rgba(15,23,42,0.14)',
+    '--ng-border-strong': 'rgba(15,23,42,0.24)',
     '--ng-fg': '#101626',
-    '--ng-fg-muted': '#566076',
-    '--ng-fg-subtle': '#8A93A6',
+    '--ng-fg-muted': '#4D5871',
+    '--ng-fg-subtle': '#7C8598',
     '--ng-fg-rgb': '16 22 38', // ink — legible foreground/hairline on light surfaces
     '--ng-recess-rgb': '15 23 42', // slate — subtle recessed wells on light surfaces
-    '--ng-glass-bg': 'rgba(255,255,255,0.70)',
-    '--ng-glass-border': 'rgba(15,23,42,0.10)',
-    '--ng-elevate': '0 16px 50px rgba(15,23,42,0.18)',
+    '--ng-glass-bg': 'rgba(247,249,252,0.78)',
+    '--ng-glass-border': 'rgba(15,23,42,0.14)',
+    '--ng-elevate': '0 12px 36px rgba(15,23,42,0.14)',
     '--ng-primary': '#1E5BFF',
     '--ng-secondary': '#6B45F5',
     '--ng-success': '#159E6E',

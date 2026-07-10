@@ -144,6 +144,17 @@ html.hc *:focus-visible {
 }
 
 /* ---- Leaflet map overrides ------------------------------------------------ */
+/* Mute raw basemap tiles so they sit under the UI instead of shouting over it:
+   raster tiles (OSM/Esri) are far more saturated than the app chrome. Scoped
+   to base tiles only — image overlays (RF coverage) are .leaflet-image-layer
+   and stay untouched. High-contrast theme gets no filter. */
+html[data-theme='light'] .leaflet-tile {
+  filter: saturate(0.72) contrast(0.9) brightness(1.03);
+}
+html[data-theme='dark'] .leaflet-tile {
+  filter: saturate(0.85) brightness(0.88);
+}
+
 .ng-map-label {
   background: var(--ng-surface, rgba(22, 27, 42, 0.85)) !important;
   border: 1px solid var(--ng-border-strong, rgba(255, 255, 255, 0.15)) !important;

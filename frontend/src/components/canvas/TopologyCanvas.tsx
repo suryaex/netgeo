@@ -243,7 +243,7 @@ export function TopologyCanvas() {
         defaultEdgeOptions={{ type: 'smoothstep' }}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--ng-border)" />
-        <Controls className="!border-fg/10 !bg-fg/5 backdrop-blur" />
+        <Controls position="bottom-right" className="!border-fg/10 !bg-fg/5 backdrop-blur" />
 
         <Panel position="top-left" className="!m-3">
           <CanvasToolbar

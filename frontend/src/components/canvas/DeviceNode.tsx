@@ -30,6 +30,10 @@ export interface DeviceNodeData extends Record<string, unknown> {
   status: NodeStatus;
   /** Management IP (first configured interface address), if any. */
   ip?: string;
+  /** Protocol overlay active but this node isn't a member → fade it back. */
+  dim?: boolean;
+  /** Protocol overlay member → ring it so the set stands out. */
+  highlight?: boolean;
 }
 
 const KIND_ICON: Record<NodeKind, typeof Router> = {
@@ -82,6 +86,8 @@ function DeviceNodeImpl({ data, selected }: NodeProps) {
         selected
           ? 'border-accent shadow-glass ring-1 ring-accent/40'
           : 'border-fg/10 hover:border-fg/25 hover:bg-fg/5',
+        d.highlight && 'border-accent ring-2 ring-accent/70',
+        d.dim && 'opacity-30',
       )}
     >
       {/* Kind accent bar */}

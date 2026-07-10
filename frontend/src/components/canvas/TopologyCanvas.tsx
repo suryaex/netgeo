@@ -32,10 +32,11 @@ import '@xyflow/react/dist/style.css';
 import { Search, Plus, X } from 'lucide-react';
 import { DeviceNode, type DeviceNodeData } from './DeviceNode';
 import { PulseEdge } from './PulseEdge';
+import { OverlayChips } from './OverlayChips';
 import { useTopologyStore } from '@/store/topologyStore';
 import { useUiStore } from '@/store/uiStore';
 import { useLabStore } from '@/store/labStore';
-import { useTopoUiStore } from '@/store/topoUiStore';
+import { useTopoUiStore, type OverlayKey } from '@/store/topoUiStore';
 import { nodesApi, linksApi } from '@/api/client';
 import { placeDevice } from '@/lib/placeDevice';
 import { linkStatusColors, nodeColors } from '@/theme/tokens';
@@ -65,6 +66,9 @@ export function TopologyCanvas() {
   const projectId = useUiStore((s) => s.projectId);
   const openPicker = useTopoUiStore((s) => s.openPicker);
   const setFit = useTopoUiStore((s) => s.setFit);
+  const setCenterOn = useTopoUiStore((s) => s.setCenterOn);
+  const overlays = useTopoUiStore((s) => s.overlays);
+  const protoActive = overlays.ospf || overlays.bgp || overlays.vlan;
 
   /** Select a node and pan/zoom the viewport to center it (search "locate"). */
   const locateNode = useCallback(
@@ -78,21 +82,26 @@ export function TopologyCanvas() {
   // Project store Maps -> React Flow nodes/edges (memoized by identity).
   const rfNodes: Node<DeviceNodeData>[] = useMemo(
     () =>
-      Array.from(nodesMap.values()).map((n) => ({
-        id: n.id,
-        type: 'device',
-        position: { x: n.x, y: n.y },
-        selected: n.id === selectedNodeId,
-        data: {
-          name: n.name,
-          kind: n.kind,
-          nos: n.nos,
-          mode: n.mode,
-          status: n.status,
-          ip: mgmtIp(n),
-        },
-      })),
-    [nodesMap, selectedNodeId],
+      Array.from(nodesMap.values()).map((n) => {
+        const member = protoActive && nodeInOverlay(n, overlays);
+        return {
+          id: n.id,
+          type: 'device',
+          position: { x: n.x, y: n.y },
+          selected: n.id === selectedNodeId,
+          data: {
+            name: n.name,
+            kind: n.kind,
+            nos: n.nos,
+            mode: n.mode,
+            status: n.status,
+            ip: mgmtIp(n),
+            highlight: member,
+            dim: protoActive && !member,
+          },
+        };
+      }),
+    [nodesMap, selectedNodeId, overlays, protoActive],
   );
 
   // Follow-the-packet animation (NG-CAP-04 MVP): latest fresh pulse per link.
@@ -110,6 +119,9 @@ export function TopologyCanvas() {
         const source = ifaceNodeId(nodesMap, l.a_iface);
         const target = ifaceNodeId(nodesMap, l.b_iface);
         const pulse = pulseByLink.get(l.id);
+        // On a protocol overlay, keep only edges whose both ends are members.
+        const onOverlay =
+          !protoActive || (memberById(nodesMap, source, overlays) && memberById(nodesMap, target, overlays));
         return {
           id: l.id,
           source,
@@ -120,16 +132,18 @@ export function TopologyCanvas() {
             stroke: color,
             strokeWidth: EDGE_WIDTH[l.type] ?? 2,
             strokeDasharray: EDGE_DASH[l.type],
+            opacity: onOverlay ? 1 : 0.12,
           },
           data: {
             type: l.type,
             bandwidth: l.bandwidth,
             pulse,
             pulseReverse: pulse ? pulse.fromNode === target : false,
+            label: overlays.l3 && l.bandwidth ? `${l.bandwidth}M` : undefined,
           },
         } as Edge;
       }),
-    [linksMap, nodesMap, pulseByLink],
+    [linksMap, nodesMap, pulseByLink, overlays, protoActive],
   );
 
   /* --- Node drag: local move now, persist on drag-stop --------------------- */
@@ -221,6 +235,9 @@ export function TopologyCanvas() {
           // Register the fit action so the global `F` shortcut and the command
           // palette can fit the view without holding the React Flow instance.
           setFit(() => inst.fitView({ duration: 400 }));
+          // Register a "center on point" action so the event ledger can bring a
+          // clicked event's device into view (design §6.4).
+          setCenterOn((x, y) => inst.setCenter(x, y, { zoom: 1.2, duration: 400 }));
         }}
         nodes={rfNodes}
         edges={rfEdges}
@@ -246,12 +263,15 @@ export function TopologyCanvas() {
         <Controls position="bottom-right" className="!border-fg/10 !bg-fg/5 backdrop-blur" />
 
         <Panel position="top-left" className="!m-3">
-          <CanvasToolbar
-            nodes={rfNodes.length}
-            allNodes={nodesMap}
-            onLocate={locateNode}
-            onAddDevice={() => openPicker()}
-          />
+          <div className="flex flex-col gap-2">
+            <OverlayChips />
+            <CanvasToolbar
+              nodes={rfNodes.length}
+              allNodes={nodesMap}
+              onLocate={locateNode}
+              onAddDevice={() => openPicker()}
+            />
+          </div>
         </Panel>
 
         {/* MiniMap only once there's something to map — no empty gray box. */}
@@ -378,6 +398,27 @@ function CanvasToolbar({
 /** First configured interface address — the device's management IP for the card. */
 function mgmtIp(node: NodeModel): string | undefined {
   return node.interfaces.find((i) => i.ip.length > 0)?.ip[0];
+}
+
+/**
+ * Does a node belong to any active protocol overlay? Membership is read from the
+ * node's free-form `intent` bag already in the store — a substring scan is the
+ * lazy, robust check (works whatever nested shape the engine writes).
+ * ponytail: highlight-only heuristic; no per-node engine/diagnostics call.
+ */
+function nodeInOverlay(n: NodeModel, o: Record<OverlayKey, boolean>): boolean {
+  if (!n.intent) return false;
+  const bag = JSON.stringify(n.intent).toLowerCase();
+  return (
+    (o.ospf && bag.includes('ospf')) ||
+    (o.bgp && bag.includes('bgp')) ||
+    (o.vlan && bag.includes('vlan'))
+  );
+}
+
+function memberById(nodes: Map<string, NodeModel>, id: string, o: Record<OverlayKey, boolean>): boolean {
+  const n = nodes.get(id);
+  return !!n && nodeInOverlay(n, o);
 }
 
 function ifaceNodeId(nodes: Map<string, NodeModel>, ifaceId: string): string {

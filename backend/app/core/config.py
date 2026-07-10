@@ -17,7 +17,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # stale value overrode the code default forever — self-updated installs kept
 # reporting the version they were first installed at (e.g. "0.1"), so the
 # updater always saw an update available. The env var is now ignored.
-APP_VERSION = "1.2.013"
+APP_VERSION = "1.2.014"
 
 
 class Settings(BaseSettings):

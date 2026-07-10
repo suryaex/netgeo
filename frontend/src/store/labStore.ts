@@ -29,7 +29,28 @@ interface LabState {
   setCursor: (seq: number) => void;
   /** Extract TX records into animation pulses (staggered by record order). */
   pushRecords: (records: LedgerRecord[]) => void;
+  /** Glow a single link now (e.g. clicking an event row that names a link). */
+  highlightLink: (linkId: string, fromNode: string, info: string) => void;
   clearPulses: () => void;
+}
+
+/** Append pulses and schedule their self-clean after the animation window. */
+function commit(
+  set: (fn: (s: LabState) => Partial<LabState>) => void,
+  fresh: PacketPulse[],
+) {
+  if (fresh.length === 0) return;
+  const now = Date.now();
+  set((s) => ({
+    pulses: [...s.pulses.filter((p) => now - p.bornAt < PULSE_TTL_MS), ...fresh],
+  }));
+  setTimeout(
+    () =>
+      set((s) => ({
+        pulses: s.pulses.filter((p) => Date.now() - p.bornAt < PULSE_TTL_MS),
+      })),
+    PULSE_TTL_MS + 100,
+  );
 }
 
 export const useLabStore = create<LabState>((set) => ({
@@ -52,19 +73,11 @@ export const useLabStore = create<LabState>((set) => ({
         info: r.info ?? '',
         bornAt: now,
       }));
-    if (fresh.length === 0) return;
-    set((s) => ({
-      pulses: [...s.pulses.filter((p) => now - p.bornAt < PULSE_TTL_MS), ...fresh],
-    }));
-    // Self-clean after the animation window so edges stop pulsing.
-    setTimeout(
-      () =>
-        set((s) => ({
-          pulses: s.pulses.filter((p) => Date.now() - p.bornAt < PULSE_TTL_MS),
-        })),
-      PULSE_TTL_MS + 100,
-    );
+    commit(set, fresh);
   },
+
+  highlightLink: (linkId, fromNode, info) =>
+    commit(set, [{ key: `hl-${linkId}-${Date.now()}`, linkId, fromNode, info, bornAt: Date.now() }]),
 
   clearPulses: () => set({ pulses: [] }),
 }));

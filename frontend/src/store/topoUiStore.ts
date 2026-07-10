@@ -9,6 +9,9 @@ import { create } from 'zustand';
 
 export type TopoTool = 'select' | 'link' | 'group';
 
+/** Canvas protocol/layer overlays (design §6.1) — client-side highlight only. */
+export type OverlayKey = 'ospf' | 'bgp' | 'vlan' | 'l3';
+
 export interface FlowPos {
   x: number;
   y: number;
@@ -20,14 +23,20 @@ interface TopoUiState {
   /** Flow-coords where a picked device should land (double-click), else null. */
   pickerPos: FlowPos | null;
   inspectorPinned: boolean;
+  /** Active canvas overlays; protocol chips dim non-members, `l3` labels links. */
+  overlays: Record<OverlayKey, boolean>;
   /** Registered by TopologyCanvas.onInit; drives the `F` fit shortcut. */
   fit: (() => void) | null;
+  /** Registered by TopologyCanvas.onInit; centers the viewport on a point. */
+  centerOn: ((x: number, y: number) => void) | null;
 
   setTool: (t: TopoTool) => void;
   openPicker: (pos?: FlowPos) => void;
   closePicker: () => void;
   togglePin: () => void;
+  toggleOverlay: (k: OverlayKey) => void;
   setFit: (fn: (() => void) | null) => void;
+  setCenterOn: (fn: ((x: number, y: number) => void) | null) => void;
 }
 
 export const useTopoUiStore = create<TopoUiState>((set) => ({
@@ -35,11 +44,16 @@ export const useTopoUiStore = create<TopoUiState>((set) => ({
   pickerOpen: false,
   pickerPos: null,
   inspectorPinned: false,
+  overlays: { ospf: false, bgp: false, vlan: false, l3: false },
   fit: null,
+  centerOn: null,
 
   setTool: (tool) => set({ tool }),
   openPicker: (pos) => set({ pickerOpen: true, pickerPos: pos ?? null }),
   closePicker: () => set({ pickerOpen: false, pickerPos: null }),
   togglePin: () => set((s) => ({ inspectorPinned: !s.inspectorPinned })),
+  toggleOverlay: (k) =>
+    set((s) => ({ overlays: { ...s.overlays, [k]: !s.overlays[k] } })),
   setFit: (fit) => set({ fit }),
+  setCenterOn: (centerOn) => set({ centerOn }),
 }));

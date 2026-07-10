@@ -12,6 +12,7 @@
  */
 import type { ConnState } from '@/api/ws';
 import { useUiStore } from '@/store/uiStore';
+import { useLabStore } from '@/store/labStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { TopBar } from './TopBar';
 import { NavigationRail } from './NavigationRail';
@@ -24,9 +25,11 @@ import { TopologyToolbar } from '@/components/topology/TopologyToolbar';
 import { ContextInspector } from '@/components/topology/ContextInspector';
 import { DevicePicker } from '@/components/topology/DevicePicker';
 import { CommandPalette } from '@/components/CommandPalette';
+import { SimulationDock } from '@/components/SimulationDock';
 
 export function AppShell({ projectName, conn }: { projectName: string; conn: ConnState }) {
   const viewMode = useUiStore((s) => s.viewMode);
+  const simMode = useLabStore((s) => s.mode) === 'simulation';
   useShortcuts();
 
   return (
@@ -53,6 +56,8 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
           {/* Secondary tools float over any workspace, launched from the Dock. */}
           <WindowHost />
           <Dock />
+          {/* Simulation transport dock — only in Simulation mode (design §6.3). */}
+          {simMode && <SimulationDock />}
         </main>
       </div>
 

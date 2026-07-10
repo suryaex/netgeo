@@ -6,17 +6,19 @@
  * node, so students literally watch the frame travel. Pure SVG: no rAF loop,
  * no per-frame React renders.
  */
-import { BaseEdge, getSmoothStepPath, type EdgeProps } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from '@xyflow/react';
 import type { PacketPulse } from '@/store/labStore';
 
 export interface PulseEdgeData extends Record<string, unknown> {
   pulse?: PacketPulse;
   /** true when the pulse travels target -> source. */
   pulseReverse?: boolean;
+  /** Midpoint label shown when the L2/L3 overlay is on (design §6.1). */
+  label?: string;
 }
 
 export function PulseEdge(props: EdgeProps) {
-  const [path] = getSmoothStepPath({
+  const [path, labelX, labelY] = getSmoothStepPath({
     sourceX: props.sourceX,
     sourceY: props.sourceY,
     sourcePosition: props.sourcePosition,
@@ -30,6 +32,16 @@ export function PulseEdge(props: EdgeProps) {
   return (
     <>
       <BaseEdge id={props.id} path={path} style={props.style} />
+      {data.label && (
+        <EdgeLabelRenderer>
+          <div
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+            className="pointer-events-none absolute rounded border border-fg/10 bg-panel/90 px-1 py-0.5 font-mono text-[9px] text-fg/70 backdrop-blur-sm"
+          >
+            {data.label}
+          </div>
+        </EdgeLabelRenderer>
+      )}
       {pulse && (
         // Keyed by pulse so a new pulse restarts the SMIL animation.
         <g key={pulse.key} pointerEvents="none">

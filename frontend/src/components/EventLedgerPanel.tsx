@@ -8,10 +8,11 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronsRight, Rewind, StepBack, StepForward } from 'lucide-react';
+import { ChevronsRight, Rewind, Search, StepBack, StepForward } from 'lucide-react';
 import { labApi, type LedgerRecord } from '@/api/client';
 import { useLabStore } from '@/store/labStore';
 import { useTopologyStore } from '@/store/topologyStore';
+import { useTopoUiStore } from '@/store/topoUiStore';
 import { useUiStore } from '@/store/uiStore';
 import { cn } from '@/lib/cn';
 
@@ -24,12 +25,16 @@ const TYPE_STYLES: Record<string, string> = {
 export function EventLedgerPanel() {
   const projectId = useUiStore((s) => s.projectId);
   const nodes = useTopologyStore((s) => s.nodes);
+  const select = useTopologyStore((s) => s.select);
+  const centerOn = useTopoUiStore((s) => s.centerOn);
   const mode = useLabStore((s) => s.mode);
   const setMode = useLabStore((s) => s.setMode);
   const cursor = useLabStore((s) => s.cursor);
   const setCursor = useLabStore((s) => s.setCursor);
   const pushRecords = useLabStore((s) => s.pushRecords);
+  const highlightLink = useLabStore((s) => s.highlightLink);
   const [seekTo, setSeekTo] = useState('');
+  const [filter, setFilter] = useState('');
   const queryClient = useQueryClient();
 
   const q = useQuery({
@@ -74,6 +79,25 @@ export function EventLedgerPanel() {
   const busy = step.isPending || seek.isPending;
   const simMode = mode === 'simulation';
 
+  // Client-side filter over the columns already on screen (design §6.4 search).
+  const filtered = useMemo(() => {
+    const f = filter.trim().toLowerCase();
+    if (!f) return records;
+    return records.filter((r) =>
+      `${r.seq} ${r.type} ${nodeName(r.node)} ${r.iface ?? ''} ${r.info ?? ''}`
+        .toLowerCase()
+        .includes(f),
+    );
+  }, [records, filter, nodes]);
+
+  // Row click (design §6.4): select + center the device and glow its link.
+  const pick = (r: LedgerRecord) => {
+    select({ nodeId: r.node || null, linkId: r.link ?? null });
+    const n = r.node ? nodes.get(r.node) : undefined;
+    if (n && centerOn) centerOn(n.x, n.y);
+    if (r.link) highlightLink(r.link, r.node, r.info ?? '');
+  };
+
   return (
     <div className="flex h-full flex-col text-[13px]">
       {/* Status + transport strip */}
@@ -90,6 +114,17 @@ export function EventLedgerPanel() {
           t={q.data ? q.data.sim_time.toFixed(6) : '—'}s · event {total}
           {q.data ? ` · ${q.data.pending_events} queued` : ''}
         </span>
+
+        <div className="relative ml-1">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-fg/40" />
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter events…"
+            aria-label="Filter events"
+            className="w-40 rounded-md border border-fg/10 bg-fg/5 py-1 pl-6 pr-2 text-[11px] outline-none placeholder:text-fg/30 focus:border-accent"
+          />
+        </div>
 
         <div className="flex-1" />
 
@@ -144,11 +179,19 @@ export function EventLedgerPanel() {
           <p className="p-3 text-fg/35">
             No events yet — switch to simulation mode, launch a ping, then step.
           </p>
+        ) : filtered.length === 0 ? (
+          <p className="p-3 text-fg/35">No events match “{filter}”.</p>
         ) : (
           <table className="w-full">
             <tbody>
-              {records.map((r) => (
-                <LedgerRow key={r.seq} r={r} nodeName={nodeName} onJump={() => seek.mutate(r.seq)} />
+              {filtered.map((r) => (
+                <LedgerRow
+                  key={r.seq}
+                  r={r}
+                  nodeName={nodeName}
+                  onPick={() => pick(r)}
+                  onJump={() => seek.mutate(r.seq)}
+                />
               ))}
             </tbody>
           </table>
@@ -166,17 +209,20 @@ export function EventLedgerPanel() {
 function LedgerRow({
   r,
   nodeName,
+  onPick,
   onJump,
 }: {
   r: LedgerRecord;
   nodeName: (id: string) => string;
+  onPick: () => void;
   onJump: () => void;
 }) {
   return (
     <tr
+      onClick={onPick}
       onDoubleClick={onJump}
-      title="Double-click: rewind to this event"
-      className="cursor-default border-b border-fg/5 hover:bg-fg/8"
+      title="Click: locate & highlight · Double-click: rewind to this event"
+      className="cursor-pointer border-b border-fg/5 hover:bg-fg/8"
     >
       <td className="whitespace-nowrap px-2 py-0.5 text-right text-fg/35">{r.seq}</td>
       <td className="whitespace-nowrap px-1 py-0.5 text-fg/40">{r.t.toFixed(6)}</td>

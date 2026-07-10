@@ -3,7 +3,7 @@
  * Mirrors the UISP Design Center layer toggle. Backed by `mapStore.mapLayer`
  * and the free, key-less providers in `config/mapTiles.ts`.
  */
-import { Satellite, Map as MapIcon, Layers } from 'lucide-react';
+import { Satellite, Map as MapIcon, Layers, Moon, Mountain } from 'lucide-react';
 import { useMapStore } from '@/store/mapStore';
 import type { MapTileKey } from '@/config/mapTiles';
 import { cn } from '@/lib/cn';
@@ -12,6 +12,8 @@ const LAYERS: { key: MapTileKey; label: string; icon: typeof Satellite }[] = [
   { key: 'satellite', label: 'Satellite', icon: Satellite },
   { key: 'street', label: 'Street', icon: MapIcon },
   { key: 'hybrid', label: 'Hybrid', icon: Layers },
+  { key: 'dark', label: 'Dark', icon: Moon },
+  { key: 'topo', label: 'Topo', icon: Mountain },
 ];
 
 export function MapLayerSwitcher() {

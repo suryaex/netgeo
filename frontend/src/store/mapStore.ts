@@ -10,6 +10,7 @@
  */
 import { create } from 'zustand';
 import type { LosStatus } from '@/services/signalSim';
+import type { GeoResult } from '@/services/geocodeService';
 import type { MapTileKey } from '@/config/mapTiles';
 import { DEFAULT_TILE } from '@/config/mapTiles';
 import { GIS_LAYERS } from '@/config/gisLayers';
@@ -200,6 +201,7 @@ interface MapState {
   checkingLos: boolean; // async LOS check in progress
   gisLayers: Record<string, GisLayerState>; // GIS layer tree state (05_MAP_ENGINE)
   gisPanelOpen: boolean;      // GIS layer panel visibility
+  searchResult: GeoResult | null; // active geocoding pick (flyTo + temp marker)
 
   // Elevation-profile tool (Phase B1)
   profilePts: [number, number][]; // 0..2 picked endpoints [lat, lng]
@@ -233,6 +235,7 @@ interface MapState {
   toggleGisLayer: (id: string) => void;
   setGisLayerOpacity: (id: string, opacity: number) => void;
   toggleGisPanel: (open?: boolean) => void;
+  setSearchResult: (r: GeoResult | null) => void;
 
   // Elevation-profile tool
   addProfilePoint: (lat: number, lng: number) => void;
@@ -263,6 +266,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   checkingLos: false,
   gisLayers: initialGisLayers(),
   gisPanelOpen: false,
+  searchResult: null,
 
   profilePts: [],
   profileData: null,
@@ -351,6 +355,8 @@ export const useMapStore = create<MapState>((set, get) => ({
 
   toggleGisPanel: (open) =>
     set((s) => ({ gisPanelOpen: open ?? !s.gisPanelOpen })),
+
+  setSearchResult: (searchResult) => set({ searchResult }),
 
   addProfilePoint: (lat, lng) => {
     // Two-click pattern (mirrors the measure tool): a 3rd click starts a fresh

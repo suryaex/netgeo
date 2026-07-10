@@ -59,6 +59,7 @@ import { MapToolbar } from './MapToolbar';
 import { MapDevicePanel } from './MapDevicePanel';
 import { MapOnboardingModal } from './MapOnboardingModal';
 import { MapLayerSwitcher } from './MapLayerSwitcher';
+import { MapSearch } from './MapSearch';
 import { GisLayerPanel } from './GisLayerPanel';
 import { ElevationProfilePanel } from './ElevationProfilePanel';
 import { DeviceLibraryModal } from './DeviceLibraryModal';
@@ -987,6 +988,29 @@ function WeatherBar() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Geocoding search result — flyTo + temporary marker (Phase B3)               */
+/* -------------------------------------------------------------------------- */
+function SearchResultLayer() {
+  const result = useMapStore((s) => s.searchResult);
+  const map = useMap();
+  useEffect(() => {
+    if (result) map.flyTo([result.lat, result.lng], 16, { duration: 1.2 });
+  }, [result, map]);
+  if (!result) return null;
+  return (
+    <CircleMarker
+      center={[result.lat, result.lng]}
+      radius={9}
+      pathOptions={{ color: '#FF9F0A', weight: 3, fillColor: '#FF9F0A', fillOpacity: 0.35 }}
+    >
+      <Tooltip permanent direction="top" offset={[0, -12]}>
+        {result.label}
+      </Tooltip>
+    </CircleMarker>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Basemap tiles — layer-aware (Satellite / Street / Hybrid + label overlay)   */
 /* -------------------------------------------------------------------------- */
 function BaseTiles() {
@@ -1134,6 +1158,9 @@ export function MapView() {
         {/* RF coverage raster — best-server RSSI overlay for placed AP/Towers */}
         {coverageVisible && <RfCoverageLayer />}
 
+        {/* Geocoding search — flyTo + temporary marker */}
+        <SearchResultLayer />
+
         {/* Elevation-profile tool line + endpoints */}
         <ProfileLine />
 
@@ -1154,6 +1181,7 @@ export function MapView() {
       </MapContainer>
 
       {/* Overlay UI */}
+      <MapSearch />
       <MapToolbar />
       <MapDevicePanel />
       <SignalLegend />

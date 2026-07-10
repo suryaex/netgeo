@@ -907,7 +907,7 @@ function SignalLegend() {
       <button
         onClick={() => void triggerLosCheck()}
         disabled={checkingLos}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-fg/15 bg-recess/60 px-3 py-1.5 text-xs text-fg/70 backdrop-blur transition-colors hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+        className="glass-strong flex w-full items-center justify-center gap-1.5 rounded-lg border border-fg/15 px-3 py-1.5 text-xs text-fg/80 transition-colors hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
       >
         {checkingLos ? (
           <>
@@ -920,8 +920,8 @@ function SignalLegend() {
       </button>
 
       {/* Signal legend */}
-      <div className="rounded-xl border border-fg/15 bg-recess/60 px-3 py-2 shadow-glass backdrop-blur">
-        <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-fg/40">
+      <div className="glass-strong rounded-xl border border-fg/15 px-3 py-2 shadow-glass">
+        <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-fg/60">
           Signal Quality
         </p>
         <div className="flex flex-col gap-0.5">
@@ -933,15 +933,15 @@ function SignalLegend() {
           ].map(({ label, color, range }) => (
             <div key={label} className="flex items-center gap-2">
               <span className="h-2 w-5 rounded-sm" style={{ background: color }} />
-              <span className="text-[10px] text-fg/70">{label}</span>
-              <span className="ml-auto text-[9px] text-fg/35">{range}</span>
+              <span className="text-[10px] text-fg/80">{label}</span>
+              <span className="ml-auto text-[9px] text-fg/55">{range}</span>
             </div>
           ))}
         </div>
 
         <div className="my-1.5 border-t border-fg/10" />
 
-        <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-fg/40">
+        <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-fg/60">
           LOS Status
         </p>
         <div className="flex flex-col gap-0.5">
@@ -960,7 +960,7 @@ function SignalLegend() {
                   display: 'block',
                 }}
               />
-              <span className="text-[10px] text-fg/70">{label}</span>
+              <span className="text-[10px] text-fg/80">{label}</span>
             </div>
           ))}
         </div>
@@ -1145,7 +1145,7 @@ function GradientLegend() {
   return (
     <div className="pointer-events-none absolute right-4 top-3 z-[1000]">
       <div className="glass-strong rounded-xl border border-fg/15 px-3 py-2 shadow-glass">
-        <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-fg/40">
+        <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-fg/60">
           Signal Strength
         </p>
         <div className="flex items-center gap-2">
@@ -1238,7 +1238,9 @@ export function MapView() {
       <MapToolbar />
       <MapDevicePanel />
       <SignalLegend />
-      <GradientLegend />
+      {/* Signal-strength gradient only describes the RF coverage raster — show it
+          only when that layer is on, so it doesn't float over the top bar/popovers. */}
+      {coverageVisible && <GradientLegend />}
       <GisLayerToggle />
       <GisLayerPanel />
       <ToolHint />

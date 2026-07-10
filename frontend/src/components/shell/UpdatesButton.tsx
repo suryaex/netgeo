@@ -181,10 +181,10 @@ export function UpdatesButton() {
               </span>
             </div>
             <div>
-              Latest:{' '}
+              Latest release:{' '}
               <span className="tabular-nums text-fg">
                 {info
-                  ? (info.latest ?? 'Could not reach GitHub')
+                  ? (info.latest ? `v${info.latest}` : 'Could not reach GitHub')
                   : (checking ? '…' : '—')}
               </span>
             </div>
@@ -216,7 +216,17 @@ export function UpdatesButton() {
           ) : checking ? (
             <p className="mt-2 text-xs text-fg/50">Checking for updates…</p>
           ) : upToDate ? (
-            <p className="mt-2 text-xs text-success">You&apos;re up to date.</p>
+            info?.latest && info.current !== info.latest ? (
+              // No update available yet current ≠ latest → this build is ahead of
+              // the public release (dev build). Say so instead of "up to date",
+              // which reads like a downgrade next to a lower "latest" number.
+              <p className="mt-2 text-xs text-fg/50">
+                This dev build (v{info.current}) is ahead of the latest public
+                release (v{info.latest}).
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-success">You&apos;re up to date.</p>
+            )
           ) : null}
 
           {status && (

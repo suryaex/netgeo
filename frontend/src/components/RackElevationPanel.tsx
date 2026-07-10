@@ -87,7 +87,7 @@ export function RackElevationPanel() {
       setError(null);
       invalidate();
     },
-    onError: () => setError('Gagal menyimpan penempatan perangkat.'),
+    onError: () => setError('Failed to save device placement.'),
   });
 
   const unplace = useMutation({
@@ -140,7 +140,7 @@ export function RackElevationPanel() {
   }, [cables, plantQ.data]);
 
   if (!projectId) {
-    return <div className="p-6 text-sm text-fg/50">Pilih project untuk melihat rack.</div>;
+    return <div className="p-6 text-sm text-fg/50">Select a project to view racks.</div>;
   }
 
   /** Racks grouped under their site (null site_id → an "Unassigned" bucket). */
@@ -150,7 +150,7 @@ export function RackElevationPanel() {
   ].filter((b) => b.site !== null || b.racks.length > 0);
 
   return (
-    <div className="flex h-full flex-col bg-neutral-950 text-fg/90">
+    <div className="flex h-full flex-col bg-panel text-fg/90">
       {/* toolbar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-fg/10 px-3 py-2 text-xs">
         <Server size={14} className="text-fg/50" />
@@ -159,7 +159,7 @@ export function RackElevationPanel() {
         <input
           value={newSite}
           onChange={(e) => setNewSite(e.target.value)}
-          placeholder="Nama site baru"
+          placeholder="New site name"
           className="w-32 rounded bg-fg/10 px-2 py-1 outline-none placeholder:text-fg/30"
         />
         <button
@@ -172,7 +172,7 @@ export function RackElevationPanel() {
         <input
           value={newRackName}
           onChange={(e) => setNewRackName(e.target.value)}
-          placeholder="Nama rack baru"
+          placeholder="New rack name"
           className="w-32 rounded bg-fg/10 px-2 py-1 outline-none placeholder:text-fg/30"
         />
         <select
@@ -180,7 +180,7 @@ export function RackElevationPanel() {
           onChange={(e) => setNewRackSite(e.target.value)}
           className="rounded bg-fg/10 px-2 py-1 outline-none"
         >
-          <option value="">(tanpa site)</option>
+          <option value="">(no site)</option>
           {sites.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -207,7 +207,7 @@ export function RackElevationPanel() {
       {overLength.length > 0 && (
         <div className="border-b border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
           <div className="flex items-center gap-1 font-medium">
-            <AlertTriangle size={13} /> Kabel melebihi panjang maksimum (link errored)
+            <AlertTriangle size={13} /> Cable exceeds maximum length (link errored)
           </div>
           <ul className="mt-1 space-y-0.5 pl-5">
             {overLength.map(({ cable, media }) => (
@@ -223,7 +223,7 @@ export function RackElevationPanel() {
         {/* tray of unplaced devices */}
         <div className="w-44 shrink-0 overflow-y-auto border-r border-fg/10 p-2">
           <div className="mb-1 text-[11px] uppercase tracking-wide text-fg/40">
-            Belum ditempatkan ({unplaced.length})
+            Unplaced ({unplaced.length})
           </div>
           {unplaced.map((n) => (
             <div
@@ -243,7 +243,7 @@ export function RackElevationPanel() {
             </div>
           ))}
           {unplaced.length === 0 && (
-            <div className="text-xs text-fg/30">Semua perangkat sudah ditempatkan.</div>
+            <div className="text-xs text-fg/30">All devices are placed.</div>
           )}
         </div>
 
@@ -251,7 +251,7 @@ export function RackElevationPanel() {
         <div className="flex-1 overflow-auto p-3">
           {bucketBySite.length === 0 && (
             <div className="text-sm text-fg/40">
-              Belum ada rack. Buat site lalu rack dari toolbar di atas.
+              No racks yet. Create a site, then a rack, from the toolbar above.
             </div>
           )}
           {bucketBySite.map((bucket) => {
@@ -260,7 +260,7 @@ export function RackElevationPanel() {
             return (
               <div key={bucket.site?.id ?? '_unassigned'} className="mb-6">
                 <div className="mb-2 flex items-center gap-2 text-sm">
-                  <span className="font-medium">{bucket.site?.name ?? 'Tanpa site'}</span>
+                  <span className="font-medium">{bucket.site?.name ?? 'No site'}</span>
                   {bucket.site?.region && (
                     <span className="text-fg/40">· {bucket.site.region}</span>
                   )}
@@ -282,7 +282,7 @@ export function RackElevationPanel() {
                     />
                   ))}
                   {bucket.racks.length === 0 && (
-                    <div className="text-xs text-fg/30">Site ini belum punya rack.</div>
+                    <div className="text-xs text-fg/30">This site has no racks yet.</div>
                   )}
                 </div>
               </div>
@@ -339,7 +339,7 @@ function RackColumn({ rack, devices, onPlace, onUnplace, onError }: RackColumnPr
     const taken = occupied(load.nodeId);
     for (let u = ruStart; u < ruStart + span; u++) {
       if (taken.has(u)) {
-        onError(`Tabrakan di RU ${u} pada rack ${rack.name}.`);
+        onError(`Collision at RU ${u} in rack ${rack.name}.`);
         return;
       }
     }
@@ -394,10 +394,10 @@ function RackColumn({ rack, devices, onPlace, onUnplace, onError }: RackColumnPr
                     )
                   }
                   onDoubleClick={() => onUnplace(d.id)}
-                  title={`${d.kind} · ${nodeWatts(d)} W — dobel-klik untuk lepas`}
+                  title={`${d.kind} · ${nodeWatts(d)} W — double-click to remove`}
                   className={cn(
                     'absolute inset-x-1 flex cursor-grab items-center justify-center rounded px-1 text-[11px] active:cursor-grabbing',
-                    'border border-sky-400/40 bg-sky-500/20 text-sky-100 hover:bg-sky-500/30',
+                    'border border-sky-400/40 bg-sky-500/20 text-sky-900 hover:bg-sky-500/30 dark:text-sky-100',
                   )}
                   style={{ bottom, height: span * RU_PX - 2 }}
                 >

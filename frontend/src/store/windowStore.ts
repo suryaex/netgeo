@@ -90,9 +90,12 @@ function getDefaultRect(kind: WindowKind): Rect {
     }
     // Console / diagnostics / ledger open as a bottom drawer (design.md §14 /
     // §6.4), not a centered floating window — full width above the dock.
+    // Window coords are relative to the workspace area (right of the 64px
+    // rail, below the 56px top bar), so x starts at PAD and the vertical
+    // offset accounts for top bar + dock + status bar (~150px total chrome).
     case 'console': {
       const h = Math.min(340, Math.round(vh * 0.38));
-      return { x: RAIL_W + PAD, y: vh - DOCK_H - h - PAD, w: vw - RAIL_W - PAD * 2, h };
+      return { x: PAD, y: vh - h - 150, w: vw - RAIL_W - PAD * 2, h };
     }
     case 'config':
       return { x: 300, y: 140, w: 680, h: 520 };
@@ -100,11 +103,11 @@ function getDefaultRect(kind: WindowKind): Rect {
       return { x: 360, y: 180, w: 560, h: 460 };
     case 'diagnostics': {
       const h = Math.min(380, Math.round(vh * 0.42));
-      return { x: RAIL_W + PAD, y: vh - DOCK_H - h - PAD, w: vw - RAIL_W - PAD * 2, h };
+      return { x: PAD, y: vh - h - 150, w: vw - RAIL_W - PAD * 2, h };
     }
     case 'ledger': {
       const h = Math.min(300, Math.round(vh * 0.34));
-      return { x: RAIL_W + PAD, y: vh - DOCK_H - h - PAD, w: vw - RAIL_W - PAD * 2, h };
+      return { x: PAD, y: vh - h - 150, w: vw - RAIL_W - PAD * 2, h };
     }
     case 'racks':
       return {

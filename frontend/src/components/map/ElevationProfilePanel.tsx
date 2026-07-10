@@ -229,7 +229,9 @@ export function ElevationProfilePanel() {
     return () => window.removeEventListener('keydown', onKey);
   }, [clearProfile]);
 
-  if (pts.length === 0) return null;
+  // Stay hidden until both endpoints are picked — a center-bottom panel would
+  // otherwise cover the map and swallow the click for the 2nd point.
+  if (pts.length < 2) return null;
 
   return (
     <section
@@ -258,11 +260,7 @@ export function ElevationProfilePanel() {
 
         {/* Body */}
         <div className="px-3 py-2.5">
-          {pts.length < 2 ? (
-            <div className="grid h-40 place-items-center text-center text-xs text-fg/45">
-              Click a second point on the map to draw the profile line.
-            </div>
-          ) : loading ? (
+          {loading ? (
             <div className="grid h-40 place-items-center gap-2 text-xs text-fg/50">
               <Loader2 className="h-5 w-5 animate-spin text-accent" />
               Fetching terrain elevation…

@@ -63,7 +63,7 @@ import { MapSearch } from './MapSearch';
 import { GisLayerPanel } from './GisLayerPanel';
 import { ElevationProfilePanel } from './ElevationProfilePanel';
 import { DeviceLibraryModal } from './DeviceLibraryModal';
-import { Layers as LayersIcon } from 'lucide-react';
+import { Layers as LayersIcon, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 // Prevent default marker icon 404 errors in Vite. We use CircleMarker, not Marker.
@@ -661,12 +661,26 @@ function MapEventHandler() {
   const addDevice = useMapStore((s) => s.addDevice);
   const selectDevice = useMapStore((s) => s.selectDevice);
   const addProfilePoint = useMapStore((s) => s.addProfilePoint);
+  const setSearchResult = useMapStore((s) => s.setSearchResult);
+  const flashNotice = useMapStore((s) => s.flashNotice);
   const deviceList = useMapStore((s) => s.deviceList());
-  const [measureStart, setMeasureStart] = useState<[number, number] | null>(null);
+  // Measure segment: start set on 1st click, end on 2nd (freezes the label).
+  const [measure, setMeasure] = useState<
+    { start: [number, number]; end: [number, number] | null } | null
+  >(null);
+
+  // Leaving the measure tool clears its line.
+  useEffect(() => {
+    if (tool !== 'measure') setMeasure(null);
+  }, [tool]);
 
   useMapEvents({
     click(e: LeafletMouseEvent) {
       const { lat, lng } = e.latlng;
+
+      // Any map click (outside the pin, which stops propagation) dismisses a
+      // lingering geocoding search marker.
+      if (useMapStore.getState().searchResult) setSearchResult(null);
 
       if (tool === 'select') {
         selectDevice(null);
@@ -679,18 +693,24 @@ function MapEventHandler() {
       }
 
       if (tool === 'measure') {
-        if (!measureStart) {
-          setMeasureStart([lat, lng]);
-        } else {
-          const dist = haversineM(measureStart[0], measureStart[1], lat, lng);
-          const km = (dist / 1000).toFixed(2);
-          alert(`Distance: ${Math.round(dist)} m (${km} km)`);
-          setMeasureStart(null);
-        }
+        // Fresh click (or one after a finished measurement) sets start; the
+        // next click sets end and freezes the in-map distance label.
+        setMeasure((m) =>
+          !m || m.end ? { start: [lat, lng], end: null } : { start: m.start, end: [lat, lng] },
+        );
         return;
       }
 
       const kind = tool as MapDeviceKind;
+
+      // Reject stacking a device on top of an existing one (< 5 m): coincident
+      // AP/tower/CPE markers hide each other and skew coverage/link math.
+      const tooClose = deviceList.find((d) => haversineM(d.lat, d.lng, lat, lng) < 5);
+      if (tooClose) {
+        flashNotice(`Too close to ${tooClose.name} (< 5 m) — zoom in or pick another spot.`);
+        return;
+      }
+
       const count = deviceList.filter((d) => d.kind === kind).length + 1;
 
       addDevice({
@@ -710,7 +730,23 @@ function MapEventHandler() {
     },
   });
 
-  return null;
+  // In-map measure result: line + glass distance label (non-blocking, replaces
+  // the old alert()). Only while the measure tool is active with both endpoints.
+  if (tool !== 'measure' || !measure?.end) return null;
+  const { start, end } = measure;
+  const dist = haversineM(start[0], start[1], end[0], end[1]);
+  return (
+    <Polyline
+      positions={[start, end]}
+      pathOptions={{ color: '#2DD4BF', weight: 2.5, opacity: 0.9, dashArray: '4 6' }}
+    >
+      <Tooltip permanent direction="top" className="ng-map-label">
+        <span style={{ fontWeight: 700, fontSize: 10 }}>
+          {Math.round(dist).toLocaleString()} m · {(dist / 1000).toFixed(2)} km
+        </span>
+      </Tooltip>
+    </Polyline>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -970,6 +1006,22 @@ function ToolHint() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Transient notice (top-center) — non-blocking placement warnings etc.        */
+/* -------------------------------------------------------------------------- */
+function MapNotice() {
+  const notice = useMapStore((s) => s.mapNotice);
+  if (!notice) return null;
+  return (
+    <div className="pointer-events-none absolute left-1/2 top-16 z-[1002] -translate-x-1/2">
+      <div className="flex items-center gap-2 rounded-full border border-warning/40 bg-recess/80 px-4 py-1.5 text-xs text-fg/85 shadow-glass backdrop-blur animate-fade-in">
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
+        {notice}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Weather bar (top-center, only when rain > 0)                               */
 /* -------------------------------------------------------------------------- */
 function WeatherBar() {
@@ -1002,6 +1054,7 @@ function SearchResultLayer() {
       center={[result.lat, result.lng]}
       radius={9}
       pathOptions={{ color: '#FF9F0A', weight: 3, fillColor: '#FF9F0A', fillOpacity: 0.35 }}
+      eventHandlers={{ click: (e) => L.DomEvent.stopPropagation(e) }}
     >
       <Tooltip permanent direction="top" offset={[0, -12]}>
         {result.label}
@@ -1189,6 +1242,7 @@ export function MapView() {
       <GisLayerToggle />
       <GisLayerPanel />
       <ToolHint />
+      <MapNotice />
       <WeatherBar />
       <MapLayerSwitcher />
       <ElevationProfilePanel />

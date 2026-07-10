@@ -202,6 +202,7 @@ interface MapState {
   gisLayers: Record<string, GisLayerState>; // GIS layer tree state (05_MAP_ENGINE)
   gisPanelOpen: boolean;      // GIS layer panel visibility
   searchResult: GeoResult | null; // active geocoding pick (flyTo + temp marker)
+  mapNotice: string | null;   // transient non-blocking notice (auto-clears)
 
   // Elevation-profile tool (Phase B1)
   profilePts: [number, number][]; // 0..2 picked endpoints [lat, lng]
@@ -225,7 +226,6 @@ interface MapState {
   selectDevice: (id: string | null) => void;
   setTool: (tool: MapTool) => void;
   dismissOnboarding: () => void;
-  setMapView: (center: [number, number], zoom: number) => void;
   setMapLayer: (layer: MapTileKey) => void;
   openDeviceLibrary: () => void;
   closeDeviceLibrary: () => void;
@@ -236,6 +236,7 @@ interface MapState {
   setGisLayerOpacity: (id: string, opacity: number) => void;
   toggleGisPanel: (open?: boolean) => void;
   setSearchResult: (r: GeoResult | null) => void;
+  flashNotice: (msg: string) => void;
 
   // Elevation-profile tool
   addProfilePoint: (lat: number, lng: number) => void;
@@ -251,6 +252,7 @@ interface MapState {
 
 let seq = 0;
 const nextId = (prefix: string) => `${prefix}-${++seq}`;
+let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useMapStore = create<MapState>((set, get) => ({
   devices: new Map(),
@@ -267,6 +269,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   gisLayers: initialGisLayers(),
   gisPanelOpen: false,
   searchResult: null,
+  mapNotice: null,
 
   profilePts: [],
   profileData: null,
@@ -328,7 +331,6 @@ export const useMapStore = create<MapState>((set, get) => ({
   selectDevice: (id) => set({ selectedDeviceId: id }),
   setTool: (tool) => set({ tool }),
   dismissOnboarding: () => set({ showOnboarding: false }),
-  setMapView: (center, zoom) => set({ mapCenter: center, mapZoom: zoom }),
   setMapLayer: (mapLayer) => set({ mapLayer }),
   openDeviceLibrary: () => set({ deviceLibraryOpen: true }),
   closeDeviceLibrary: () => set({ deviceLibraryOpen: false }),
@@ -357,6 +359,12 @@ export const useMapStore = create<MapState>((set, get) => ({
     set((s) => ({ gisPanelOpen: open ?? !s.gisPanelOpen })),
 
   setSearchResult: (searchResult) => set({ searchResult }),
+
+  flashNotice: (msg) => {
+    set({ mapNotice: msg });
+    if (noticeTimer) clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => set({ mapNotice: null }), 2600);
+  },
 
   addProfilePoint: (lat, lng) => {
     // Two-click pattern (mirrors the measure tool): a 3rd click starts a fresh

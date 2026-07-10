@@ -29,6 +29,11 @@ Node ``intent`` fields understood by the builder (all optional):
     bgp: {"asn": 65001, "router_id": "1.1.1.1",
           "neighbors": [{"ip": "10.0.0.2", "asn": 65002}],
           "networks": ["198.51.100.0/24"]}
+    mpls: true                             # routers: run LDP-lite label dist.
+          # or {"enabled": true, "label_base": 100} for a distinct label space
+    vrf: {"<iface-name>": {"name": "red", "rd": "65000:1",
+                           "rt_import": ["100:1"], "rt_export": ["100:1"]}}
+          # routers: L3VPN VRFs bound to interfaces; VPNv4 rides the iBGP peers
     dhcp_server: {"pools": [{"network": "192.168.88.0/24",
                              "gateway": "192.168.88.1", "dns": "..."}]}
     dns_zone: {"nas.lab": "192.168.1.40"}
@@ -54,6 +59,7 @@ from engine.netstack.routing import AclRule, DhcpPool, Firewall, Router
 from engine.netstack.switching import Switch
 from engine.netstack.protocols.bgp import BgpProcess
 from engine.netstack.protocols.isis import IsisProcess
+from engine.netstack.protocols.mpls import L3vpnProcess, LdpProcess
 from engine.netstack.protocols.ospf import OspfProcess
 from engine.netstack.protocols.vrrp import VrrpProcess
 
@@ -273,6 +279,33 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
             except (KeyError, ValueError) as exc:
                 logger.warning("%s: bad bgp network %r: %s", dev.name, entry, exc)
 
+    # MPLS LDP-lite + L3VPN (NG-SIM-08).
+    mpls_cfg = intent.get("mpls")
+    if mpls_cfg:
+        cfg = mpls_cfg if isinstance(mpls_cfg, dict) else {}
+        if cfg.get("enabled", True):
+            LdpProcess(dev, label_base=int(cfg.get("label_base", 16)))
+
+    vrf_cfg = intent.get("vrf") or {}
+    if vrf_cfg:
+        l3vpn = L3vpnProcess(dev, vpn_label_base=int(intent.get("vpn_label_base", 1000)))
+        seen: dict[str, None] = {}
+        # Deterministic VPN-label order: VRFs added sorted by name.
+        for iface_name, vc in sorted(vrf_cfg.items(), key=lambda kv: str(kv[1].get("name", kv[0]))):
+            try:
+                name = str(vc["name"])
+                if name not in seen:
+                    l3vpn.add_vrf(
+                        name,
+                        rd=str(vc.get("rd", "")),
+                        rt_import=vc.get("rt_import") or [],
+                        rt_export=vc.get("rt_export") or [],
+                    )
+                    seen[name] = None
+                l3vpn.bind_iface(str(iface_name), name)
+            except (KeyError, ValueError) as exc:
+                logger.warning("%s: bad vrf config %r: %s", dev.name, vc, exc)
+
     dhcp_cfg = intent.get("dhcp_server") or {}
     for pool in dhcp_cfg.get("pools") or []:
         try:
@@ -316,14 +349,16 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
 
 def _settle_time(net: Network) -> float:
     """Sim-seconds to run at build so protocols converge before first use."""
-    has_bgp = has_ospf = has_vrrp = has_isis = False
+    has_bgp = has_ospf = has_vrrp = has_isis = has_mpls = False
     for dev in net.devices.values():
         for proc in getattr(dev, "processes", []):
-            has_bgp |= getattr(proc, "proto", "") == "bgp"
-            has_ospf |= getattr(proc, "proto", "") == "ospf"
-            has_vrrp |= getattr(proc, "proto", "") == "vrrp"
-            has_isis |= getattr(proc, "proto", "") == "isis"
-    if has_bgp or has_ospf or has_isis:
+            proto = getattr(proc, "proto", "")
+            has_bgp |= proto == "bgp"
+            has_ospf |= proto == "ospf"
+            has_vrrp |= proto == "vrrp"
+            has_isis |= proto == "isis"
+            has_mpls |= proto in ("ldp", "l3vpn")
+    if has_bgp or has_ospf or has_isis or has_mpls:
         return 65.0
     if any(isinstance(d, Switch) for d in net.devices.values()):
         return 12.0

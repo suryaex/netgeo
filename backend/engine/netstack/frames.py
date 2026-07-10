@@ -19,6 +19,8 @@ ETH_IPV4 = 0x0800
 ETH_ARP = 0x0806
 ETH_VLAN = 0x8100
 ETH_IPV6 = 0x86DD
+ETH_MPLS = 0x8847        # MPLS unicast (labelled data plane)
+ETH_LDP = 0x8848         # reused here for LDP-lite label-mapping discovery
 
 # IP protocol numbers
 PROTO_ICMP = 1
@@ -399,6 +401,96 @@ ISIS_PDUS = (IsisHello, IsisLsp)
 
 
 # ---------------------------------------------------------------------------
+# MPLS (NG-SIM-08) — label-switched data plane + LDP-lite control + VPNv4
+# ---------------------------------------------------------------------------
+# The data plane is a label stack (top-of-stack first) wrapping an inner IPv4
+# packet; each label is a 4-byte shim on the wire. LDP label-mapping messages
+# ride raw Ethernet to an all-routers multicast (real LDP uses UDP/TCP 646);
+# VPNv4 routes ride the existing TCP:179 side-channel (see mpls.L3vpnProcess).
+ALL_LDP_MAC = "01:00:5e:00:00:02"   # 224.0.0.2 all-routers, used for LDP disc.
+
+
+@dataclass(slots=True)
+class MplsPacket:
+    """A label-switched packet: ``labels`` is the stack (top first), ``inner``
+    the payload IPv4 packet. Egress pops to the inner packet."""
+
+    labels: list[int] = field(default_factory=list)
+    inner: Any = None       # Ipv4Packet
+
+    @property
+    def wire_size(self) -> int:
+        inner = getattr(self.inner, "wire_size", 0)
+        return 4 * len(self.labels) + inner
+
+    def copy(self) -> "MplsPacket":
+        import copy
+
+        return MplsPacket(list(self.labels), copy.deepcopy(self.inner))
+
+    def summary(self) -> str:
+        stack = "/".join(str(l) for l in self.labels)
+        tail = self.inner.summary() if self.inner is not None else "-"
+        return f"MPLS [{stack}] | {tail}"
+
+
+@dataclass(slots=True)
+class LdpBinding:
+    """LDP label-mapping: the advertising router's prefix -> local label table.
+    ``src_ip`` is the advertising interface address so a receiver can key the
+    binding against its RIB next hop (the frame carries no IP header)."""
+
+    router_id: str
+    src_ip: str
+    bindings: dict[str, int] = field(default_factory=dict)   # "a.b.c.d/nn" -> label
+
+    @property
+    def wire_size(self) -> int:
+        return 20 + 8 * len(self.bindings)
+
+    def copy(self) -> "LdpBinding":
+        return LdpBinding(self.router_id, self.src_ip, dict(self.bindings))
+
+    def summary(self) -> str:
+        return f"LDP label-mapping from {self.router_id} ({len(self.bindings)} FEC)"
+
+
+@dataclass(slots=True)
+class VpnRoute:
+    """One VPNv4 NLRI: an RD-qualified prefix with route-targets, the
+    originating PE next hop and the per-VRF VPN label."""
+
+    rd: str
+    prefix: str
+    rt: tuple[str, ...]
+    next_hop: str
+    label: int
+
+    @property
+    def wire_size(self) -> int:
+        return 24 + 4 * len(self.rt)
+
+
+@dataclass(slots=True)
+class VpnUpdate:
+    """MP-BGP-lite VPNv4 UPDATE (full snapshot of the sender's exported VRF
+    routes) carried as the payload of a TCP:179 segment."""
+
+    routes: list[VpnRoute] = field(default_factory=list)
+
+    @property
+    def wire_size(self) -> int:
+        return 23 + sum(r.wire_size for r in self.routes)
+
+    def summary(self) -> str:
+        return f"MP-BGP VPNv4 UPDATE {len(self.routes)} route(s)"
+
+
+# LDP rides raw L2 (dispatched at the device frame edge, like IS-IS PDUs).
+MPLS_L2_PDUS = (LdpBinding,)
+
+
+# ---------------------------------------------------------------------------
 # L2 frame
 # ---------------------------------------------------------------------------
 
@@ -462,6 +554,15 @@ class EthernetFrame:
             }
         }
         p = self.payload
+        if isinstance(p, MplsPacket):
+            out["mpls"] = {"labels": list(p.labels)}
+            inner = p.inner
+            if isinstance(inner, Ipv4Packet):
+                out["ipv4"] = {
+                    "src": str(inner.src), "dst": str(inner.dst),
+                    "ttl": inner.ttl, "proto": inner.proto_name,
+                }
+            return out
         if isinstance(p, ArpPacket):
             out["arp"] = {
                 "op": p.op,

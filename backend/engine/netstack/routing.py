@@ -29,6 +29,7 @@ from engine.netstack.device import L3Device
 from engine.netstack.frames import (
     ETH_IPV4,
     ETH_IPV6,
+    ETH_MPLS,
     PROTO_ICMP,
     PROTO_ICMPV6,
     PROTO_OSPF,
@@ -38,11 +39,13 @@ from engine.netstack.frames import (
     DhcpMessage,
     DnsMessage,
     ISIS_PDUS,
+    MPLS_L2_PDUS,
     EthernetFrame,
     IcmpMessage,
     Icmpv6Message,
     Ipv4Packet,
     Ipv6Packet,
+    MplsPacket,
     TcpSegment,
     UdpSegment,
 )
@@ -52,7 +55,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from engine.netstack.network import Network
 
 # Administrative distances (Cisco-style).
-AD = {"connected": 0, "static": 1, "ebgp": 20, "ospf": 110, "isis": 115, "rip": 120, "ibgp": 200}
+AD = {"connected": 0, "static": 1, "ebgp": 20, "ospf": 110, "isis": 115,
+      "rip": 120, "ibgp": 200, "vpnv4": 200}
 
 
 @dataclass(slots=True)
@@ -60,15 +64,16 @@ class Route:
     prefix: IPv4Network
     next_hop: IPv4Address | None      # None = directly connected
     iface_name: str | None            # egress interface (resolved if None)
-    source: str = "static"            # connected|static|ospf|ebgp|ibgp|rip
+    source: str = "static"            # connected|static|ospf|ebgp|ibgp|rip|vpnv4
     metric: int = 0
+    vpn_label: int | None = None      # MPLS VPN label for a VPNv4 route (else None)
 
     @property
     def ad(self) -> int:
         return AD.get(self.source, 255)
 
     def as_dict(self) -> dict:
-        return {
+        d = {
             "prefix": str(self.prefix),
             "next_hop": str(self.next_hop) if self.next_hop else None,
             "iface": self.iface_name,
@@ -76,6 +81,72 @@ class Route:
             "metric": self.metric,
             "ad": self.ad,
         }
+        if self.vpn_label is not None:
+            d["vpn_label"] = self.vpn_label
+        return d
+
+
+def _lpm(routes: list["Route"], dst: IPv4Address) -> "Route | None":
+    """Longest-prefix match over a route list; ties broken by (ad, metric).
+    Shared by the global RIB and every per-VRF RIB."""
+    best: Route | None = None
+    for r in routes:
+        if dst not in r.prefix:
+            continue
+        if (
+            best is None
+            or r.prefix.prefixlen > best.prefix.prefixlen
+            or (
+                r.prefix.prefixlen == best.prefix.prefixlen
+                and (r.ad, r.metric) < (best.ad, best.metric)
+            )
+        ):
+            best = r
+    return best
+
+
+@dataclass(slots=True)
+class LfibEntry:
+    """One MPLS forwarding entry: swap the top label (or pop at the egress LSR)
+    and send to the LDP-learned L2 next hop."""
+
+    prefix: str
+    action: str                       # "swap" | "pop"
+    out_label: int | None
+    nh_ip: IPv4Address | None
+    nh_mac: str | None
+    out_iface: str | None
+
+
+@dataclass(slots=True)
+class Vrf:
+    """A VPN routing/forwarding instance: its own RIB, isolated from the
+    global table and from every other VRF (NG-SIM-08)."""
+
+    name: str
+    rd: str = ""
+    rt_import: frozenset = frozenset()
+    rt_export: frozenset = frozenset()
+    vpn_label: int = 0
+    routes: list[Route] = field(default_factory=list)
+
+    def lookup(self, dst: IPv4Address) -> Route | None:
+        return _lpm(self.routes, dst)
+
+    def install(self, route: Route) -> None:
+        self.routes = [
+            r for r in self.routes
+            if not (r.prefix == route.prefix and r.source == route.source)
+        ]
+        self.routes.append(route)
+
+    def withdraw(self, source: str) -> None:
+        self.routes = [r for r in self.routes if r.source != source]
+
+    def route_rows(self) -> list[dict]:
+        return [r.as_dict() for r in sorted(
+            self.routes, key=lambda r: (r.prefix.network_address, r.prefix.prefixlen, r.ad)
+        )]
 
 
 @dataclass(slots=True)
@@ -194,6 +265,14 @@ class Router(L3Device):
         # .start(net), .on_iface_change(net))
         self.processes: list = []
         self.forwarded = 0
+        # MPLS / L3VPN (NG-SIM-08). Written by the LDP/L3VPN processes, read by
+        # the forwarding pipeline. Empty on a plain IP router = zero overhead.
+        self.mpls_enabled = False
+        self.lfib: dict[int, LfibEntry] = {}          # local label -> action
+        self.mpls_fec: dict[IPv4Network, LfibEntry] = {}  # FEC prefix -> push
+        self.vrfs: dict[str, Vrf] = {}                # vrf name -> instance
+        self.iface_vrf: dict[str, str] = {}           # iface name -> vrf name
+        self.vpn_labels: dict[int, str] = {}          # my VPN label -> vrf name
 
     # ----- route table management -------------------------------------------------
     def sync_connected_routes(self) -> None:
@@ -251,20 +330,7 @@ class Router(L3Device):
 
     def lookup(self, dst: IPv4Address) -> Route | None:
         """Longest-prefix match; ties broken by admin distance then metric."""
-        best: Route | None = None
-        for r in self.routes:
-            if dst not in r.prefix:
-                continue
-            if (
-                best is None
-                or r.prefix.prefixlen > best.prefix.prefixlen
-                or (
-                    r.prefix.prefixlen == best.prefix.prefixlen
-                    and (r.ad, r.metric) < (best.ad, best.metric)
-                )
-            ):
-                best = r
-        return best
+        return _lpm(self.routes, dst)
 
     def egress_for(self, dst: IPv4Address) -> tuple[Interface, IPv4Address] | None:
         route = self.lookup(dst)
@@ -347,6 +413,16 @@ class Router(L3Device):
         if isinstance(payload, ArpPacket):
             self._handle_arp(net, iface, payload)
             return
+        if isinstance(payload, MplsPacket):
+            self._mpls_forward(net, iface, payload)
+            return
+        if isinstance(payload, MPLS_L2_PDUS):
+            # LDP rides raw L2 (no IP), dispatched here like IS-IS. Pass the
+            # whole frame so the process can learn the L2 next hop (src_mac).
+            for proc in self.processes:
+                if getattr(proc, "proto", "") == "ldp":
+                    proc.on_frame(net, iface, frame)
+            return
         if isinstance(payload, ISIS_PDUS):
             # IS-IS rides on raw L2 (no IP), so it is dispatched here at the
             # frame edge rather than in _local_deliver like OSPF/BGP.
@@ -397,6 +473,12 @@ class Router(L3Device):
 
     # ----- forwarding pipeline --------------------------------------------------------
     def _forward(self, net: "Network", in_iface: Interface, pkt: Ipv4Packet) -> None:
+        # Traffic entering a VRF interface is confined to that VRF's RIB — the
+        # root of L3VPN isolation (NG-SIM-08).
+        vrf_name = self.iface_vrf.get(in_iface.name)
+        if vrf_name is not None:
+            self._forward_vrf(net, pkt, vrf_name)
+            return
         if pkt.ttl <= 1:
             net.record_drop("ttl_expired")
             self._send_icmp_error(net, pkt, icmp_type=11, code=0)
@@ -440,6 +522,96 @@ class Router(L3Device):
         self.forwarded += 1
         self._resolve_and_send(net, out, next_hop, pkt)
 
+    # ----- MPLS / L3VPN forwarding (NG-SIM-08) --------------------------------------
+    def _forward_vrf(self, net: "Network", pkt: Ipv4Packet, vrf_name: str) -> None:
+        """Forward an IP packet that entered a VRF interface, using only that
+        VRF's RIB. A remote (VPNv4) route triggers MPLS encapsulation; a local
+        route stays inside the VRF."""
+        if pkt.ttl <= 1:
+            net.record_drop("ttl_expired")
+            self._send_icmp_error(net, pkt, icmp_type=11, code=0)
+            return
+        pkt.ttl -= 1
+        self._vrf_deliver(net, pkt, vrf_name)
+
+    def _vrf_deliver(self, net: "Network", pkt: Ipv4Packet, vrf_name: str) -> None:
+        vrf = self.vrfs.get(vrf_name)
+        route = vrf.lookup(pkt.dst) if vrf else None
+        if route is None:
+            net.record_drop("no_route")
+            self._send_icmp_error(net, pkt, icmp_type=3, code=0)
+            return
+        if route.vpn_label is not None and route.next_hop is not None:
+            self._mpls_encap(net, pkt, route)
+            return
+        # Local VRF route (a directly-connected CE on this PE): send it out.
+        next_hop = route.next_hop if route.next_hop is not None else pkt.dst
+        out = self.interfaces.get(route.iface_name) if route.iface_name else None
+        if out is None:
+            net.record_drop("no_route")
+            return
+        self.forwarded += 1
+        self._resolve_and_send(net, out, next_hop, pkt)
+
+    def _mpls_encap(self, net: "Network", pkt: Ipv4Packet, route: Route) -> None:
+        """Push [transport_label, vpn_label] and send the labelled packet toward
+        the egress PE (``route.next_hop`` = its loopback)."""
+        fec = self.mpls_fec.get(IPv4Network(f"{route.next_hop}/32"))
+        if fec is None or fec.out_label is None or fec.out_iface is None:
+            net.record_drop("mpls_no_lsp")
+            return
+        out = self.interfaces.get(fec.out_iface)
+        if out is None:
+            net.record_drop("mpls_no_iface")
+            return
+        out.transmit(
+            net,
+            EthernetFrame(
+                src_mac=out.mac,
+                dst_mac=fec.nh_mac,
+                ethertype=ETH_MPLS,
+                payload=MplsPacket(labels=[fec.out_label, route.vpn_label], inner=pkt),
+            ),
+        )
+
+    def _mpls_forward(self, net: "Network", iface: Interface, mpls: MplsPacket) -> None:
+        """Label-switch: pop VPN labels into the local VRF, pop our own transport
+        label at the LSP egress, swap transit labels toward the next LSR."""
+        labels = list(mpls.labels)
+        while labels:
+            top = labels[0]
+            vrf_name = self.vpn_labels.get(top)
+            if vrf_name is not None:            # egress PE: this is a VPN label
+                if mpls.inner is None:
+                    return
+                self._vrf_deliver(net, mpls.inner, vrf_name)
+                return
+            entry = self.lfib.get(top)
+            if entry is None:
+                net.record_drop("mpls_no_label")
+                return
+            if entry.action == "pop":           # LSP egress for this transport FEC
+                labels.pop(0)
+                continue                        # examine the next (VPN) label
+            out = self.interfaces.get(entry.out_iface) if entry.out_iface else None
+            if out is None or entry.out_label is None:
+                net.record_drop("mpls_no_iface")
+                return
+            labels[0] = entry.out_label         # swap
+            out.transmit(
+                net,
+                EthernetFrame(
+                    src_mac=out.mac,
+                    dst_mac=entry.nh_mac,
+                    ethertype=ETH_MPLS,
+                    payload=MplsPacket(labels=labels, inner=mpls.inner),
+                ),
+            )
+            return
+        # Stack fully popped and no VPN label matched: forward the inner packet.
+        if mpls.inner is not None:
+            self._forward(net, iface, mpls.inner)
+
     def _acl_permits(self, rules: list[AclRule] | None, pkt: Ipv4Packet) -> bool:
         if not rules:
             return True
@@ -473,8 +645,10 @@ class Router(L3Device):
         if pkt.proto == PROTO_TCP and isinstance(pkt.payload, TcpSegment):
             seg = pkt.payload
             if seg.dst_port == 179 or seg.src_port == 179:
+                # Port 179 carries both BGP-4 and the VPNv4 side-channel; hand
+                # to both — each process ignores messages that aren't its own.
                 for proc in self.processes:
-                    if getattr(proc, "proto", "") == "bgp":
+                    if getattr(proc, "proto", "") in ("bgp", "l3vpn"):
                         proc.on_packet(net, iface, pkt)
                 return
         if pkt.proto == PROTO_UDP and isinstance(pkt.payload, UdpSegment):
@@ -846,6 +1020,27 @@ class Router(L3Device):
             }
             for b in self._nat_bindings
         ]
+
+    # ----- MPLS / VRF introspection -------------------------------------------------
+    def mpls_forwarding_rows(self) -> list[dict]:
+        rows = []
+        for local, e in sorted(self.lfib.items()):
+            rows.append({
+                "local_label": local,
+                "prefix": e.prefix,
+                "action": e.action,
+                "out_label": e.out_label if e.action == "swap" else None,
+                "next_hop": str(e.nh_ip) if e.nh_ip else None,
+                "out_iface": e.out_iface,
+            })
+        return rows
+
+    def vrf_names(self) -> list[str]:
+        return sorted(self.vrfs)
+
+    def vrf_route_rows(self, name: str) -> list[dict]:
+        vrf = self.vrfs.get(name)
+        return vrf.route_rows() if vrf else []
 
 
 class Firewall(Router):

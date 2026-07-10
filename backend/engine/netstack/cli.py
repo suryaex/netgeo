@@ -34,6 +34,7 @@ _SOURCE_CODE = {
     "ebgp": "B",
     "ibgp": "B",
     "rip": "R",
+    "vpnv4": "V",
 }
 
 
@@ -241,6 +242,32 @@ class CliSession:
                 status = "up" if i.is_up else ("admin-down" if not i.enabled else "down")
                 addrs = [str(i.link_local)] + [str(x) for x in i.ips6]
                 rows.append(f"{i.name:<16} {status:<7} {', '.join(addrs)}")
+            return "\n".join(rows) + "\n"
+        if low.startswith("show ip route vrf"):
+            if not isinstance(dev, Router):
+                return "% This device does not route\n"
+            name = low.split("show ip route vrf", 1)[1].strip()
+            if name not in dev.vrfs:
+                return f"% VRF {name} not configured\n"
+            rows = [f"Routing Table: VRF {name}",
+                    "Codes: C - connected, V - VPNv4 (MP-BGP)\n"]
+            for r in dev.vrf_route_rows(name):
+                code = _SOURCE_CODE.get(r["source"], "?")
+                via = f"via {r['next_hop']}" if r["next_hop"] else "directly connected"
+                dev_part = f", {r['iface']}" if r["iface"] else ""
+                lbl = f" label {r['vpn_label']}" if r.get("vpn_label") is not None else ""
+                rows.append(f"{code}    {r['prefix']} [{r['ad']}/{r['metric']}] {via}{dev_part}{lbl}")
+            return "\n".join(rows) + "\n"
+        if low.startswith("show mpls forwarding-table") or low.startswith("show mpls forwarding"):
+            if not isinstance(dev, Router):
+                return "% This device does not route\n"
+            rows = ["Local  Outgoing   Prefix              Next Hop         Interface"]
+            for e in dev.mpls_forwarding_rows():
+                out_label = str(e["out_label"]) if e["action"] == "swap" else "Pop Label"
+                rows.append(
+                    f"{e['local_label']:<6} {out_label:<10} {e['prefix']:<19} "
+                    f"{(e['next_hop'] or '-'):<16} {e['out_iface'] or '-'}"
+                )
             return "\n".join(rows) + "\n"
         if low.startswith("show ip route"):
             if not isinstance(dev, Router):

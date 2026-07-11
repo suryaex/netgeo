@@ -5,7 +5,9 @@
  */
 import { Radio, ArrowRightLeft, Cable, X } from 'lucide-react';
 import { useMapStore, type MapTool } from '@/store/mapStore';
+import { useUiStore } from '@/store/uiStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 interface QuickstartOption {
   icon: typeof Radio;
@@ -40,8 +42,15 @@ const OPTIONS: QuickstartOption[] = [
 ];
 
 export function MapOnboardingModal() {
-  const dismiss = useMapStore((s) => s.dismissOnboarding);
+  const markSeen = useMapStore((s) => s.dismissOnboarding);
   const setTool = useMapStore((s) => s.setTool);
+  const closeModal = useUiStore((s) => s.closeModal);
+
+  // Dismiss = remember it for the session AND release the shared modal slot.
+  const dismiss = () => {
+    markSeen();
+    closeModal();
+  };
 
   const pick = (opt: QuickstartOption) => {
     setTool(opt.tool);
@@ -50,7 +59,7 @@ export function MapOnboardingModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+      className={cn('fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in', zc.modal)}
       onClick={(e) => e.target === e.currentTarget && dismiss()}
     >
       <div className="glass-strong relative w-full max-w-lg overflow-hidden rounded-2xl border border-fg/15 shadow-glass-lg animate-scale-in">

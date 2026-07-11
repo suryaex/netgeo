@@ -196,7 +196,6 @@ interface MapState {
   mapCenter: [number, number];
   mapZoom: number;
   mapLayer: MapTileKey;       // active basemap (satellite / street / hybrid / …)
-  deviceLibraryOpen: boolean; // device-type library modal visibility
   rainRate: number;     // mm/hr (0 = clear sky)
   checkingLos: boolean; // async LOS check in progress
   gisLayers: Record<string, GisLayerState>; // GIS layer tree state (05_MAP_ENGINE)
@@ -227,8 +226,6 @@ interface MapState {
   setTool: (tool: MapTool) => void;
   dismissOnboarding: () => void;
   setMapLayer: (layer: MapTileKey) => void;
-  openDeviceLibrary: () => void;
-  closeDeviceLibrary: () => void;
   setRainRate: (rate: number) => void;
   setCheckingLos: (v: boolean) => void;
   updateLinkLos: (linkId: string, los: LosStatus, obstructionDb: number) => void;
@@ -263,7 +260,6 @@ export const useMapStore = create<MapState>((set, get) => ({
   mapCenter: [-6.2, 106.8], // Jakarta default
   mapZoom: 13,
   mapLayer: DEFAULT_TILE,
-  deviceLibraryOpen: false,
   rainRate: 0,
   checkingLos: false,
   gisLayers: initialGisLayers(),
@@ -332,8 +328,6 @@ export const useMapStore = create<MapState>((set, get) => ({
   setTool: (tool) => set({ tool }),
   dismissOnboarding: () => set({ showOnboarding: false }),
   setMapLayer: (mapLayer) => set({ mapLayer }),
-  openDeviceLibrary: () => set({ deviceLibraryOpen: true }),
-  closeDeviceLibrary: () => set({ deviceLibraryOpen: false }),
   setRainRate: (rainRate) => {
     set({ rainRate });
     get().rebuildLinks();

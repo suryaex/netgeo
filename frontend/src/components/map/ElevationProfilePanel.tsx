@@ -14,6 +14,7 @@
 import { useEffect, useState } from 'react';
 import { Mountain, X, Check, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { useMapStore, type ProfileData } from '@/store/mapStore';
+import { zc } from '@/theme/z';
 import { ProfileChart, verdictOf, fmtKm } from './ProfileChart';
 
 /* -------------------------------------------------------------------------- */
@@ -114,7 +115,7 @@ export function ElevationProfilePanel() {
     <section
       role="region"
       aria-label="Elevation profile"
-      className="pointer-events-auto absolute bottom-4 left-1/2 z-[1000] w-[min(46rem,calc(100%-2rem))] -translate-x-1/2 animate-fade-in"
+      className={`pointer-events-auto absolute bottom-4 left-1/2 ${zc.workspace} w-[min(46rem,calc(100%-2rem))] -translate-x-1/2 animate-fade-in`}
     >
       <div className="glass-strong rounded-xl border border-fg/15 shadow-glass-lg">
         {/* Header */}

@@ -6,6 +6,7 @@
  * global `F` shortcut can drive React Flow without prop-drilling the instance.
  */
 import { create } from 'zustand';
+import { useUiStore } from './uiStore';
 
 export type TopoTool = 'select' | 'link' | 'group';
 
@@ -19,8 +20,8 @@ export interface FlowPos {
 
 interface TopoUiState {
   tool: TopoTool;
-  pickerOpen: boolean;
-  /** Flow-coords where a picked device should land (double-click), else null. */
+  /** Flow-coords where a picked device should land (double-click), else null.
+   *  The picker's open/close state lives in uiStore.activeModal ('devicePicker'). */
   pickerPos: FlowPos | null;
   inspectorPinned: boolean;
   /** Active canvas overlays; protocol chips dim non-members, `l3` labels links. */
@@ -41,7 +42,6 @@ interface TopoUiState {
 
 export const useTopoUiStore = create<TopoUiState>((set) => ({
   tool: 'select',
-  pickerOpen: false,
   pickerPos: null,
   inspectorPinned: false,
   overlays: { ospf: false, bgp: false, vlan: false, l3: false },
@@ -49,8 +49,17 @@ export const useTopoUiStore = create<TopoUiState>((set) => ({
   centerOn: null,
 
   setTool: (tool) => set({ tool }),
-  openPicker: (pos) => set({ pickerOpen: true, pickerPos: pos ?? null }),
-  closePicker: () => set({ pickerOpen: false, pickerPos: null }),
+  // Device picker is one of the exclusive modals; its open state is the shared
+  // uiStore slot, only the landing position lives here.
+  openPicker: (pos) => {
+    set({ pickerPos: pos ?? null });
+    useUiStore.getState().openModal('devicePicker');
+  },
+  closePicker: () => {
+    set({ pickerPos: null });
+    const ui = useUiStore.getState();
+    if (ui.activeModal === 'devicePicker') ui.closeModal();
+  },
   togglePin: () => set((s) => ({ inspectorPinned: !s.inspectorPinned })),
   toggleOverlay: (k) =>
     set((s) => ({ overlays: { ...s.overlays, [k]: !s.overlays[k] } })),

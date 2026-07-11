@@ -1,9 +1,9 @@
 /**
  * NavigationRail — 64px icon rail, the app's primary navigation (design §3.2).
- * Topology/Map/Digital Twin/RF Planning switch the workspace view; Physical
- * Plant/Labs/Diagnostics/Settings open their floating windows. Modules without a
- * workspace yet (Projects, Fiber) are shown but disabled with a tooltip so the
- * rail reflects the full product map without dead/lying controls.
+ * Topology/Map/Twin/RF/Fiber/Education/Physical Plant switch the workspace view.
+ * Labs opens the Scenarios modal, Diagnostics opens the shared drawer (in a
+ * canvas mode), Settings opens the Settings modal. Modules without a workspace
+ * yet (Projects) are shown disabled so the rail maps the product honestly.
  */
 import {
   FolderKanban,
@@ -19,19 +19,14 @@ import {
   Settings2,
   type LucideIcon,
 } from 'lucide-react';
-import { useUiStore } from '@/store/uiStore';
-import { useWindowStore, type WindowKind } from '@/store/windowStore';
+import { useUiStore, type ViewMode } from '@/store/uiStore';
 import { cn } from '@/lib/cn';
 
 type RailItem = {
   key: string;
   label: string;
   icon: LucideIcon;
-} & (
-  | { view: 'topology' | 'map' | 'twin' | 'rf' | 'fiber' | 'edu' }
-  | { window: WindowKind; title: string }
-  | { soon: true }
-);
+} & ({ view: ViewMode } | { action: 'scenarios' | 'diagnostics' | 'settings' } | { soon: true });
 
 const ITEMS: RailItem[] = [
   { key: 'projects', label: 'Projects', icon: FolderKanban, soon: true },
@@ -41,35 +36,49 @@ const ITEMS: RailItem[] = [
   { key: 'rf', label: 'RF Planning', icon: RadioTower, view: 'rf' },
   { key: 'fiber', label: 'Fiber / FTTH', icon: Cable, view: 'fiber' },
   { key: 'edu', label: 'Education Lab', icon: GraduationCap, view: 'edu' },
-  { key: 'plant', label: 'Physical Plant', icon: Server, window: 'racks', title: 'Rack Elevation' },
-  { key: 'labs', label: 'Labs', icon: FlaskConical, window: 'scenarios', title: 'Scenarios' },
-  { key: 'diag', label: 'Diagnostics', icon: Activity, window: 'diagnostics', title: 'Diagnostics' },
+  { key: 'plant', label: 'Physical Plant', icon: Server, view: 'plant' },
+  { key: 'labs', label: 'Labs', icon: FlaskConical, action: 'scenarios' },
+  { key: 'diag', label: 'Diagnostics', icon: Activity, action: 'diagnostics' },
 ];
 
-const SETTINGS: RailItem = { key: 'settings', label: 'Settings', icon: Settings2, window: 'settings', title: 'Settings' };
+const SETTINGS: RailItem = { key: 'settings', label: 'Settings', icon: Settings2, action: 'settings' };
 
 export function NavigationRail() {
   const viewMode = useUiStore((s) => s.viewMode);
   const setViewMode = useUiStore((s) => s.setViewMode);
-  const toggleApp = useWindowStore((s) => s.toggleApp);
-  const windows = useWindowStore((s) => s.windows);
-  const openKinds = new Set(Object.values(windows).map((w) => w.kind));
+  const openModal = useUiStore((s) => s.openModal);
+  const activeModal = useUiStore((s) => s.activeModal);
+  const openDrawer = useUiStore((s) => s.openDrawer);
 
   const isActive = (item: RailItem): boolean => {
     if ('view' in item) return viewMode === item.view;
-    if ('window' in item) return openKinds.has(item.window);
+    if ('action' in item) {
+      if (item.action === 'settings') return activeModal === 'settings';
+      if (item.action === 'scenarios') return activeModal === 'scenarios';
+    }
     return false;
   };
 
   const activate = (item: RailItem) => {
-    if ('view' in item) setViewMode(item.view);
-    else if ('window' in item) toggleApp(item.window, item.title);
+    if ('view' in item) {
+      setViewMode(item.view);
+    } else if ('action' in item && item.action === 'settings') {
+      openModal('settings');
+    } else if ('action' in item && item.action === 'scenarios') {
+      openModal('scenarios');
+    } else if ('action' in item && item.action === 'diagnostics') {
+      // Diagnostics is a drawer tab (topology/map only) — hop to topology if the
+      // current workspace can't host the drawer, then open it.
+      const vm = useUiStore.getState().viewMode;
+      if (vm !== 'topology' && vm !== 'map') setViewMode('topology');
+      openDrawer('diagnostics');
+    }
   };
 
   return (
     <nav
       aria-label="Primary"
-      className="panel z-[500] flex w-16 shrink-0 flex-col items-center gap-1 border-r border-fg/10 py-3"
+      className="panel flex w-16 shrink-0 flex-col items-center gap-1 border-r border-fg/10 py-3"
     >
       {ITEMS.map((item) => (
         <RailButton key={item.key} item={item} active={isActive(item)} onClick={() => activate(item)} />

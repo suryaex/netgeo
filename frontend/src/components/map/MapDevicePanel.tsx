@@ -6,6 +6,7 @@
 import { Radio, Smartphone, RadioTower, MapPin, Signal, X, Mountain } from 'lucide-react';
 import { useMapStore, calcRssi, rssiColor, type MapDeviceKind } from '@/store/mapStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 const KIND_META: Record<MapDeviceKind, { label: string; icon: typeof Radio; color: string }> = {
   ap:    { label: 'Access Point',  icon: Radio,       color: '#5856D6' },
@@ -35,7 +36,7 @@ export function MapDevicePanel() {
   const patch = (p: Parameters<typeof updateDevice>[1]) => updateDevice(device.id, p);
 
   return (
-    <div className="pointer-events-auto absolute right-4 top-16 z-[1000] w-72 animate-fade-in">
+    <div className={cn('pointer-events-auto absolute right-4 top-16 w-72 animate-fade-in', zc.workspace)}>
       <div className="glass-strong overflow-hidden rounded-xl border border-fg/15 shadow-glass-lg">
         {/* Header */}
         <div

@@ -16,6 +16,7 @@ import {
   type UpdateStatus,
 } from '@/api/client';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 /**
  * Turn a normalized {@link ApiError} (or anything else thrown) into an honest,
@@ -160,7 +161,7 @@ export function UpdatesButton() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-9 z-[1000] w-72 rounded-lg border border-fg/10 bg-panel dark:bg-black/80 p-3 text-[13px] text-fg/85 shadow-xl backdrop-blur">
+        <div className={cn('absolute right-0 top-9 w-72 rounded-lg border border-fg/10 bg-panel dark:bg-black/80 p-3 text-[13px] text-fg/85 shadow-xl backdrop-blur', zc.popover)}>
           <div className="mb-2 flex items-center justify-between">
             <span className="font-semibold">Software update</span>
             <button

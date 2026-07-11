@@ -7,6 +7,7 @@
 import { Check, FileInput } from 'lucide-react';
 import { TWIN_STEPS } from './twinLogic';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 export function TwinStepper({
   stepIndex,
@@ -16,7 +17,7 @@ export function TwinStepper({
   onImport: () => void;
 }) {
   return (
-    <div className="pointer-events-none absolute left-0 right-[360px] top-0 z-[430] flex items-center gap-3 p-3">
+    <div className={cn('pointer-events-none absolute left-0 right-[360px] top-0 flex items-center gap-3 p-3', zc.workspace)}>
       <ol className="glass pointer-events-auto flex items-center gap-1 rounded-full border border-fg/10 px-2 py-1.5 shadow-glass">
         {TWIN_STEPS.map((step, i) => {
           const done = i < stepIndex;

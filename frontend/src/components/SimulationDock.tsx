@@ -12,8 +12,8 @@ import { ListVideo, Pause, Play, RotateCcw, SkipBack, SkipForward } from 'lucide
 import { labApi } from '@/api/client';
 import { useLabStore } from '@/store/labStore';
 import { useUiStore } from '@/store/uiStore';
-import { useWindowStore } from '@/store/windowStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
 
@@ -34,10 +34,8 @@ export function SimulationDock() {
   const pushRecords = useLabStore((s) => s.pushRecords);
   const setCursor = useLabStore((s) => s.setCursor);
   const setMode = useLabStore((s) => s.setMode);
-  const toggleApp = useWindowStore((s) => s.toggleApp);
-  const ledgerOpen = useWindowStore((s) =>
-    Object.values(s.windows).some((w) => w.kind === 'ledger'),
-  );
+  const openDrawer = useUiStore((s) => s.openDrawer);
+  const ledgerOpen = useUiStore((s) => s.drawerOpen && s.drawerTab === 'ledger');
   const qc = useQueryClient();
   const [playing, setPlaying] = useState(false);
 
@@ -84,7 +82,7 @@ export function SimulationDock() {
   }, [playing, busy, speed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="pointer-events-auto fixed bottom-24 left-1/2 z-[900] -translate-x-1/2">
+    <div className={cn('pointer-events-auto fixed bottom-24 left-1/2 -translate-x-1/2', zc.dock)}>
       <div className="glass-strong flex items-center gap-1 rounded-full border border-fg/15 px-2 py-1.5 shadow-dock">
         <DockBtn
           label="Restart"
@@ -154,7 +152,7 @@ export function SimulationDock() {
         <DockBtn
           label={ledgerOpen ? 'Hide event ledger' : 'Show event ledger'}
           active={ledgerOpen}
-          onClick={() => toggleApp('ledger', 'Event Ledger')}
+          onClick={() => openDrawer('ledger')}
         >
           <ListVideo className="h-4 w-4" />
         </DockBtn>

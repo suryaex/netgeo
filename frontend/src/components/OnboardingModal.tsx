@@ -3,7 +3,7 @@
  * Shown once after the very first login; state is persisted to localStorage.
  * Steps: Overview → Device Palette → Topology Canvas → Properties → Simulate.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,24 +14,10 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
-const ONBOARDING_KEY = 'netgeo.onboarding.done';
-
-export function useOnboarding() {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    const done = localStorage.getItem(ONBOARDING_KEY) === 'true';
-    if (!done) setShow(true);
-  }, []);
-
-  const dismiss = () => {
-    localStorage.setItem(ONBOARDING_KEY, 'true');
-    setShow(false);
-  };
-
-  return { show, dismiss };
-}
+/** localStorage flag — ModalLayer reads it to trigger the first-run wizard once. */
+export const ONBOARDING_KEY = 'netgeo.onboarding.done';
 
 interface Step {
   icon: typeof Network;
@@ -98,7 +84,10 @@ export function OnboardingModal({ onClose }: OnboardingModalProps) {
   return (
     /* Backdrop */
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+      className={cn(
+        'fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in',
+        zc.modal,
+      )}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       {/* Card */}

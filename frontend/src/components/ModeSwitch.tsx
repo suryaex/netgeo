@@ -10,21 +10,23 @@ import { Clock, ListVideo } from 'lucide-react';
 import { labApi, type LabMode } from '@/api/client';
 import { useLabStore } from '@/store/labStore';
 import { useUiStore } from '@/store/uiStore';
-import { useWindowStore } from '@/store/windowStore';
 import { cn } from '@/lib/cn';
 
 export function ModeSwitch() {
   const projectId = useUiStore((s) => s.projectId);
   const mode = useLabStore((s) => s.mode);
   const setMode = useLabStore((s) => s.setMode);
-  const toggleApp = useWindowStore((s) => s.toggleApp);
+  const openDrawer = useUiStore((s) => s.openDrawer);
   const queryClient = useQueryClient();
 
   const m = useMutation({
     mutationFn: (next: LabMode) => labApi.mode(projectId!, next),
     onSuccess: (data) => {
       setMode(data.mode);
-      if (data.mode === 'simulation') toggleApp('ledger', 'Event Ledger');
+      // Entering simulation surfaces the ledger — but the drawer only lives in
+      // topology/map, so open it only there (otherwise it'd be a no-op panel).
+      const vm = useUiStore.getState().viewMode;
+      if (data.mode === 'simulation' && (vm === 'topology' || vm === 'map')) openDrawer('ledger');
       void queryClient.invalidateQueries({ queryKey: ['ledger', projectId] });
     },
   });

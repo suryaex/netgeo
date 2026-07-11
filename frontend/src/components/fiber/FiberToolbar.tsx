@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import { Plus, Trash2, Undo2, Ruler } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 import { useFiberStore } from '@/store/fiberStore';
 import { GPON_OPTIONS, SPLIT_RATIOS } from './fiberLogic';
 import type { GponClass } from '@/api/client';
@@ -58,7 +59,7 @@ export function FiberToolbar() {
   }
 
   return (
-    <div className="pointer-events-auto absolute bottom-8 z-[1001]" style={{ left: 'calc(50% - 190px)' }}>
+    <div className={cn('pointer-events-auto absolute bottom-8', zc.workspace)} style={{ left: 'calc(50% - 190px)' }}>
       <div className="glass-strong flex flex-wrap items-center gap-2 rounded-xl border border-fg/15 px-3 py-2 shadow-glass-lg">
         {/* Path selection */}
         <select

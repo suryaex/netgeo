@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import { MapView } from '@/components/map/MapView';
 import { useMapStore } from '@/store/mapStore';
 import { useRfStore } from '@/store/rfStore';
+import { zc } from '@/theme/z';
 import { RfAnalysisPanel } from './RfAnalysisPanel';
 import { RfLinkBar } from './RfLinkBar';
 
@@ -18,12 +19,13 @@ export function RfWorkspace() {
   const loadModels = useRfStore((s) => s.loadModels);
   const pickEndpoint = useRfStore((s) => s.pickEndpoint);
   const selectedId = useMapStore((s) => s.selectedDeviceId);
+  const towersVisible = useMapStore((s) => s.gisLayers['util-tower']?.visible ?? false);
 
-  // Load the propagation-model registry once; keep the map in select mode so a
-  // click picks an endpoint instead of placing a device.
+  // Load the propagation-model registry once. The tool is NOT forced to select
+  // here (design 12-UI §3.1) — the link bar's "Place AP/tower" actions drive it,
+  // and a click on an existing AP/tower still picks it as an endpoint below.
   useEffect(() => {
     void loadModels();
-    useMapStore.getState().setTool('select');
   }, [loadModels]);
 
   // A map click that selects an AP/Tower assigns it to the next endpoint slot.
@@ -36,6 +38,14 @@ export function RfWorkspace() {
       <MapView rfMode />
       <RfAnalysisPanel />
       <RfLinkBar />
+      {towersVisible && (
+        <div className={`pointer-events-none absolute left-4 top-16 ${zc.workspace}`}>
+          <span className="glass-strong flex items-center gap-1.5 rounded-full border border-fg/15 px-2.5 py-1 text-[11px] text-fg/60 shadow-glass">
+            <span className="h-2 w-2 rounded-full border border-dashed border-fg/50" aria-hidden />
+            OSM reference — not selectable
+          </span>
+        </div>
+      )}
     </>
   );
 }

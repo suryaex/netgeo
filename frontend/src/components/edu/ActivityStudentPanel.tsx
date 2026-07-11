@@ -29,6 +29,7 @@ import { useEduStore } from '@/store/eduStore';
 import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 import {
   checkLabel,
   checkStatuses,
@@ -94,7 +95,7 @@ export function ActivityStudentPanel() {
   if (!activity) {
     // Selected id points at nothing (e.g. it was just deleted) — recover, don't blank.
     return (
-      <aside className="glass-strong pointer-events-auto absolute left-3 top-16 z-[420] w-[340px] max-w-[calc(100vw-5rem)] rounded-2xl border border-fg/12 p-5 text-center shadow-glass-lg">
+      <aside className={cn('glass-strong pointer-events-auto absolute left-3 top-16 w-[340px] max-w-[calc(100vw-5rem)] rounded-2xl border border-fg/12 p-5 text-center shadow-glass-lg', zc.workspace)}>
         <p className="text-sm text-fg/70">This activity is no longer available.</p>
         <button onClick={toBrowse} className="mt-3 text-xs font-semibold text-accent hover:underline">
           Back to activities
@@ -112,7 +113,7 @@ export function ActivityStudentPanel() {
     <>
       {/* Timer chip (top-right) — only when timed. */}
       {remaining != null && (
-        <div className="pointer-events-auto absolute right-3 top-3 z-[430]">
+        <div className={cn('pointer-events-auto absolute right-3 top-3', zc.workspace)}>
           <div
             className={cn(
               'inline-flex items-center gap-1.5 rounded-md border bg-recess/60 px-3 py-1.5 shadow-glass',
@@ -137,7 +138,7 @@ export function ActivityStudentPanel() {
       {/* Objectives dock (left, per PNG). */}
       <aside
         aria-label="Objectives"
-        className="glass-strong pointer-events-auto absolute left-3 top-16 bottom-16 z-[420] flex w-[340px] max-w-[calc(100vw-5rem)] flex-col rounded-2xl border border-fg/12 shadow-glass-lg"
+        className={cn('glass-strong pointer-events-auto absolute left-3 top-16 bottom-16 flex w-[340px] max-w-[calc(100vw-5rem)] flex-col rounded-2xl border border-fg/12 shadow-glass-lg', zc.workspace)}
       >
         <header className="flex items-start gap-2 border-b border-fg/10 px-4 py-3">
           <div className="min-w-0 flex-1">
@@ -189,7 +190,7 @@ export function ActivityStudentPanel() {
       </aside>
 
       {/* Control bar (bottom): status chips + score + actions. */}
-      <div className="pointer-events-auto absolute bottom-3 left-3 right-3 z-[420]">
+      <div className={cn('pointer-events-auto absolute bottom-3 left-3 right-3', zc.workspace)}>
         <div className="glass-strong flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-fg/12 px-3 py-2 shadow-glass-lg">
           <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto ng-scroll">
             {checks.length === 0 ? (

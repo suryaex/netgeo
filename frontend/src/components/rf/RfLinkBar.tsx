@@ -3,9 +3,11 @@
  * selectors, the FREQ / BW / MDL parameter chips, and the Calculate action.
  * Centred within the map area (clear of the 380px right panel).
  */
-import { ArrowRight, ArrowLeftRight, Radio } from 'lucide-react';
+import { ArrowRight, ArrowLeftRight, Radio, RadioTower } from 'lucide-react';
 import { useRfStore } from '@/store/rfStore';
 import { useMapStore } from '@/store/mapStore';
+import { zc } from '@/theme/z';
+import { cn } from '@/lib/cn';
 
 /** Placed AP/Tower sites are the selectable PtP endpoints. */
 function useRfEndpoints() {
@@ -58,6 +60,33 @@ function ParamChip({
   );
 }
 
+function PlaceButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: typeof Radio;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      title={label}
+      className={cn(
+        'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors',
+        active ? 'bg-accent/20 text-accent' : 'text-fg/60 hover:bg-fg/10 hover:text-fg',
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      <span className="hidden lg:inline">{label}</span>
+    </button>
+  );
+}
+
 export function RfLinkBar() {
   const aId = useRfStore((s) => s.aId);
   const bId = useRfStore((s) => s.bId);
@@ -73,16 +102,25 @@ export function RfLinkBar() {
   const setBw = useRfStore((s) => s.setBw);
   const setModel = useRfStore((s) => s.setModel);
   const calculate = useRfStore((s) => s.calculate);
+  const tool = useMapStore((s) => s.tool);
+  const setTool = useMapStore((s) => s.setTool);
   const endpoints = useRfEndpoints();
 
   const canCalc = !!aId && !!bId && aId !== bId && !loading;
 
   return (
     <div
-      className="pointer-events-auto absolute bottom-6 z-[1001] -translate-x-1/2"
+      className={cn('pointer-events-auto absolute bottom-6 -translate-x-1/2', zc.workspace)}
       style={{ left: 'calc(50% - 190px)' }}
     >
       <div className="glass-strong flex flex-wrap items-center gap-2 rounded-xl border border-fg/15 px-3 py-2 shadow-glass-lg">
+        {/* Place real NetGeo RF sites straight from the RF view (design 12-UI §3.1). */}
+        <div className="flex items-center gap-1">
+          <PlaceButton active={tool === 'ap'} onClick={() => setTool(tool === 'ap' ? 'select' : 'ap')} icon={Radio} label="Place AP site" />
+          <PlaceButton active={tool === 'tower'} onClick={() => setTool(tool === 'tower' ? 'select' : 'tower')} icon={RadioTower} label="Place tower" />
+        </div>
+        <span className="mx-1 h-5 w-px bg-fg/10" />
+
         <EndpointSelect value={aId} onChange={setA} options={endpoints} label="Endpoint A" />
         <button
           onClick={swap}

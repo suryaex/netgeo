@@ -21,6 +21,7 @@ import { AlertTriangle, Plus, Server, Zap } from 'lucide-react';
 import { nodesApi, physicalApi, projectsApi } from '@/api/client';
 import type { NodeModel, Rack, Site } from '@/api/types';
 import { useUiStore } from '@/store/uiStore';
+import { WorkspaceEmptyState } from '@/components/shell/WorkspaceEmptyState';
 import { cn } from '@/lib/cn';
 
 const RU_PX = 24; // on-screen height of one rack-unit
@@ -248,11 +249,13 @@ export function RackElevationPanel() {
         </div>
 
         {/* racks grouped by site */}
-        <div className="flex-1 overflow-auto p-3">
+        <div className="relative flex-1 overflow-auto p-3">
           {bucketBySite.length === 0 && (
-            <div className="text-sm text-fg/40">
-              No racks yet. Create a site, then a rack, from the toolbar above.
-            </div>
+            <WorkspaceEmptyState
+              icon={Server}
+              title="No racks yet"
+              hint="Create a site, then a rack, using the toolbar above — placed devices render as RU-accurate blocks."
+            />
           )}
           {bucketBySite.map((bucket) => {
             const siteNodes = bucket.racks.flatMap((r) => nodesByRack.get(r.id) ?? []);

@@ -11,6 +11,8 @@ import { useMemo, useState } from 'react';
 import { Network } from 'lucide-react';
 import { TopologyCanvas } from '@/components/canvas/TopologyCanvas';
 import { useTopologyStore } from '@/store/topologyStore';
+import { useUiStore } from '@/store/uiStore';
+import { WorkspaceEmptyState } from '@/components/shell/WorkspaceEmptyState';
 import { TwinStepper } from './TwinStepper';
 import { LinkInferencePanel } from './LinkInferencePanel';
 import { ReachabilityBar } from './ReachabilityBar';
@@ -25,7 +27,9 @@ import {
 export function TwinWorkspace() {
   const nodes = useTopologyStore((s) => s.nodes);
   const links = useTopologyStore((s) => s.links);
-  const [importOpen, setImportOpen] = useState(false);
+  const importOpen = useUiStore((s) => s.activeModal === 'importConfig');
+  const openImport = () => useUiStore.getState().openModal('importConfig');
+  const closeImport = () => useUiStore.getState().closeModal();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [resolved, setResolved] = useState(0);
 
@@ -53,26 +57,17 @@ export function TwinWorkspace() {
         <TopologyCanvas />
       </div>
 
-      {/* Empty-state guidance (QA v1.2.019) — same pattern as the Fiber canvas. */}
+      {/* Empty-state guidance — shared WorkspaceEmptyState (design 12-UI §2.6). */}
       {nodeList.length === 0 && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <div className="grid max-w-sm place-items-center gap-3 px-6 text-center">
-            <Network className="h-9 w-9 text-fg/25" />
-            <p className="max-w-xs text-sm text-fg/55">
-              Import a device config to build your digital twin — links and reachability are
-              inferred from the imported interfaces.
-            </p>
-            <button
-              onClick={() => setImportOpen(true)}
-              className="pointer-events-auto rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-fg hover:bg-accent-soft"
-            >
-              Import Config
-            </button>
-          </div>
-        </div>
+        <WorkspaceEmptyState
+          icon={Network}
+          title="Import a device config to build your digital twin"
+          hint="Links and reachability are inferred from the imported interfaces."
+          action={{ label: 'Import Config', onClick: openImport }}
+        />
       )}
 
-      <TwinStepper stepIndex={stepIndex} onImport={() => setImportOpen(true)} />
+      <TwinStepper stepIndex={stepIndex} onImport={openImport} />
       <LinkInferencePanel
         proposals={proposals}
         resolved={resolved}
@@ -82,7 +77,7 @@ export function TwinWorkspace() {
       <ReachabilityBar nodes={nodeList} />
       <ValidationIssues issues={issues} />
 
-      {importOpen && <ImportConfigModal onClose={() => setImportOpen(false)} />}
+      {importOpen && <ImportConfigModal onClose={closeImport} />}
     </>
   );
 }

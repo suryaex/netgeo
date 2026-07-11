@@ -17,7 +17,6 @@ import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '@/components/shell/AppShell';
 import { LoginPage } from '@/components/LoginPage';
-import { OnboardingModal, useOnboarding } from '@/components/OnboardingModal';
 import { projectsApi } from '@/api/client';
 import { useUiStore } from '@/store/uiStore';
 import { useTopologyStore } from '@/store/topologyStore';
@@ -32,7 +31,6 @@ export default function App() {
   const projectId = useUiStore((s) => s.projectId);
   const setProject = useUiStore((s) => s.setProject);
   const loadSnapshot = useTopologyStore((s) => s.loadSnapshot);
-  const { show: showOnboarding, dismiss: dismissOnboarding } = useOnboarding();
   const queryClient = useQueryClient();
   // Guards the one-time first-run project provisioning against React's
   // double-invoke (StrictMode) and re-renders, so we never create duplicates.
@@ -101,9 +99,6 @@ export default function App() {
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <AppShell projectName={projectName} conn={conn} />
-
-      {/* First-run onboarding wizard */}
-      {showOnboarding && <OnboardingModal onClose={dismissOnboarding} />}
     </div>
   );
 }

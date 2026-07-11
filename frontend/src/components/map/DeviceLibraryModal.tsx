@@ -22,8 +22,9 @@ import {
   type DeviceType,
   type ApiError,
 } from '@/api/client';
-import { useMapStore } from '@/store/mapStore';
+import { useUiStore } from '@/store/uiStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 /* -------------------------------------------------------------------------- */
 /* Icon + category mapping                                                     */
@@ -64,7 +65,7 @@ type Tab = 'library' | 'upload' | 'docker' | 'manual';
 /* Modal                                                                       */
 /* -------------------------------------------------------------------------- */
 export function DeviceLibraryModal() {
-  const close = useMapStore((s) => s.closeDeviceLibrary);
+  const close = () => useUiStore.getState().closeModal();
   const [tab, setTab] = useState<Tab>('library');
   const qc = useQueryClient();
 
@@ -85,7 +86,7 @@ export function DeviceLibraryModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in"
+      className={cn('fixed inset-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in', zc.modal)}
       onClick={(e) => e.target === e.currentTarget && close()}
       role="dialog"
       aria-modal="true"

@@ -7,6 +7,7 @@ import { Satellite, Map as MapIcon, Layers, Moon, Mountain } from 'lucide-react'
 import { useMapStore } from '@/store/mapStore';
 import type { MapTileKey } from '@/config/mapTiles';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 const LAYERS: { key: MapTileKey; label: string; icon: typeof Satellite }[] = [
   { key: 'satellite', label: 'Satellite', icon: Satellite },
@@ -21,7 +22,7 @@ export function MapLayerSwitcher() {
   const setMapLayer = useMapStore((s) => s.setMapLayer);
 
   return (
-    <div className="pointer-events-auto absolute bottom-10 left-4 z-[1000]">
+    <div className={cn('pointer-events-auto absolute bottom-10 left-4', zc.workspace)}>
       <div
         className="glass-strong flex gap-1 rounded-xl border border-fg/15 p-1 shadow-glass-lg"
         role="group"

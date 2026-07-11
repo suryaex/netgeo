@@ -16,18 +16,16 @@ import { useTopologyStore } from '@/store/topologyStore';
 import { useUiStore } from '@/store/uiStore';
 import { configsApi, type ConfigDiff } from '@/api/client';
 import { cn } from '@/lib/cn';
-import type { WindowInstance } from '@/store/windowStore';
 
 // Vendors the backend can render/diff to (mirrors configgen._TEMPLATE_MAP; the
 // server is authoritative and 422s on anything it lacks a template for).
 // "native" → each node's own NOS. ponytail: static list, resync if templates change.
 const VENDORS = ['native', 'ios', 'junos', 'eos', 'routeros', 'vyos', 'frr', 'forgeos', 'sros', 'vrp'];
 
-export function ConsolePanel({ win }: { win: WindowInstance }) {
-  const selectedId = useTopologyStore((s) => s.selectedNodeId);
+export function ConsolePanel() {
+  const nodeId = useTopologyStore((s) => s.selectedNodeId);
   const nodes = useTopologyStore((s) => s.nodes);
   const projectId = useUiStore((s) => s.projectId);
-  const nodeId = win.context?.nodeId ?? selectedId;
   const node = nodeId ? nodes.get(nodeId) : null;
 
   const { lines, prompt, state, send } = useConsoleChannel(nodeId);
@@ -59,7 +57,7 @@ export function ConsolePanel({ win }: { win: WindowInstance }) {
         <div className="space-y-2">
           <TerminalSquare className="mx-auto h-8 w-8" />
           <p className="text-sm">No device console open</p>
-          <p className="text-xs">Select a node, then open Console from the dock.</p>
+          <p className="text-xs">Select a node, then open the Console tab in the drawer.</p>
         </div>
       </div>
     );

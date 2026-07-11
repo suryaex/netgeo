@@ -10,6 +10,7 @@ import { twinApi, type ApiError } from '@/api/client';
 import { useUiStore } from '@/store/uiStore';
 import type { NodeModel } from '@/api/types';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 export function ReachabilityBar({ nodes }: { nodes: NodeModel[] }) {
   const projectId = useUiStore((s) => s.projectId);
@@ -28,7 +29,7 @@ export function ReachabilityBar({ nodes }: { nodes: NodeModel[] }) {
   };
 
   return (
-    <div className="pointer-events-none absolute bottom-4 left-0 right-[360px] z-[430] flex justify-center px-4">
+    <div className={cn('pointer-events-none absolute bottom-4 left-0 right-[360px] flex justify-center px-4', zc.workspace)}>
       <div className="glass pointer-events-auto flex items-center gap-2 rounded-full border border-fg/10 px-3 py-2 shadow-glass">
         <span className="pl-1 text-xs text-fg/50">Can</span>
         <select

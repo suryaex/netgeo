@@ -25,26 +25,29 @@ export function useShortcuts() {
       const ui = useUiStore.getState();
       const topo = useTopoUiStore.getState();
 
-      // Command palette: works everywhere, even from a focused field.
+      // Command palette: works everywhere, even from a focused field. Toggles the
+      // shared modal slot (opening it evicts any other modal — exclusive).
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
-        ui.setCommandOpen(!ui.commandOpen);
+        if (ui.activeModal === 'command') ui.closeModal();
+        else ui.openModal('command');
         return;
       }
 
-      // Esc: close whatever overlay/selection is active (closes inspector too).
+      // Esc: the ONE modal-then-tool handler (design 12-UI §2.3). A modal always
+      // wins; only when nothing is modal does Esc clear the tool/selection.
       if (e.key === 'Escape') {
-        if (ui.commandOpen) return ui.setCommandOpen(false);
-        if (topo.pickerOpen) return topo.closePicker();
+        if (ui.activeModal) return ui.closeModal();
         const t = useTopologyStore.getState();
         if (t.selectedNodeId || t.selectedLinkId) t.select({ nodeId: null, linkId: null });
         if (topo.inspectorPinned) topo.togglePin();
         return;
       }
 
-      // Remaining shortcuts are single-key — never fire while typing, and never
-      // with a modifier (so Ctrl+A "select all" etc. still work in the browser).
+      // Remaining shortcuts are single-key — never fire while typing, over a modal,
+      // or with a modifier (so Ctrl+A "select all" etc. still work in the browser).
       if (isTypingTarget(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (ui.activeModal) return;
       if (ui.viewMode !== 'topology') return;
 
       switch (e.key) {

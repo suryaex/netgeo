@@ -14,6 +14,7 @@ import { ArrowLeft, PenLine, GraduationCap } from 'lucide-react';
 import { TopologyCanvas } from '@/components/canvas/TopologyCanvas';
 import { useEduStore } from '@/store/eduStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 import { ActivityListPanel } from './ActivityListPanel';
 import { ActivityAuthorPanel } from './ActivityAuthorPanel';
 import { ActivityStudentPanel } from './ActivityStudentPanel';
@@ -55,7 +56,7 @@ function EduModeBar() {
   const selectForStudent = useEduStore((s) => s.selectForStudent);
 
   return (
-    <div className="pointer-events-auto absolute left-3 top-3 z-[430] flex items-center gap-2">
+    <div className={cn('pointer-events-auto absolute left-3 top-3 flex items-center gap-2', zc.workspace)}>
       <button
         onClick={toBrowse}
         aria-label="Back to activities"

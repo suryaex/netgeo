@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useEduStore } from '@/store/eduStore';
 import { educationApi } from '@/api/client';
+import { zc } from '@/theme/z';
 
 export function ActivityListPanel() {
   const activities = useEduStore((s) => s.activities);
@@ -48,7 +49,7 @@ export function ActivityListPanel() {
   return (
     <section
       aria-label="Activities"
-      className="glass-strong pointer-events-auto absolute left-1/2 top-14 z-[420] flex max-h-[calc(100vh-8rem)] w-[560px] max-w-[calc(100vw-5rem)] -translate-x-1/2 flex-col rounded-2xl border border-fg/12 shadow-glass-lg"
+      className={`glass-strong pointer-events-auto absolute left-1/2 top-14 ${zc.workspace} flex max-h-[calc(100vh-8rem)] w-[560px] max-w-[calc(100vw-5rem)] -translate-x-1/2 flex-col rounded-2xl border border-fg/12 shadow-glass-lg`}
     >
       {/* Header */}
       <header className="flex items-center gap-2 border-b border-fg/10 px-4 py-3">

@@ -8,6 +8,7 @@
 import { MousePointer2, Spline, Group as GroupIcon, Plus } from 'lucide-react';
 import { useTopoUiStore } from '@/store/topoUiStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 export function TopologyToolbar() {
   const tool = useTopoUiStore((s) => s.tool);
@@ -15,7 +16,7 @@ export function TopologyToolbar() {
   const openPicker = useTopoUiStore((s) => s.openPicker);
 
   return (
-    <div className="pointer-events-auto absolute bottom-4 left-4 z-[400] flex items-center gap-1">
+    <div className={cn('pointer-events-auto absolute bottom-4 left-4 flex items-center gap-1', zc.workspace)}>
       <div className="glass flex items-center gap-1 rounded-xl border border-fg/12 p-1 shadow-glass">
         <button
           onClick={() => openPicker()}

@@ -23,6 +23,7 @@ import { nodeColors } from '@/theme/tokens';
 import { useTopoUiStore } from '@/store/topoUiStore';
 import { useUiStore } from '@/store/uiStore';
 import { placeDevice } from '@/lib/placeDevice';
+import { zc } from '@/theme/z';
 import type { NodeKind } from '@/api/types';
 import { cn } from '@/lib/cn';
 
@@ -59,7 +60,7 @@ function pushRecent(key: string): void {
 }
 
 export function DevicePicker() {
-  const open = useTopoUiStore((s) => s.pickerOpen);
+  const open = useUiStore((s) => s.activeModal === 'devicePicker');
   const pickerPos = useTopoUiStore((s) => s.pickerPos);
   const closePicker = useTopoUiStore((s) => s.closePicker);
   const projectId = useUiStore((s) => s.projectId);
@@ -99,7 +100,7 @@ export function DevicePicker() {
 
   return (
     <div
-      className="fixed inset-0 z-[1200] grid place-items-start justify-center pt-[12vh]"
+      className={cn('fixed inset-0 grid place-items-start justify-center pt-[12vh]', zc.modal)}
       role="dialog"
       aria-modal="true"
       aria-label="Add device"

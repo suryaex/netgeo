@@ -2,20 +2,21 @@
  * CommandPalette — Ctrl/⌘+K launcher (design §16). Fuzzy (subsequence) filter
  * over a static command list plus live device/IP matches from the topology.
  * No new dependencies: the matcher is a ~10-line subsequence scorer. Opens/
- * closes via uiStore.commandOpen (toggled by the global shortcut).
+ * closes via the shared uiStore.activeModal slot ('command'), so it can never
+ * stack with another modal (design 12-UI §2.3).
  *
  * Commands cover Phase-1 scope: module navigation, add device, run simulation,
  * open CLI/diagnostics, fit canvas, export config, and jump-to-device.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, CornerDownLeft } from 'lucide-react';
-import { useUiStore } from '@/store/uiStore';
-import { useWindowStore } from '@/store/windowStore';
+import { useUiStore, type DrawerTab } from '@/store/uiStore';
 import { useTopoUiStore } from '@/store/topoUiStore';
 import { useTopologyStore } from '@/store/topologyStore';
 import { simApi } from '@/api/client';
 import type { NodeModel } from '@/api/types';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 interface Command {
   id: string;
@@ -40,16 +41,24 @@ function mgmtIp(node: NodeModel): string | undefined {
 }
 
 export function CommandPalette() {
-  const open = useUiStore((s) => s.commandOpen);
-  const setOpen = useUiStore((s) => s.setCommandOpen);
+  const open = useUiStore((s) => s.activeModal === 'command');
+  const closeModal = useUiStore((s) => s.closeModal);
   const setViewMode = useUiStore((s) => s.setViewMode);
+  const openModal = useUiStore((s) => s.openModal);
+  const openDrawer = useUiStore((s) => s.openDrawer);
   const projectId = useUiStore((s) => s.projectId);
   const setSimState = useUiStore((s) => s.setSimState);
-  const toggleApp = useWindowStore((s) => s.toggleApp);
   const openPicker = useTopoUiStore((s) => s.openPicker);
   const fit = useTopoUiStore((s) => s.fit);
   const nodes = useTopologyStore((s) => s.nodes);
   const select = useTopologyStore((s) => s.select);
+
+  // Drawer tabs live only in topology/map — hop to topology first if elsewhere.
+  const openDrawerTab = (tab: DrawerTab) => {
+    const vm = useUiStore.getState().viewMode;
+    if (vm !== 'topology' && vm !== 'map') setViewMode('topology');
+    openDrawer(tab);
+  };
 
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
@@ -63,12 +72,13 @@ export function CommandPalette() {
     }
   }, [open]);
 
-  const close = () => setOpen(false);
+  const close = () => closeModal();
 
   const commands: Command[] = useMemo(() => {
     const nav: Command[] = [
       { id: 'go-topology', title: 'Go to Topology', hint: 'Navigate', run: () => setViewMode('topology') },
       { id: 'go-map', title: 'Go to Map', hint: 'Navigate', run: () => setViewMode('map') },
+      { id: 'go-plant', title: 'Go to Physical Plant', hint: 'Navigate', run: () => setViewMode('plant') },
       { id: 'add-device', title: 'Add device…', hint: 'Action', run: () => openPicker() },
       {
         id: 'run-sim',
@@ -80,13 +90,13 @@ export function CommandPalette() {
           void simApi.start({ project_id: projectId, realtime: true }).catch(() => setSimState('idle'));
         },
       },
-      { id: 'open-cli', title: 'Open CLI / Console', hint: 'Action', run: () => toggleApp('console', 'Console') },
-      { id: 'open-diag', title: 'Open Diagnostics', hint: 'Action', run: () => toggleApp('diagnostics', 'Diagnostics') },
-      { id: 'open-ledger', title: 'Open Event Ledger', hint: 'Action', run: () => toggleApp('ledger', 'Event Ledger') },
-      { id: 'open-racks', title: 'Open Rack Elevation', hint: 'Action', run: () => toggleApp('racks', 'Rack Elevation') },
-      { id: 'open-config', title: 'Export / View config', hint: 'Action', run: () => toggleApp('config', 'Config Viewer') },
+      { id: 'open-cli', title: 'Open CLI / Console', hint: 'Action', run: () => openDrawerTab('console') },
+      { id: 'open-diag', title: 'Open Diagnostics', hint: 'Action', run: () => openDrawerTab('diagnostics') },
+      { id: 'open-ledger', title: 'Open Event Ledger', hint: 'Action', run: () => openDrawerTab('ledger') },
+      { id: 'open-racks', title: 'Open Physical Plant', hint: 'Action', run: () => setViewMode('plant') },
+      { id: 'open-config', title: 'Export / View config', hint: 'Action', run: () => openDrawerTab('config') },
       { id: 'fit', title: 'Fit topology', hint: 'View', run: () => fit?.() },
-      { id: 'settings', title: 'Open Settings', hint: 'Action', run: () => toggleApp('settings', 'Settings') },
+      { id: 'settings', title: 'Open Settings', hint: 'Action', run: () => openModal('settings') },
     ];
 
     const query = q.trim().toLowerCase();
@@ -114,7 +124,8 @@ export function CommandPalette() {
     }
 
     return [...staticMatches, ...deviceMatches];
-  }, [q, nodes, setViewMode, openPicker, projectId, setSimState, toggleApp, fit, select]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, nodes, setViewMode, openPicker, projectId, setSimState, openModal, fit, select]);
 
   if (!open) return null;
 
@@ -126,7 +137,7 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-[1300] grid place-items-start justify-center pt-[14vh]"
+      className={cn('fixed inset-0 grid place-items-start justify-center pt-[14vh]', zc.modal)}
       role="dialog"
       aria-modal="true"
       aria-label="Command palette"

@@ -7,10 +7,12 @@
  * backend budget endpoint; the client never recomputes loss.
  */
 import { useEffect } from 'react';
-import { Search, Loader2, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, AlertTriangle, Cable } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 import { useUiStore } from '@/store/uiStore';
 import { useFiberStore, type SegKey } from '@/store/fiberStore';
+import { WorkspaceEmptyState } from '@/components/shell/WorkspaceEmptyState';
 import { GPON_LABEL } from './fiberLogic';
 import { FiberCanvas } from './FiberCanvas';
 import { FiberBudgetPanel } from './FiberBudgetPanel';
@@ -25,6 +27,9 @@ const SEG_CHIPS: { key: SegKey; label: string }[] = [
 export function FiberWorkspace() {
   const projectId = useUiStore((s) => s.projectId);
   const load = useFiberStore((s) => s.load);
+  const hasPaths = useFiberStore((s) => s.paths.length > 0);
+  const loading = useFiberStore((s) => s.loading);
+  const createPath = useFiberStore((s) => s.createPath);
 
   useEffect(() => {
     if (projectId) void load(projectId);
@@ -37,6 +42,14 @@ export function FiberWorkspace() {
       <FiberBudgetPanel />
       <FiberToolbar />
       <StatusStrip />
+      {!loading && !hasPaths && (
+        <WorkspaceEmptyState
+          icon={Cable}
+          title="No fiber paths yet"
+          hint="A GPON path runs OLT → feeder → splitter → distribution → ODP. Create your first ODP to start planning the optical budget."
+          action={{ label: 'New fiber path', onClick: () => void createPath('ODP-1', 'c_plus') }}
+        />
+      )}
     </div>
   );
 }
@@ -48,7 +61,7 @@ function FilterBar() {
   const setSearch = useFiberStore((s) => s.setSearch);
 
   return (
-    <div className="pointer-events-auto absolute left-4 top-4 z-[1000] flex flex-wrap items-center gap-2">
+    <div className={cn('pointer-events-auto absolute left-4 top-4 flex flex-wrap items-center gap-2', zc.workspace)}>
       <div className="glass-strong flex items-center gap-1.5 rounded-lg border border-fg/15 px-2.5 py-1.5 shadow-glass">
         <Search className="h-3.5 w-3.5 text-fg/40" />
         <input
@@ -92,7 +105,7 @@ function StatusStrip() {
   const budgetDb = selected ? budgets[selected.id]?.budget_db : undefined;
 
   return (
-    <div className="pointer-events-none absolute bottom-0 left-0 z-[1000] flex items-center gap-3 px-4 py-1.5 font-mono text-[11px] text-fg/55">
+    <div className={cn('pointer-events-none absolute bottom-0 left-0 flex items-center gap-3 px-4 py-1.5 font-mono text-[11px] text-fg/55', zc.workspace)}>
       {loading ? (
         <span className="flex items-center gap-1.5">
           <Loader2 className="h-3 w-3 animate-spin" /> Loading fiber paths…

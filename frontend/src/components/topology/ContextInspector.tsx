@@ -10,6 +10,7 @@ import { PropertiesPanel } from '@/components/PropertiesPanel';
 import { useTopologyStore } from '@/store/topologyStore';
 import { useTopoUiStore } from '@/store/topoUiStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 export function ContextInspector() {
   const selectedNodeId = useTopologyStore((s) => s.selectedNodeId);
@@ -31,7 +32,8 @@ export function ContextInspector() {
     <aside
       aria-label="Selection inspector"
       className={cn(
-        'panel absolute right-0 top-0 z-[420] flex h-full w-[360px] max-w-[85vw] flex-col border-l border-fg/10 shadow-glass-lg',
+        'panel absolute right-0 top-0 flex h-full w-[360px] max-w-[85vw] flex-col border-l border-fg/10 shadow-glass-lg',
+        zc.workspace,
         'animate-fade-in',
       )}
     >

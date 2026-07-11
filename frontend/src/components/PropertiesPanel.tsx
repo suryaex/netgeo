@@ -10,7 +10,6 @@ import { useTopologyStore } from '@/store/topologyStore';
 import { useNosStore } from '@/store/nosStore';
 import { useUiStore } from '@/store/uiStore';
 import { nodesApi, configsApi } from '@/api/client';
-import { useWindowStore } from '@/store/windowStore';
 import { CloudUplink } from '@/components/CloudUplink';
 import type { NodeMode, Nos } from '@/api/types';
 
@@ -39,7 +38,8 @@ const STATUS_COLORS: Record<string, string> = {
 export function PropertiesPanel() {
   const node = useTopologyStore((s) => s.selectedNode());
   const upsertNode = useTopologyStore((s) => s.upsertNode);
-  const openWindow = useWindowStore((s) => s.open);
+  const openDrawer = useUiStore((s) => s.openDrawer);
+  const openModal = useUiStore((s) => s.openModal);
   const { customNos } = useNosStore();
   const simState = useUiStore((s) => s.simState);
   const [name, setName] = useState('');
@@ -196,12 +196,7 @@ export function PropertiesPanel() {
       <div className="flex gap-2">
         <button
           onClick={() =>
-            void configsApi.generate(node.id, node.nos).then(() =>
-              openWindow('config', {
-                title: `Config · ${node.name}`,
-                context: { nodeId: node.id },
-              }),
-            )
+            void configsApi.generate(node.id, node.nos).then(() => openDrawer('config'))
           }
           className="flex flex-1 items-center justify-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-medium text-fg transition-colors hover:bg-accent-soft"
         >
@@ -211,7 +206,7 @@ export function PropertiesPanel() {
 
         {customNos.length > 0 && (
           <button
-            onClick={() => openWindow('settings', { title: 'Settings' })}
+            onClick={() => openModal('settings')}
             title="Manage custom NOS in Settings"
             className="flex items-center justify-center rounded-md border border-fg/10 bg-fg/5 px-2.5 py-2 text-fg/50 transition-colors hover:border-accent/40 hover:text-accent"
           >

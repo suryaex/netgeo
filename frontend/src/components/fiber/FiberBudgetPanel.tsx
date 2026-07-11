@@ -7,7 +7,9 @@
 import { useState } from 'react';
 import { Cable, Check, X, AlertTriangle, Loader2, FileText, ListTree } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 import { useFiberStore } from '@/store/fiberStore';
+import { useUiStore } from '@/store/uiStore';
 import { fiberApi, type BomItem, type LossBudget } from '@/api/client';
 import { GPON_LABEL, fmtKm } from './fiberLogic';
 
@@ -131,13 +133,13 @@ export function FiberBudgetPanel() {
   const busy = useFiberStore((s) => s.busy);
   const error = useFiberStore((s) => s.error);
 
+  const bomOpen = useUiStore((s) => s.activeModal === 'fiberDetail');
   const [bom, setBom] = useState<BomItem[] | null>(null);
-  const [bomOpen, setBomOpen] = useState(false);
   const [actErr, setActErr] = useState<string | null>(null);
 
   async function openBom() {
     if (!projectId) return;
-    setBomOpen(true);
+    useUiStore.getState().openModal('fiberDetail');
     setBom(null);
     setActErr(null);
     try {
@@ -164,7 +166,7 @@ export function FiberBudgetPanel() {
     <aside
       role="region"
       aria-label="Optical Budget"
-      className="glass-strong pointer-events-auto absolute right-0 top-0 z-[1001] flex h-full w-[380px] max-w-[85vw] flex-col border-l border-fg/12 shadow-glass-lg"
+      className={cn('glass-strong pointer-events-auto absolute right-0 top-0 flex h-full w-[380px] max-w-[85vw] flex-col border-l border-fg/12 shadow-glass-lg', zc.workspace)}
     >
       <div className="flex items-center gap-2 border-b border-fg/10 px-4 py-3">
         <Cable className="h-4 w-4 text-accent" />
@@ -217,7 +219,7 @@ export function FiberBudgetPanel() {
       </div>
       {actErr && <p className="px-4 pb-2 text-[11px] text-danger">{actErr}</p>}
 
-      {bomOpen && <BomModal items={bom} error={actErr} onClose={() => setBomOpen(false)} />}
+      {bomOpen && <BomModal items={bom} error={actErr} onClose={() => useUiStore.getState().closeModal()} />}
     </aside>
   );
 }
@@ -233,7 +235,7 @@ function BomModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[2000] grid place-items-center bg-black/50 p-4"
+      className={cn('fixed inset-0 grid place-items-center bg-black/50 p-4', zc.modal)}
       role="dialog"
       aria-modal="true"
       aria-label="Bill of materials"

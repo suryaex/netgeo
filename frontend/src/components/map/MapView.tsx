@@ -65,7 +65,9 @@ import { ElevationProfilePanel } from './ElevationProfilePanel';
 import { RfBeamLayer } from './RfBeamLayer';
 import { DeviceLibraryModal } from './DeviceLibraryModal';
 import { Layers as LayersIcon, AlertTriangle } from 'lucide-react';
+import { useUiStore } from '@/store/uiStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 // Prevent default marker icon 404 errors in Vite. We use CircleMarker, not Marker.
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)['_getIconUrl'];
@@ -223,12 +225,15 @@ function OsmTowerLayer() {
             key={tower.id}
             center={[tower.lat, tower.lng]}
             radius={6}
+            // Reference-only, not a selectable NetGeo endpoint (design 12-UI §3.2):
+            // hollow, dashed outline + muted so it reads clearly apart from the
+            // solid, filled AP/tower device markers.
             pathOptions={{
               color,
-              fillColor: color,
-              fillOpacity: 0.25,
-              weight: 2,
-              opacity: 0.85,
+              fillOpacity: 0,
+              weight: 1.5,
+              opacity: 0.55,
+              dashArray: '3 3',
             }}
           >
             <Tooltip
@@ -581,7 +586,7 @@ function RfCoverageLayer() {
   }, [opacity]);
 
   return (
-    <div className="pointer-events-none absolute bottom-10 left-4 z-[1000]">
+    <div className={cn('pointer-events-none absolute bottom-10 left-4', zc.workspace)}>
       <div className="rounded-xl border border-fg/15 bg-recess/60 px-3 py-2 shadow-glass backdrop-blur">
         <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-fg/40">
           RF Coverage
@@ -903,7 +908,7 @@ function SignalLegend() {
   const triggerLosCheck = useMapStore((s) => s.triggerLosCheck);
 
   return (
-    <div className="pointer-events-auto absolute bottom-10 right-4 z-[1000] space-y-2">
+    <div className={cn('pointer-events-auto absolute bottom-10 right-4 space-y-2', zc.workspace)}>
       {/* LOS check button */}
       <button
         onClick={() => void triggerLosCheck()}
@@ -998,7 +1003,7 @@ const TOOL_HINTS: Record<string, string> = {
 function ToolHint() {
   const tool = useMapStore((s) => s.tool);
   return (
-    <div className="pointer-events-none absolute bottom-6 left-1/2 z-[1000] -translate-x-1/2">
+    <div className={cn('pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2', zc.workspace)}>
       <div className="rounded-full border border-fg/15 bg-recess/55 px-4 py-1.5 text-xs text-fg/55 shadow-glass backdrop-blur">
         {TOOL_HINTS[tool] ?? ''}
       </div>
@@ -1013,7 +1018,7 @@ function MapNotice() {
   const notice = useMapStore((s) => s.mapNotice);
   if (!notice) return null;
   return (
-    <div className="pointer-events-none absolute left-1/2 top-16 z-[1002] -translate-x-1/2">
+    <div className={cn('pointer-events-none absolute left-1/2 top-16 -translate-x-1/2', zc.toast)}>
       <div className="flex items-center gap-2 rounded-full border border-warning/40 bg-recess/80 px-4 py-1.5 text-xs text-fg/85 shadow-glass backdrop-blur animate-fade-in">
         <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
         {notice}
@@ -1029,7 +1034,7 @@ function WeatherBar() {
   const rainRate = useMapStore((s) => s.rainRate);
   if (rainRate === 0) return null;
   return (
-    <div className="pointer-events-none absolute left-1/2 top-4 z-[1000] -translate-x-1/2">
+    <div className={cn('pointer-events-none absolute left-1/2 top-4 -translate-x-1/2', zc.workspace)}>
       <div className="flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-900/60 px-4 py-1.5 text-xs text-blue-200 backdrop-blur">
         <span>🌧</span>
         <span>
@@ -1130,7 +1135,8 @@ function GisLayerToggle() {
       aria-pressed={open}
       title="GIS layers"
       className={cn(
-        'pointer-events-auto absolute right-4 top-16 z-[1001] grid h-9 w-9 place-items-center rounded-lg border border-fg/15 shadow-glass backdrop-blur transition-colors',
+        'pointer-events-auto absolute right-4 top-16 grid h-9 w-9 place-items-center rounded-lg border border-fg/15 shadow-glass backdrop-blur transition-colors',
+        zc.workspace,
         open ? 'bg-accent/25 text-accent' : 'bg-recess/55 text-fg/70 hover:text-fg',
       )}
     >
@@ -1144,7 +1150,7 @@ function GisLayerToggle() {
 /* -------------------------------------------------------------------------- */
 function GradientLegend() {
   return (
-    <div className="pointer-events-none absolute right-4 top-3 z-[1000]">
+    <div className={cn('pointer-events-none absolute right-4 top-3', zc.workspace)}>
       <div className="glass-strong rounded-xl border border-fg/15 px-3 py-2 shadow-glass">
         <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-fg/60">
           Signal Strength
@@ -1174,8 +1180,16 @@ export function MapView({ rfMode = false }: { rfMode?: boolean } = {}) {
   const mapCenter = useMapStore((s) => s.mapCenter);
   const mapZoom = useMapStore((s) => s.mapZoom);
   const showOnboarding = useMapStore((s) => s.showOnboarding);
-  const deviceLibraryOpen = useMapStore((s) => s.deviceLibraryOpen);
+  const activeModal = useUiStore((s) => s.activeModal);
+  const openModal = useUiStore((s) => s.openModal);
   const devById = useMapStore((s) => s.devices);
+
+  // First visit to the standalone map claims the shared modal slot for the
+  // quickstart (never in RF, which owns its own chrome). Exclusive by construction.
+  useEffect(() => {
+    if (rfMode || !showOnboarding) return;
+    if (useUiStore.getState().activeModal === null) openModal('mapOnboarding');
+  }, [rfMode, showOnboarding, openModal]);
   const towersVisible = useMapStore((s) => s.gisLayers['util-tower']?.visible ?? false);
   const buildingsVisible = useMapStore((s) => s.gisLayers['pop-buildings']?.visible ?? false);
   const densityVisible = useMapStore((s) => s.gisLayers['pop-density']?.visible ?? false);
@@ -1256,11 +1270,9 @@ export function MapView({ rfMode = false }: { rfMode?: boolean } = {}) {
       <MapLayerSwitcher />
       {!rfMode && <ElevationProfilePanel />}
 
-      {/* First-run modal */}
-      {showOnboarding && <MapOnboardingModal />}
-
-      {/* Device library modal */}
-      {deviceLibraryOpen && <DeviceLibraryModal />}
+      {/* First-run + device library — share the single exclusive modal slot. */}
+      {activeModal === 'mapOnboarding' && <MapOnboardingModal />}
+      {activeModal === 'deviceLibrary' && <DeviceLibraryModal />}
     </div>
   );
 }

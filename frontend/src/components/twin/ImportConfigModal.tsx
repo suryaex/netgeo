@@ -10,6 +10,7 @@ import { X, FileUp, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { twinApi, type ApiError, type ConfigVendor } from '@/api/client';
 import { useUiStore } from '@/store/uiStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 const VENDORS: { id: ConfigVendor; label: string; hint: string }[] = [
   { id: 'ios', label: 'Cisco IOS', hint: 'IOS / IOS-XR / NX-OS style' },
@@ -42,7 +43,7 @@ export function ImportConfigModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[600] grid place-items-center bg-recess/50 p-4 backdrop-blur-sm"
+      className={cn('fixed inset-0 grid place-items-center bg-recess/50 p-4 backdrop-blur-sm', zc.modal)}
       role="dialog"
       aria-modal="true"
       aria-label="Import device config"

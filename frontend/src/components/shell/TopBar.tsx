@@ -15,8 +15,8 @@ import type { ConnState } from '@/api/ws';
 import { labApi } from '@/api/client';
 import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
-import { useWindowStore } from '@/store/windowStore';
 import { useTopologyStore } from '@/store/topologyStore';
+import { zc } from '@/theme/z';
 import { SimulationBar } from '@/components/SimulationBar';
 import { ModeSwitch } from '@/components/ModeSwitch';
 import { UpdatesButton } from '@/components/shell/UpdatesButton';
@@ -53,12 +53,11 @@ function NetGeoMark() {
 export function TopBar({ projectName, conn }: TopBarProps) {
   const theme = useUiStore((s) => s.theme);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
-  const setCommandOpen = useUiStore((s) => s.setCommandOpen);
+  const openModal = useUiStore((s) => s.openModal);
   const projectId = useUiStore((s) => s.projectId);
   const dirty = useTopologyStore((s) => s.dirty);
   const username = useAuthStore((s) => s.username);
   const logout = useAuthStore((s) => s.logout);
-  const toggleApp = useWindowStore((s) => s.toggleApp);
   const queryClient = useQueryClient();
   const [clock, setClock] = useState(() => new Date());
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -85,7 +84,7 @@ export function TopBar({ projectName, conn }: TopBarProps) {
   const online = conn === 'open';
 
   return (
-    <header className="glass-strong z-[900] flex h-14 shrink-0 items-center gap-3 border-b border-fg/10 px-3 text-[13px] text-fg/85">
+    <header className="glass-strong flex h-14 shrink-0 items-center gap-3 border-b border-fg/10 px-3 text-[13px] text-fg/85">
       {/* Brand + project + saved state */}
       <div className="flex items-center gap-2 font-semibold">
         <NetGeoMark />
@@ -107,7 +106,7 @@ export function TopBar({ projectName, conn }: TopBarProps) {
       {/* Command bar (center) */}
       <div className="mx-2 flex flex-1 justify-center">
         <button
-          onClick={() => setCommandOpen(true)}
+          onClick={() => openModal('command')}
           className="flex w-full max-w-xl items-center gap-2 rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-left text-xs text-fg/40 transition-colors hover:border-fg/20 hover:bg-fg/8"
           aria-label="Open command palette"
         >
@@ -156,7 +155,7 @@ export function TopBar({ projectName, conn }: TopBarProps) {
         </button>
 
         <button
-          onClick={() => toggleApp('settings', 'Settings')}
+          onClick={() => openModal('settings')}
           aria-label="Open settings"
           className="grid h-8 w-8 place-items-center rounded-md text-fg/60 hover:bg-fg/10 hover:text-fg"
         >
@@ -177,7 +176,7 @@ export function TopBar({ projectName, conn }: TopBarProps) {
           </button>
 
           {userMenuOpen && (
-            <div className="glass-strong absolute right-0 top-10 z-[1000] min-w-[160px] overflow-hidden rounded-lg border border-fg/15 shadow-glass-lg animate-fade-in">
+            <div className={cn('glass-strong absolute right-0 top-10 min-w-[160px] overflow-hidden rounded-lg border border-fg/15 shadow-glass-lg animate-fade-in', zc.popover)}>
               <div className="border-b border-fg/10 px-3 py-2">
                 <p className="text-xs font-medium text-fg/80">{username}</p>
                 <p className="text-[10px] text-fg/40">Local account</p>
@@ -185,7 +184,7 @@ export function TopBar({ projectName, conn }: TopBarProps) {
               <button
                 onClick={() => {
                   setUserMenuOpen(false);
-                  toggleApp('settings', 'Settings');
+                  openModal('settings');
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-xs text-fg/70 hover:bg-fg/8 hover:text-fg"
               >

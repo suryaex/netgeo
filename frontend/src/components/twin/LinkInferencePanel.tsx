@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, X, Zap, Loader2, Link2 } from 'lucide-react';
 import { linksApi, twinApi, type ApiError } from '@/api/client';
 import { useUiStore } from '@/store/uiStore';
+import { zc } from '@/theme/z';
 import type { LinkProposal } from './twinLogic';
 
 export function LinkInferencePanel({
@@ -44,7 +45,7 @@ export function LinkInferencePanel({
   return (
     <aside
       aria-label="Link inference"
-      className="panel absolute right-0 top-0 z-[420] flex h-full w-[360px] max-w-[85vw] flex-col border-l border-fg/10 shadow-glass-lg"
+      className={`panel absolute right-0 top-0 ${zc.workspace} flex h-full w-[360px] max-w-[85vw] flex-col border-l border-fg/10 shadow-glass-lg`}
     >
       <header className="flex shrink-0 items-center justify-between border-b border-fg/10 px-4 py-3">
         <div className="flex items-center gap-2">

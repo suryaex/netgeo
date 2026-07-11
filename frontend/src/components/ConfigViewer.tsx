@@ -13,12 +13,10 @@ import { Check, Copy, FileCode2, RefreshCw } from 'lucide-react';
 import { configsApi } from '@/api/client';
 import { useTopologyStore } from '@/store/topologyStore';
 import type { ConfigArtifact } from '@/api/types';
-import type { WindowInstance } from '@/store/windowStore';
 import { cn } from '@/lib/cn';
 
-export function ConfigViewer({ win }: { win: WindowInstance }) {
-  const selectedId = useTopologyStore((s) => s.selectedNodeId);
-  const nodeId = win.context?.nodeId ?? selectedId;
+export function ConfigViewer() {
+  const nodeId = useTopologyStore((s) => s.selectedNodeId);
 
   const [artifacts, setArtifacts] = useState<ConfigArtifact[]>([]);
   const [active, setActive] = useState(0);

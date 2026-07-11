@@ -7,13 +7,14 @@ import { useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import type { ValidationIssue } from './twinLogic';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 export function ValidationIssues({ issues }: { issues: ValidationIssue[] }) {
   const [open, setOpen] = useState(true);
   const clean = issues.length === 0;
 
   return (
-    <div className="pointer-events-none absolute bottom-4 right-[376px] z-[425] w-[300px] max-w-[85vw]">
+    <div className={cn('pointer-events-none absolute bottom-4 right-[376px] w-[300px] max-w-[85vw]', zc.workspace)}>
       <div className="glass pointer-events-auto rounded-lg border border-fg/10 shadow-glass">
         <button
           onClick={() => setOpen((o) => !o)}

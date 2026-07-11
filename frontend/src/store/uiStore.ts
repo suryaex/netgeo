@@ -9,7 +9,22 @@ import type { SimState } from '@/api/types';
 
 const THEME_KEY = 'netgeo.theme';
 
-export type ViewMode = 'topology' | 'map' | 'twin' | 'rf' | 'fiber' | 'edu';
+export type ViewMode = 'topology' | 'map' | 'twin' | 'rf' | 'fiber' | 'edu' | 'plant';
+
+/** Bottom-drawer tabs (design 12-UI §2.1) — each body is an existing panel. */
+export type DrawerTab = 'console' | 'diagnostics' | 'ledger' | 'config';
+
+/** The single modal slot (design 12-UI §2.3). Exactly one open at a time. */
+export type ModalId =
+  | 'command'
+  | 'settings'
+  | 'scenarios'
+  | 'devicePicker'
+  | 'importConfig'
+  | 'deviceLibrary'
+  | 'fiberDetail'
+  | 'onboarding'
+  | 'mapOnboarding';
 
 function initialTheme(): ThemeMode {
   const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null;
@@ -31,8 +46,15 @@ interface UiState {
   simMetrics: Record<string, number> | null;
   projectId: string | null;
   viewMode: ViewMode;
-  /** Command palette (Ctrl/⌘+K) visibility — global, works in any workspace. */
-  commandOpen: boolean;
+
+  /** Bottom drawer (design 12-UI §2.1) — renders only in topology/map. Height
+   *  is session-persistent (in-memory) and resizable. */
+  drawerOpen: boolean;
+  drawerTab: DrawerTab;
+  drawerHeight: number;
+
+  /** The one open modal, or null. Exclusive by construction (design 12-UI §2.3). */
+  activeModal: ModalId | null;
 
   setTheme: (mode: ThemeMode) => void;
   /** Cycle Dark → Light → High Contrast → Dark. */
@@ -47,7 +69,15 @@ interface UiState {
   ) => void;
   setProject: (id: string | null) => void;
   setViewMode: (mode: ViewMode) => void;
-  setCommandOpen: (open: boolean) => void;
+
+  /** Open the drawer to a tab (or toggle it closed if that tab is already up). */
+  openDrawer: (tab: DrawerTab) => void;
+  setDrawerOpen: (open: boolean) => void;
+  setDrawerTab: (tab: DrawerTab) => void;
+  setDrawerHeight: (h: number) => void;
+
+  openModal: (id: ModalId) => void;
+  closeModal: () => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -58,7 +88,10 @@ export const useUiStore = create<UiState>((set, get) => ({
   simMetrics: null,
   projectId: null,
   viewMode: 'topology',
-  commandOpen: false,
+  drawerOpen: false,
+  drawerTab: 'console',
+  drawerHeight: 320,
+  activeModal: null,
 
   setTheme: (mode) => {
     applyTheme(mode);
@@ -83,5 +116,14 @@ export const useUiStore = create<UiState>((set, get) => ({
     }),
   setProject: (projectId) => set({ projectId }),
   setViewMode: (viewMode) => set({ viewMode }),
-  setCommandOpen: (commandOpen) => set({ commandOpen }),
+
+  openDrawer: (tab) =>
+    set((s) => (s.drawerOpen && s.drawerTab === tab ? { drawerOpen: false } : { drawerOpen: true, drawerTab: tab })),
+  setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
+  setDrawerTab: (drawerTab) => set({ drawerTab, drawerOpen: true }),
+  setDrawerHeight: (drawerHeight) => set({ drawerHeight: Math.max(160, Math.min(720, drawerHeight)) }),
+
+  // Single slot → opening any modal evicts the previous one; two can never stack.
+  openModal: (activeModal) => set({ activeModal }),
+  closeModal: () => set({ activeModal: null }),
 }));

@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEduStore } from '@/store/eduStore';
+import { zc } from '@/theme/z';
 import { CheckListEditor } from './CheckListEditor';
 
 function isCaptured(env: Record<string, unknown> | undefined): boolean {
@@ -37,7 +38,7 @@ export function ActivityAuthorPanel() {
   return (
     <aside
       aria-label="Author activity"
-      className="glass-strong pointer-events-auto absolute left-3 top-16 bottom-3 z-[420] flex w-[360px] max-w-[calc(100vw-5rem)] flex-col rounded-2xl border border-fg/12 shadow-glass-lg"
+      className={`glass-strong pointer-events-auto absolute left-3 top-16 bottom-3 ${zc.workspace} flex w-[360px] max-w-[calc(100vw-5rem)] flex-col rounded-2xl border border-fg/12 shadow-glass-lg`}
     >
       <header className="flex items-center gap-2 border-b border-fg/10 px-4 py-3">
         <h2 className="text-sm font-semibold text-fg/90">Author activity</h2>

@@ -7,6 +7,7 @@
 import { RadioTower, X, Loader2, AlertTriangle, Radio } from 'lucide-react';
 import { useMapStore } from '@/store/mapStore';
 import { useRfStore, RF_ANT_GAIN_DBI, type RfTab } from '@/store/rfStore';
+import { zc } from '@/theme/z';
 import { ProfileChart, type ChartPoint } from '@/components/map/ProfileChart';
 import {
   marginStatus,
@@ -246,7 +247,7 @@ export function RfAnalysisPanel() {
     <aside
       role="region"
       aria-label="Link Analysis"
-      className="glass-strong pointer-events-auto absolute right-0 top-0 z-[1001] flex h-full w-[380px] max-w-[85vw] flex-col border-l border-fg/12 shadow-glass-lg"
+      className={`glass-strong pointer-events-auto absolute right-0 top-0 ${zc.workspace} flex h-full w-[380px] max-w-[85vw] flex-col border-l border-fg/12 shadow-glass-lg`}
     >
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-fg/10 px-4 py-3">
@@ -307,19 +308,41 @@ export function RfAnalysisPanel() {
   );
 }
 
+/** 3-tier honest empty state (design 12-UI §3.3): guide the real next step by
+ *  how many selectable NetGeo AP/tower sites actually exist, and state plainly
+ *  that OSM reference towers are not selectable when that layer is on. */
 function EmptyState({ endpointCount }: { endpointCount: number }) {
+  const setTool = useMapStore((s) => s.setTool);
+  const towersVisible = useMapStore((s) => s.gisLayers['util-tower']?.visible ?? false);
+
   return (
     <div className="grid place-items-center gap-3 py-10 text-center">
       <Radio className="h-8 w-8 text-fg/25" />
-      {endpointCount < 2 ? (
+      {endpointCount === 0 ? (
+        <>
+          <p className="max-w-[16rem] text-xs leading-relaxed text-fg/55">
+            No AP or tower sites in this project yet. Place one on the map to start a point-to-point
+            link.
+          </p>
+          <button
+            onClick={() => setTool('ap')}
+            className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-fg hover:bg-accent-soft"
+          >
+            Place an AP site
+          </button>
+        </>
+      ) : endpointCount === 1 ? (
         <p className="max-w-[16rem] text-xs leading-relaxed text-fg/55">
-          Place at least two RF sites (AP or Tower) on the map, then pick two of them to analyse a
-          point-to-point link.
+          One site placed. Place or click a second AP/tower site to define the link.
         </p>
       ) : (
         <p className="max-w-[16rem] text-xs leading-relaxed text-fg/55">
-          Pick endpoint A and B — click two sites on the map or use the selectors below — then press
-          Calculate.
+          Click two sites on the map (or use the selectors below), then press Calculate.
+        </p>
+      )}
+      {towersVisible && (
+        <p className="max-w-[16rem] text-[11px] leading-relaxed text-fg/40">
+          Visible OSM towers are reference-only — not selectable as endpoints.
         </p>
       )}
     </div>

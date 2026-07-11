@@ -6,6 +6,7 @@
 import { MousePointer2, Radio, Smartphone, RadioTower, Ruler, Mountain, Trash2, Droplets } from 'lucide-react';
 import { useMapStore, rainRateLabel, type MapTool } from '@/store/mapStore';
 import { cn } from '@/lib/cn';
+import { zc } from '@/theme/z';
 
 interface ToolItem {
   tool: MapTool;
@@ -37,7 +38,7 @@ export function MapToolbar() {
   };
 
   return (
-    <div className="pointer-events-auto absolute left-4 top-1/2 z-[1000] -translate-y-1/2">
+    <div className={cn('pointer-events-auto absolute left-4 top-1/2 -translate-y-1/2', zc.workspace)}>
       <div className="glass-strong flex flex-col gap-1 rounded-xl border border-fg/15 p-1.5 shadow-glass-lg">
 
         {/* Placement tools */}

@@ -269,6 +269,23 @@ class CliSession:
                     f"{(e['next_hop'] or '-'):<16} {e['out_iface'] or '-'}"
                 )
             return "\n".join(rows) + "\n"
+        if low.startswith("show segment-routing sid-database") or low.startswith("show sr sid-database"):
+            if not isinstance(dev, Router):
+                return "% This device does not route\n"
+            sr = self._proc("sr")
+            if sr is None:
+                return "% Segment routing not enabled\n"
+            rows = ["Router ID        Prefix              SID    Label"]
+            for r in sr.sid_rows():
+                rows.append(f"{r['router_id']:<16} {r['prefix']:<19} {r['sid']:<6} {r['label']}")
+            return "\n".join(rows) + "\n"
+        if low.startswith("show segment-routing adjacency-sid") or low.startswith("show sr adjacency-sid"):
+            if not isinstance(dev, Router):
+                return "% This device does not route\n"
+            rows = ["Label   Peer             Interface"]
+            for r in dev.sr_adj_rows():
+                rows.append(f"{r['label']:<7} {r['peer']:<16} {r['out_iface']}")
+            return "\n".join(rows) + "\n"
         if low.startswith("show ip route"):
             if not isinstance(dev, Router):
                 return "% This device does not route\n"

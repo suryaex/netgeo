@@ -201,6 +201,10 @@ export const projectsApi = {
   create: (body: Partial<Project>) => http.post<Project>('/projects', body).then((r) => r.data),
   topology: (id: string) =>
     http.get<Topology>(`/projects/${id}/topology`).then((r) => r.data),
+  /** Export the project as an NG-WS-03 archive envelope (used to capture an
+   *  activity's initial/answer network in the Education author flow). */
+  archive: (id: string) =>
+    http.get<Record<string, unknown>>(`/projects/${id}/archive`).then((r) => r.data),
 };
 
 /* ------------------------------- Nodes ----------------------------------- */

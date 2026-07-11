@@ -10,6 +10,8 @@
  * window system (WindowHost + Dock) is retained for secondary tools
  * (Console, Diagnostics, Ledger, Racks, Config, Scenarios, Settings).
  */
+import { lazy, Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
 import type { ConnState } from '@/api/ws';
 import { useUiStore } from '@/store/uiStore';
 import { useLabStore } from '@/store/labStore';
@@ -29,6 +31,12 @@ import { SimulationDock } from '@/components/SimulationDock';
 import { TwinWorkspace } from '@/components/twin/TwinWorkspace';
 import { RfWorkspace } from '@/components/rf/RfWorkspace';
 import { FiberWorkspace } from '@/components/fiber/FiberWorkspace';
+
+// Education Lab is a self-contained workspace (author editor + student runner);
+// lazy so its bundle stays out of the initial load until the module is opened.
+const EduWorkspace = lazy(() =>
+  import('@/components/edu/EduWorkspace').then((m) => ({ default: m.EduWorkspace })),
+);
 
 export function AppShell({ projectName, conn }: { projectName: string; conn: ConnState }) {
   const viewMode = useUiStore((s) => s.viewMode);
@@ -51,6 +59,16 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
             <RfWorkspace />
           ) : viewMode === 'fiber' ? (
             <FiberWorkspace />
+          ) : viewMode === 'edu' ? (
+            <Suspense
+              fallback={
+                <div className="grid h-full place-items-center text-fg/50">
+                  <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                </div>
+              }
+            >
+              <EduWorkspace />
+            </Suspense>
           ) : (
             <>
               <div className="absolute inset-0">

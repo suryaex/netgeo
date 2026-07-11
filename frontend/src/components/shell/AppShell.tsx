@@ -26,6 +26,7 @@ import { ContextInspector } from '@/components/topology/ContextInspector';
 import { DevicePicker } from '@/components/topology/DevicePicker';
 import { CommandPalette } from '@/components/CommandPalette';
 import { SimulationDock } from '@/components/SimulationDock';
+import { TwinWorkspace } from '@/components/twin/TwinWorkspace';
 
 export function AppShell({ projectName, conn }: { projectName: string; conn: ConnState }) {
   const viewMode = useUiStore((s) => s.viewMode);
@@ -42,6 +43,8 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
         <main className="relative min-w-0 flex-1 overflow-hidden" aria-label="Workspace">
           {viewMode === 'map' ? (
             <MapView />
+          ) : viewMode === 'twin' ? (
+            <TwinWorkspace />
           ) : (
             <>
               <div className="absolute inset-0">

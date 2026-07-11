@@ -1,9 +1,9 @@
 /**
  * NavigationRail — 64px icon rail, the app's primary navigation (design §3.2).
- * Topology/Map switch the workspace view; Physical Plant/Labs/Diagnostics/
- * Settings open their floating windows. Modules without a workspace yet
- * (Projects, Digital Twin, RF, Fiber) are shown but disabled with a tooltip so
- * the rail reflects the full product map without dead/lying controls.
+ * Topology/Map/Digital Twin switch the workspace view; Physical Plant/Labs/
+ * Diagnostics/Settings open their floating windows. Modules without a workspace
+ * yet (Projects, RF, Fiber) are shown but disabled with a tooltip so the rail
+ * reflects the full product map without dead/lying controls.
  */
 import {
   FolderKanban,
@@ -27,7 +27,7 @@ type RailItem = {
   label: string;
   icon: LucideIcon;
 } & (
-  | { view: 'topology' | 'map' }
+  | { view: 'topology' | 'map' | 'twin' }
   | { window: WindowKind; title: string }
   | { soon: true }
 );
@@ -36,7 +36,7 @@ const ITEMS: RailItem[] = [
   { key: 'projects', label: 'Projects', icon: FolderKanban, soon: true },
   { key: 'topology', label: 'Topology', icon: Network, view: 'topology' },
   { key: 'map', label: 'Map', icon: MapIcon, view: 'map' },
-  { key: 'twin', label: 'Digital Twin', icon: Boxes, soon: true },
+  { key: 'twin', label: 'Digital Twin', icon: Boxes, view: 'twin' },
   { key: 'rf', label: 'RF Planning', icon: RadioTower, soon: true },
   { key: 'fiber', label: 'Fiber / FTTH', icon: Cable, soon: true },
   { key: 'plant', label: 'Physical Plant', icon: Server, window: 'racks', title: 'Rack Elevation' },

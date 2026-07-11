@@ -23,6 +23,7 @@ import type {
   Project,
   Rack,
   RackCreate,
+  ReachabilityResult,
   Scenario,
   SimulateRequest,
   Site,
@@ -294,6 +295,28 @@ export const educationApi = {
     a.click();
     URL.revokeObjectURL(url);
   },
+};
+
+/* ----------------------------- Digital twin ------------------------------ */
+/**
+ * Digital twin (NG-TW-01/02, backend `app/api/twin.py`). Import a device config
+ * into a real node; infer links across imported nodes (bulk, idempotent);
+ * answer "can src reach dst?" over the twin with path + RIB evidence.
+ * Per-proposal Accept/Reject is done client-side (see `twin/twinLogic.ts`) —
+ * there is no dry-run endpoint; accepting a proposal calls `linksApi.create`.
+ */
+export type ConfigVendor = 'ios' | 'routeros';
+export const twinApi = {
+  importConfig: (projectId: string, vendor: ConfigVendor, text: string) =>
+    http
+      .post<NodeModel>(`/projects/${projectId}/import-config`, { vendor, text })
+      .then((r) => r.data),
+  inferLinks: (projectId: string) =>
+    http.post<LinkModel[]>(`/projects/${projectId}/infer-links`).then((r) => r.data),
+  reachability: (projectId: string, src: string, dst: string, count?: number) =>
+    http
+      .post<ReachabilityResult>(`/projects/${projectId}/reachability`, { src, dst, count })
+      .then((r) => r.data),
 };
 
 /* ----------------------------- Simulation -------------------------------- */

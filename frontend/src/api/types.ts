@@ -398,6 +398,24 @@ export interface GradeResult {
   items: GradeItem[];
 }
 
+/* -------------------------------------------------------------------------- */
+/* Digital twin (NG-TW-01/02) — config import + reachability                    */
+/* -------------------------------------------------------------------------- */
+
+/** Answer to POST /projects/{id}/reachability (see reachability.answer). */
+export interface ReachabilityResult {
+  src: string;
+  dst: string;
+  dst_ip: string;
+  reachable: boolean;
+  loss_pct: number;
+  rtt_avg_ms: number | null;
+  /** Traceroute hop addresses (non-null); its length is the hop count. */
+  path: string[];
+  /** Matched RIB route on the source (IPv4 routers only), else null. */
+  route: Record<string, unknown> | null;
+}
+
 /** Simulation lifecycle. */
 export type SimState = 'idle' | 'running' | 'paused' | 'stepping';
 

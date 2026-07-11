@@ -119,6 +119,17 @@ class LfibEntry:
 
 
 @dataclass(slots=True)
+class AdjSidEntry:
+    """One SR adjacency-SID: pop the label and send out this specific L2
+    adjacency (NG-SIM-09). Written by SrProcess from the LDP-learned neighbor
+    table, read by :meth:`Router._mpls_forward`."""
+
+    out_iface: str
+    nh_mac: str
+    peer_router_id: str
+
+
+@dataclass(slots=True)
 class Vrf:
     """A VPN routing/forwarding instance: its own RIB, isolated from the
     global table and from every other VRF (NG-SIM-08)."""
@@ -273,6 +284,7 @@ class Router(L3Device):
         self.vrfs: dict[str, Vrf] = {}                # vrf name -> instance
         self.iface_vrf: dict[str, str] = {}           # iface name -> vrf name
         self.vpn_labels: dict[int, str] = {}          # my VPN label -> vrf name
+        self.sr_adj: dict[int, AdjSidEntry] = {}      # SR adjacency-SID -> egress
 
     # ----- route table management -------------------------------------------------
     def sync_connected_routes(self) -> None:
@@ -417,10 +429,11 @@ class Router(L3Device):
             self._mpls_forward(net, iface, payload)
             return
         if isinstance(payload, MPLS_L2_PDUS):
-            # LDP rides raw L2 (no IP), dispatched here like IS-IS. Pass the
+            # LDP + SR ride raw L2 (no IP), dispatched here like IS-IS. Pass the
             # whole frame so the process can learn the L2 next hop (src_mac).
+            # Each process ignores PDUs that aren't its own.
             for proc in self.processes:
-                if getattr(proc, "proto", "") == "ldp":
+                if getattr(proc, "proto", "") in ("ldp", "sr"):
                     proc.on_frame(net, iface, frame)
             return
         if isinstance(payload, ISIS_PDUS):
@@ -585,6 +598,23 @@ class Router(L3Device):
                 if mpls.inner is None:
                     return
                 self._vrf_deliver(net, mpls.inner, vrf_name)
+                return
+            adj = self.sr_adj.get(top)
+            if adj is not None:                 # SR adjacency-SID: pop, egress
+                labels.pop(0)                   # out this specific L2 adjacency
+                out = self.interfaces.get(adj.out_iface)
+                if out is None:
+                    net.record_drop("mpls_no_iface")
+                    return
+                out.transmit(
+                    net,
+                    EthernetFrame(
+                        src_mac=out.mac,
+                        dst_mac=adj.nh_mac,
+                        ethertype=ETH_MPLS,
+                        payload=MplsPacket(labels=labels, inner=mpls.inner),
+                    ),
+                )
                 return
             entry = self.lfib.get(top)
             if entry is None:
@@ -1034,6 +1064,12 @@ class Router(L3Device):
                 "out_iface": e.out_iface,
             })
         return rows
+
+    def sr_adj_rows(self) -> list[dict]:
+        return [
+            {"label": lbl, "peer": e.peer_router_id, "out_iface": e.out_iface}
+            for lbl, e in sorted(self.sr_adj.items())
+        ]
 
     def vrf_names(self) -> list[str]:
         return sorted(self.vrfs)

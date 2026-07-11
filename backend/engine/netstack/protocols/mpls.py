@@ -144,7 +144,13 @@ class LdpProcess:
 
     # ----- LFIB / FEC push table ---------------------------------------------
     def _rebuild(self) -> None:
-        lfib: dict[int, LfibEntry] = {}
+        # Preserve labels owned by other processes (e.g. SR node-SIDs, NG-SIM-09)
+        # — LDP only manages the labels it allocated (``self.local``), so a full
+        # rebuild must not wipe a sibling's disjoint-range entries.
+        mine = set(self.local.values())
+        lfib: dict[int, LfibEntry] = {
+            k: v for k, v in self.router.lfib.items() if k not in mine
+        }
         fec: dict[IPv4Network, LfibEntry] = {}
         for r in self.router.routes:
             p = r.prefix

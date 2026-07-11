@@ -96,7 +96,7 @@ export function MapToolbar() {
             className={cn(
               'grid h-10 w-10 place-items-center rounded-lg transition-all duration-fast',
               rainRate > 0
-                ? 'text-blue-300'
+                ? 'text-info'
                 : 'text-fg/40 hover:bg-fg/10 hover:text-fg/80',
             )}
             style={rainRate > 0 ? { background: 'rgba(59,130,246,0.15)' } : undefined}
@@ -111,7 +111,7 @@ export function MapToolbar() {
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-fg/50">
                   Rain Rate
                 </span>
-                <span className="font-mono text-xs text-blue-300">
+                <span className="font-mono text-xs text-info">
                   {rainRate === 0 ? 'Clear' : `${rainRate} mm/hr`}
                 </span>
               </div>

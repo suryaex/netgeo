@@ -62,6 +62,7 @@ import { MapLayerSwitcher } from './MapLayerSwitcher';
 import { MapSearch } from './MapSearch';
 import { GisLayerPanel } from './GisLayerPanel';
 import { ElevationProfilePanel } from './ElevationProfilePanel';
+import { RfBeamLayer } from './RfBeamLayer';
 import { DeviceLibraryModal } from './DeviceLibraryModal';
 import { Layers as LayersIcon, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -1167,7 +1168,7 @@ function GradientLegend() {
 /* -------------------------------------------------------------------------- */
 /* Main MapView                                                                */
 /* -------------------------------------------------------------------------- */
-export function MapView() {
+export function MapView({ rfMode = false }: { rfMode?: boolean } = {}) {
   const devices = useMapStore((s) => s.deviceList());
   const links = useMapStore((s) => s.linkList());
   const mapCenter = useMapStore((s) => s.mapCenter);
@@ -1231,23 +1232,29 @@ export function MapView() {
         {devices.map((dev) => (
           <DeviceMarker key={dev.id} device={dev} />
         ))}
+
+        {/* RF workspace: the PtP beam between the two chosen endpoints */}
+        {rfMode && <RfBeamLayer />}
       </MapContainer>
 
       {/* Overlay UI */}
       <MapSearch />
       <MapToolbar />
-      <MapDevicePanel />
-      <SignalLegend />
+      {/* RF mode owns the right dock + bottom bar, so suppress the generic map
+          chrome that would collide (device panel, signal legend, tool hint,
+          center-bottom elevation panel). */}
+      {!rfMode && <MapDevicePanel />}
+      {!rfMode && <SignalLegend />}
       {/* Signal-strength gradient only describes the RF coverage raster — show it
           only when that layer is on, so it doesn't float over the top bar/popovers. */}
       {coverageVisible && <GradientLegend />}
       <GisLayerToggle />
       <GisLayerPanel />
-      <ToolHint />
+      {!rfMode && <ToolHint />}
       <MapNotice />
       <WeatherBar />
       <MapLayerSwitcher />
-      <ElevationProfilePanel />
+      {!rfMode && <ElevationProfilePanel />}
 
       {/* First-run modal */}
       {showOnboarding && <MapOnboardingModal />}

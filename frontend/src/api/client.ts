@@ -558,9 +558,67 @@ export interface CoverageRasterResult {
   study_key: string;
   site_count: number;
 }
+/**
+ * PtP link planning (NG-RF-03). `models` lists the propagation registry; `ptp`
+ * runs a full link budget + terrain LoS/Fresnel verdict for one link. When
+ * `profile` is omitted the server fetches a real DEM profile and returns it, so
+ * the RF workspace gets the elevation chart from the same call. 422 on an
+ * unknown model / out-of-range frequency; 503 if the DEM provider is offline.
+ */
+export interface PropagationParam {
+  name: string;
+  default: unknown;
+  description?: string;
+  options?: string[];
+}
+export interface PropagationModelInfo {
+  id: string;
+  name: string;
+  freq_min_mhz: number;
+  freq_max_mhz: number;
+  dist_min_m: number;
+  dist_max_m: number;
+  params: PropagationParam[];
+  note?: string;
+}
+export interface PtpRequest {
+  a_lat: number;
+  a_lon: number;
+  b_lat: number;
+  b_lon: number;
+  freq_mhz: number;
+  tx_power_dbm?: number;
+  tx_gain_dbi?: number;
+  rx_gain_dbi?: number;
+  misc_loss_db?: number;
+  rx_sensitivity_dbm?: number;
+  tx_height_m?: number;
+  rx_height_m?: number;
+  model_id?: string;
+  params?: Record<string, unknown>;
+  samples?: number;
+  profile?: ElevationSample[] | null;
+}
+export interface PtpResult {
+  model_id: string;
+  distance_m: number;
+  eirp_dbm: number;
+  path_loss_db: number;
+  rssi_dbm: number;
+  fade_margin_db: number; // rssi − rx sensitivity
+  los_clear: boolean;
+  fresnel_clear: boolean;
+  worst_obstruction_m: number;
+  min_clearance_ratio: number;
+  verdict: string; // "clear" | "obstructed"
+  link_ok: boolean;
+  profile: ElevationProfile | null;
+}
 export const rfApi = {
   coverage: (body: CoverageRasterRequest) =>
     http.post<CoverageRasterResult>('/rf/coverage', body).then((r) => r.data),
+  models: () => http.get<PropagationModelInfo[]>('/rf/models').then((r) => r.data),
+  ptp: (body: PtpRequest) => http.post<PtpResult>('/rf/ptp', body).then((r) => r.data),
 };
 
 /* ----------------------------- Config-gen -------------------------------- */

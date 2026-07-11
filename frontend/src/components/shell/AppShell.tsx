@@ -27,6 +27,7 @@ import { DevicePicker } from '@/components/topology/DevicePicker';
 import { CommandPalette } from '@/components/CommandPalette';
 import { SimulationDock } from '@/components/SimulationDock';
 import { TwinWorkspace } from '@/components/twin/TwinWorkspace';
+import { RfWorkspace } from '@/components/rf/RfWorkspace';
 
 export function AppShell({ projectName, conn }: { projectName: string; conn: ConnState }) {
   const viewMode = useUiStore((s) => s.viewMode);
@@ -45,6 +46,8 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
             <MapView />
           ) : viewMode === 'twin' ? (
             <TwinWorkspace />
+          ) : viewMode === 'rf' ? (
+            <RfWorkspace />
           ) : (
             <>
               <div className="absolute inset-0">

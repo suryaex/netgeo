@@ -329,7 +329,11 @@ class MemoryRepository:
             path = self._fiber_paths.get(fid)
             if path is None:
                 raise NotFound(fid)
-            updated = path.model_copy(update={k: v for k, v in patch.items() if v is not None})
+            # model_copy skips validation → patched dicts would stay raw dicts
+            # and crash loss_budget; revalidate the merged path instead.
+            updated = FiberPath.model_validate(
+                {**path.model_dump(), **{k: v for k, v in patch.items() if v is not None}}
+            )
             self._fiber_paths[fid] = updated
             return updated
 

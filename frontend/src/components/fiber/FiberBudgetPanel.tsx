@@ -217,12 +217,20 @@ export function FiberBudgetPanel() {
       </div>
       {actErr && <p className="px-4 pb-2 text-[11px] text-danger">{actErr}</p>}
 
-      {bomOpen && <BomModal items={bom} onClose={() => setBomOpen(false)} />}
+      {bomOpen && <BomModal items={bom} error={actErr} onClose={() => setBomOpen(false)} />}
     </aside>
   );
 }
 
-function BomModal({ items, onClose }: { items: BomItem[] | null; onClose: () => void }) {
+function BomModal({
+  items,
+  error,
+  onClose,
+}: {
+  items: BomItem[] | null;
+  error: string | null;
+  onClose: () => void;
+}) {
   return (
     <div
       className="fixed inset-0 z-[2000] grid place-items-center bg-black/50 p-4"
@@ -247,7 +255,11 @@ function BomModal({ items, onClose }: { items: BomItem[] | null; onClose: () => 
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
-          {items === null ? (
+          {error ? (
+            <p className="flex items-center justify-center gap-1.5 py-10 text-xs text-danger">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {error}
+            </p>
+          ) : items === null ? (
             <div className="grid place-items-center gap-2 py-10 text-xs text-fg/55">
               <Loader2 className="h-5 w-5 animate-spin text-accent" /> Loading…
             </div>

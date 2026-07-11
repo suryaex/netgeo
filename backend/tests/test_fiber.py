@@ -100,3 +100,28 @@ async def test_fiber_crud_and_budget_endpoint(client):
 
 async def test_budget_unknown_path_404(client):
     assert (await client.get("/api/fiber-paths/ghost/budget")).status_code == 404
+
+
+async def test_patch_elements_then_budget_bom_report(client):
+    """Regression: PATCHed elements were stored as raw dicts (model_copy skips
+    validation), crashing budget/BOM/report with 500 (QA v1.2.019)."""
+    pid = await _project(client)
+    created = await client.post(
+        "/api/fiber-paths", json={"project_id": pid, "name": "ODP-1"}
+    )
+    fid = created.json()["id"]
+
+    # exact payload the frontend "+ Fiber" toolbar button sends
+    patched = await client.patch(
+        f"/api/fiber-paths/{fid}",
+        json={"elements": [{"kind": "fiber", "length_m": 1000, "atten_db_km": 0.22}]},
+    )
+    assert patched.status_code == 200, patched.text
+
+    budget = await client.get(f"/api/fiber-paths/{fid}/budget")
+    assert budget.status_code == 200, budget.text
+    assert abs(budget.json()["total_loss_db"] - 0.22) < 1e-6
+    assert budget.json()["total_length_m"] == 1000
+
+    assert (await client.get(f"/api/projects/{pid}/bom")).status_code == 200
+    assert (await client.get(f"/api/projects/{pid}/report")).status_code == 200

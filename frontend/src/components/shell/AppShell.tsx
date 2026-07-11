@@ -80,9 +80,11 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
             </>
           )}
 
-          {/* Secondary tools float over any workspace, launched from the Dock. */}
+          {/* Secondary tools float over any workspace, launched from the Dock.
+              Hidden in Twin: the ReachabilityBar owns the bottom edge there and
+              the fixed Dock (z-[1000]) covered it (QA v1.2.019). */}
           <WindowHost />
-          <Dock />
+          {viewMode !== 'twin' && <Dock />}
           {/* Simulation transport dock — only in Simulation mode (design §6.3). */}
           {simMode && <SimulationDock />}
         </main>

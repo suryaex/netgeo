@@ -43,14 +43,18 @@ export function FiberToolbar() {
 
   const [km, setKm] = useState(1.0);
   const [ratio, setRatio] = useState(8);
+  // Inline new-path naming (replaces window.prompt — QA v1.2.019): Enter commits,
+  // Escape/blur cancels; matches the toolbar's inline-field pattern.
+  const [newName, setNewName] = useState<string | null>(null);
 
   const visible = paths.filter((p) => !search || p.name.toLowerCase().includes(search));
   const hasPath = !!selected;
   const disabled = !hasPath || busy;
 
-  function newPath() {
-    const name = window.prompt('New fiber path name', `ODP-${paths.length + 1}`)?.trim();
+  function commitNewPath() {
+    const name = newName?.trim();
     if (name) void createPath(name, (selected?.gpon_class ?? 'c_plus') as GponClass);
+    setNewName(null);
   }
 
   return (
@@ -70,15 +74,31 @@ export function FiberToolbar() {
             </option>
           ))}
         </select>
-        <button
-          onClick={newPath}
-          disabled={!projectId || busy}
-          aria-label="New fiber path"
-          title="New fiber path"
-          className="grid h-6 w-6 place-items-center rounded text-fg/60 hover:bg-fg/10 hover:text-fg disabled:opacity-40"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
+        {newName !== null ? (
+          <input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitNewPath();
+              if (e.key === 'Escape') setNewName(null);
+            }}
+            onBlur={() => setNewName(null)}
+            aria-label="New fiber path name"
+            placeholder="Path name — Enter to create"
+            className="w-32 rounded-md border border-accent/50 bg-recess/60 px-2 py-1 text-xs text-fg/85 placeholder:text-fg/35 focus:outline-none"
+          />
+        ) : (
+          <button
+            onClick={() => setNewName(`ODP-${paths.length + 1}`)}
+            disabled={!projectId || busy}
+            aria-label="New fiber path"
+            title="New fiber path"
+            className="grid h-6 w-6 place-items-center rounded text-fg/60 hover:bg-fg/10 hover:text-fg disabled:opacity-40"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        )}
         <select
           aria-label="GPON class"
           value={selected?.gpon_class ?? 'c_plus'}

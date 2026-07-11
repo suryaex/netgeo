@@ -9,7 +9,7 @@ import type { SimState } from '@/api/types';
 
 const THEME_KEY = 'netgeo.theme';
 
-export type ViewMode = 'topology' | 'map' | 'twin' | 'rf';
+export type ViewMode = 'topology' | 'map' | 'twin' | 'rf' | 'fiber';
 
 function initialTheme(): ThemeMode {
   const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null;

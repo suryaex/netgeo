@@ -621,6 +621,78 @@ export const rfApi = {
   ptp: (body: PtpRequest) => http.post<PtpResult>('/rf/ptp', body).then((r) => r.data),
 };
 
+/* ------------------------------ Fiber / FTTH ----------------------------- */
+/**
+ * Fiber plant / FTTH (NG-FI-01/02/03, backend `app/api/fiber.py`). A `FiberPath`
+ * is a single ordered OLT→ONU chain of passive `FiberElement`s; `/budget` runs
+ * the loss budget + GPON checks server-side (`services/fiber.py` is authoritative
+ * — the client never recomputes loss). `bom`/`report` cover NG-FI-04 / NG-CFG-02.
+ */
+export type FiberKind = 'fiber' | 'splitter' | 'splice' | 'connector';
+export type GponClass = 'b_plus' | 'c_plus' | 'c2';
+
+export interface FiberElement {
+  kind: FiberKind;
+  length_m?: number; // fiber only
+  atten_db_km?: number; // fiber only (G.652 default 0.22)
+  split_ratio?: number; // splitter only (the N in 1:N)
+  loss_db?: number | null; // explicit override for any element
+  label?: string;
+}
+export interface FiberPath {
+  id: string;
+  project_id: string;
+  name: string;
+  gpon_class: GponClass;
+  elements: FiberElement[];
+}
+export interface FiberPathCreate {
+  project_id: string;
+  name: string;
+  gpon_class?: GponClass;
+  elements?: FiberElement[];
+}
+export interface FiberPathUpdate {
+  name?: string;
+  gpon_class?: GponClass;
+  elements?: FiberElement[];
+}
+export interface FiberCheck {
+  ok: boolean;
+  reason: string;
+}
+export interface LossBudget {
+  total_loss_db: number;
+  budget_db: number;
+  margin_db: number;
+  passed: boolean;
+  total_length_m: number;
+  total_split: number;
+  checks: FiberCheck[];
+}
+export interface BomItem {
+  category: string;
+  item: string;
+  qty: number;
+  unit: string;
+  notes: string;
+}
+export const fiberApi = {
+  list: (projectId: string) =>
+    http.get<FiberPath[]>('/fiber-paths', { params: { project_id: projectId } }).then((r) => r.data),
+  create: (body: FiberPathCreate) => http.post<FiberPath>('/fiber-paths', body).then((r) => r.data),
+  update: (id: string, patch: FiberPathUpdate) =>
+    http.patch<FiberPath>(`/fiber-paths/${id}`, patch).then((r) => r.data),
+  remove: (id: string) => http.delete(`/fiber-paths/${id}`).then((r) => r.data),
+  budget: (id: string) => http.get<LossBudget>(`/fiber-paths/${id}/budget`).then((r) => r.data),
+  bom: (projectId: string) =>
+    http.get<BomItem[]>(`/projects/${projectId}/bom`).then((r) => r.data),
+  // HTML report is auth-gated (Bearer header), so it must go through this client
+  // and be opened as a blob — a bare window.open would 401.
+  report: (projectId: string) =>
+    http.get<string>(`/projects/${projectId}/report`, { responseType: 'text' }).then((r) => r.data),
+};
+
 /* ----------------------------- Config-gen -------------------------------- */
 /** Unified diff of a node's stored config vs a freshly regenerated one (NG-CFG-03). */
 export interface ConfigDiff {

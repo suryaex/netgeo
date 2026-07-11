@@ -27,7 +27,7 @@ type RailItem = {
   label: string;
   icon: LucideIcon;
 } & (
-  | { view: 'topology' | 'map' | 'twin' | 'rf' }
+  | { view: 'topology' | 'map' | 'twin' | 'rf' | 'fiber' }
   | { window: WindowKind; title: string }
   | { soon: true }
 );
@@ -38,7 +38,7 @@ const ITEMS: RailItem[] = [
   { key: 'map', label: 'Map', icon: MapIcon, view: 'map' },
   { key: 'twin', label: 'Digital Twin', icon: Boxes, view: 'twin' },
   { key: 'rf', label: 'RF Planning', icon: RadioTower, view: 'rf' },
-  { key: 'fiber', label: 'Fiber / FTTH', icon: Cable, soon: true },
+  { key: 'fiber', label: 'Fiber / FTTH', icon: Cable, view: 'fiber' },
   { key: 'plant', label: 'Physical Plant', icon: Server, window: 'racks', title: 'Rack Elevation' },
   { key: 'labs', label: 'Labs', icon: FlaskConical, window: 'scenarios', title: 'Scenarios' },
   { key: 'diag', label: 'Diagnostics', icon: Activity, window: 'diagnostics', title: 'Diagnostics' },

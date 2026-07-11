@@ -28,6 +28,7 @@ import { CommandPalette } from '@/components/CommandPalette';
 import { SimulationDock } from '@/components/SimulationDock';
 import { TwinWorkspace } from '@/components/twin/TwinWorkspace';
 import { RfWorkspace } from '@/components/rf/RfWorkspace';
+import { FiberWorkspace } from '@/components/fiber/FiberWorkspace';
 
 export function AppShell({ projectName, conn }: { projectName: string; conn: ConnState }) {
   const viewMode = useUiStore((s) => s.viewMode);
@@ -48,6 +49,8 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
             <TwinWorkspace />
           ) : viewMode === 'rf' ? (
             <RfWorkspace />
+          ) : viewMode === 'fiber' ? (
+            <FiberWorkspace />
           ) : (
             <>
               <div className="absolute inset-0">

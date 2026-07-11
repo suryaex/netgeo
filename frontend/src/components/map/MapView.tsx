@@ -971,7 +971,7 @@ function SignalLegend() {
             <div className="my-1.5 border-t border-fg/10" />
             <div className="flex items-center gap-1.5">
               <span className="text-xs">🌧</span>
-              <span className="text-[10px] text-blue-300">
+              <span className="text-[10px] text-info">
                 {rainRateLabel(rainRate)} ({rainRate} mm/hr)
               </span>
             </div>

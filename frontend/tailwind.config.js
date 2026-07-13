@@ -39,15 +39,20 @@ export default {
         recess: 'rgb(var(--ng-recess-rgb) / <alpha-value>)',
         primary: {
           DEFAULT: 'var(--ng-primary)',
-          fg: '#FFFFFF',
+          // On the sky primary (#38BDF8) white text fails contrast (2.1:1); the
+          // paired foreground is near-black ink (9.8:1). See accent.fg.
+          fg: '#07111F',
         },
         secondary: { DEFAULT: 'var(--ng-secondary)', fg: '#FFFFFF' },
 
-        // --- Static brand palette (NetGeo geospatial blue) -------------------
+        // --- Static brand palette (NetGeo sky primary, design.md §2.2) -------
         accent: {
-          DEFAULT: '#2F6BFF',
-          soft: '#5C8AFF',
-          dark: '#1E4FCB',
+          DEFAULT: '#38BDF8', // sky-400 — design.md "Primary"
+          soft: '#7DD3FC', // sky-300 — hover
+          dark: '#0284C7', // sky-600 — design.md "Primary strong"
+          // On-accent foreground: dark ink stays legible on the bright sky fill
+          // (white would be 2.1:1). Consumers pair `bg-accent text-accent-fg`.
+          fg: '#07111F',
         },
         success: { DEFAULT: '#27C28B', dark: '#15805C' },
         warning: { DEFAULT: '#F5A623', dark: '#9E6300' },
@@ -69,11 +74,14 @@ export default {
           server: '#27B5C2',
         },
       },
+      // Crisp technical-tool corners (design.md §2.1: 8-10px controls,
+      // 10-14px panels; Stitch lg=8 / xl=12). Tightened from the softer
+      // 18/24 so cards (rounded-lg) sit at 8px and panels (rounded-xl) at 12px.
       borderRadius: {
-        sm: '8px',
-        md: '12px',
-        lg: '18px',
-        xl: '24px',
+        sm: '4px',
+        md: '6px',
+        lg: '8px',
+        xl: '12px',
       },
       backdropBlur: {
         12: '12px',
@@ -105,11 +113,18 @@ export default {
           from: { opacity: '0', transform: 'translateY(12px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        // Live-simulation heartbeat for the transport play/pause button
+        // (Stitch sim-active-pulse). Amber ring pulse, no layout shift.
+        'sim-pulse': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(245,166,35,0.55)' },
+          '50%': { boxShadow: '0 0 0 6px rgba(245,166,35,0)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 180ms ease-out',
         'scale-in': 'scale-in 180ms ease-out',
         'slide-up': 'slide-up 200ms ease-out',
+        'sim-pulse': 'sim-pulse 1.4s ease-out infinite',
       },
     },
   },

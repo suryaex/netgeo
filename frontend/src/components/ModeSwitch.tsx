@@ -80,7 +80,7 @@ function ModeButton({
       aria-pressed={active}
       className={cn(
         'flex items-center gap-1.5 rounded px-2 py-1 text-xs transition-colors',
-        active ? 'bg-accent text-fg' : 'text-fg/50 hover:text-fg/80',
+        active ? 'bg-accent text-accent-fg' : 'text-fg/50 hover:text-fg/80',
       )}
     >
       <Icon className="h-3.5 w-3.5" />

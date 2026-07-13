@@ -30,7 +30,7 @@ export function WorkspaceEmptyState({
         {action && (
           <button
             onClick={action.onClick}
-            className="pointer-events-auto rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-fg hover:bg-accent-soft"
+            className="pointer-events-auto rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-soft"
           >
             {action.label}
           </button>

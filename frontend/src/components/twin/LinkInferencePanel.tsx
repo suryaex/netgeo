@@ -116,7 +116,7 @@ export function LinkInferencePanel({
                     <button
                       onClick={() => accept.mutate(p)}
                       disabled={accept.isPending}
-                      className="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent px-2 py-1.5 text-xs font-semibold text-fg transition-colors hover:bg-accent-soft disabled:opacity-40"
+                      className="flex flex-1 items-center justify-center gap-1 rounded-md bg-accent px-2 py-1.5 text-xs font-semibold text-accent-fg transition-colors hover:bg-accent-soft disabled:opacity-40"
                     >
                       {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                       Accept

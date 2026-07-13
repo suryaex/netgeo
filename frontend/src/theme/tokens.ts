@@ -22,7 +22,7 @@ export const THEME_ORDER: ThemeMode[] = ['dark', 'light', 'high-contrast'];
  * neutral ramp + surface tokens are theme-dependent (see THEMES below).
  */
 export const semantic = {
-  primary: '#2F6BFF', // NetGeo geospatial blue
+  primary: '#38BDF8', // NetGeo sky primary (design.md §2.2)
   secondary: '#7C5CFC', // violet — AI / planning
   success: '#27C28B',
   warning: '#F5A623',
@@ -62,7 +62,7 @@ type ThemeVars = Record<string, string>;
 
 const THEMES: Record<ThemeMode, ThemeVars> = {
   dark: {
-    '--ng-bg-0': '#0B0E16',
+    '--ng-bg-0': '#07111F', // design.md §2.2 App background
     '--ng-bg-1': '#11151F',
     '--ng-surface': 'rgba(20,25,36,0.72)',
     '--ng-surface-2': 'rgba(28,34,48,0.72)',
@@ -109,7 +109,9 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-glass-bg': 'rgba(247,249,252,0.78)',
     '--ng-glass-border': 'rgba(15,23,42,0.14)',
     '--ng-elevate': '0 12px 36px rgba(15,23,42,0.14)',
-    '--ng-primary': '#1E5BFF',
+    // Deep sky (not the bright dark-mode #38BDF8) so the focus ring / handle
+    // keeps >=3:1 against light surfaces while staying in the sky family.
+    '--ng-primary': '#0369A1',
     '--ng-secondary': '#6B45F5',
     '--ng-success': '#159E6E',
     '--ng-warning': '#D98410',

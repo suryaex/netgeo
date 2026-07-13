@@ -157,7 +157,7 @@ export function OnboardingModal({ onClose }: OnboardingModalProps) {
           {isLast ? (
             <button
               onClick={onClose}
-              className="flex items-center gap-1.5 rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-fg transition-colors hover:bg-accent-soft"
+              className="flex items-center gap-1.5 rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-soft"
             >
               Get started
             </button>

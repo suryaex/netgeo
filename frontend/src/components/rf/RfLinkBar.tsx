@@ -181,7 +181,7 @@ export function RfLinkBar() {
         <button
           onClick={() => void calculate()}
           disabled={!canCalc}
-          className="ml-1 inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-fg transition-colors hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
+          className="ml-1 inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-fg transition-colors hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loading ? <Radio className="h-3.5 w-3.5 animate-pulse" /> : <ArrowRight className="h-3.5 w-3.5" />}
           Calculate

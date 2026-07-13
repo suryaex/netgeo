@@ -203,7 +203,7 @@ export function UpdatesButton() {
               <button
                 onClick={() => void apply()}
                 disabled={busy || info?.can_apply === false}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-accent px-3 py-1.5 font-medium text-fg disabled:opacity-50"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-accent px-3 py-1.5 font-medium text-accent-fg disabled:opacity-50"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Update &amp; restart

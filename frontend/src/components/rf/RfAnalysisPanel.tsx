@@ -326,7 +326,7 @@ function EmptyState({ endpointCount }: { endpointCount: number }) {
           </p>
           <button
             onClick={() => setTool('ap')}
-            className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-fg hover:bg-accent-soft"
+            className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-soft"
           >
             Place an AP site
           </button>

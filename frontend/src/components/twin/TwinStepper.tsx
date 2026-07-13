@@ -37,7 +37,7 @@ export function TwinStepper({
                   className={cn(
                     'grid h-4 w-4 place-items-center rounded-full text-[9px] font-bold',
                     done && 'bg-success/25 text-success',
-                    active && 'bg-accent text-fg',
+                    active && 'bg-accent text-accent-fg',
                     !active && !done && 'bg-fg/10 text-fg/50',
                   )}
                   aria-hidden

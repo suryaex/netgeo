@@ -63,7 +63,7 @@ export function MapToolbar() {
           >
             <Icon className="h-5 w-5" />
             {/* Tooltip */}
-            <span className="pointer-events-none absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-black/85 px-2 py-1 text-[11px] text-white/90 opacity-0 shadow transition-opacity group-hover:opacity-100">
+            <span className="pointer-events-none absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border border-hairline bg-panel-2 px-2 py-1 text-[11px] text-fg/90 opacity-0 shadow transition-opacity group-hover:opacity-100">
               {label}
             </span>
           </button>

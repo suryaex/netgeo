@@ -321,7 +321,7 @@ function UploadIsoForm({ onDone }: { onDone: () => void }) {
       <button
         type="submit"
         disabled={!file || upload.isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
         {upload.isPending ? 'Uploading…' : 'Upload & Register'}
@@ -381,7 +381,7 @@ function DockerForm({ onDone }: { onDone: () => void }) {
       <button
         type="submit"
         disabled={!image.trim() || create.isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Container className="h-4 w-4" />}
         Add Docker Device
@@ -457,7 +457,7 @@ function ManualForm({ onDone }: { onDone: () => void }) {
       <button
         type="submit"
         disabled={!name.trim() || create.isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
         Create Device Type

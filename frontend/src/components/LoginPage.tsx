@@ -94,9 +94,9 @@ export function LoginPage() {
           <div className="border-b border-fg/10 px-8 pb-6 pt-8 text-center">
             <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-accent shadow-lg shadow-accent/40">
               {isSetup ? (
-                <ShieldCheck className="h-7 w-7 text-fg" />
+                <ShieldCheck className="h-7 w-7 text-accent-fg" />
               ) : (
-                <Network className="h-7 w-7 text-fg" />
+                <Network className="h-7 w-7 text-accent-fg" />
               )}
             </div>
             <h1 className="text-xl font-semibold text-fg">NetGeo</h1>
@@ -208,7 +208,7 @@ export function LoginPage() {
               type="submit"
               disabled={submitDisabled}
               className={cn(
-                'flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold text-fg transition-all',
+                'flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold text-accent-fg transition-all',
                 submitDisabled
                   ? 'cursor-not-allowed bg-accent/50'
                   : 'bg-accent hover:bg-accent-soft active:scale-[0.98]',

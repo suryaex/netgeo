@@ -261,7 +261,7 @@ function NosSection() {
               onClick={handleAdd}
               disabled={!formLabel.trim()}
               className={cn(
-                'rounded-md px-4 py-1.5 text-sm font-medium text-fg transition-colors',
+                'rounded-md px-4 py-1.5 text-sm font-medium text-accent-fg transition-colors',
                 formLabel.trim()
                   ? 'bg-accent hover:bg-accent-soft'
                   : 'cursor-not-allowed bg-accent/40',
@@ -675,7 +675,7 @@ function ChangePasswordForm() {
           type="submit"
           disabled={disabled}
           className={cn(
-            'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-fg transition-all',
+            'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-accent-fg transition-all',
             disabled
               ? 'cursor-not-allowed bg-accent/40'
               : 'bg-accent hover:bg-accent-soft active:scale-[0.98]',

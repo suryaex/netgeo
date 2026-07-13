@@ -142,7 +142,7 @@ export function ImportConfigModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={() => m.mutate()}
               disabled={!text.trim() || !projectId || m.isPending}
-              className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-xs font-semibold text-fg transition-colors hover:bg-accent-soft disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-xs font-semibold text-accent-fg transition-colors hover:bg-accent-soft disabled:opacity-40"
             >
               {m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Import

@@ -111,7 +111,14 @@ export function SimulationDock() {
           aria-label={playing ? 'Pause' : 'Play'}
           aria-pressed={playing}
           title={playing ? 'Pause' : 'Play'}
-          className="mx-0.5 grid h-9 w-9 place-items-center rounded-full bg-accent text-fg shadow-glass transition-transform hover:scale-105 disabled:opacity-50"
+          className={cn(
+            'mx-0.5 grid h-9 w-9 place-items-center rounded-full shadow-glass transition-transform hover:scale-105 disabled:opacity-50',
+            // Live playback = amber heartbeat (Stitch sim-active-pulse); idle =
+            // sky primary. motion-reduce keeps the color state, drops the pulse.
+            playing
+              ? 'animate-sim-pulse bg-warning text-recess motion-reduce:animate-none'
+              : 'bg-accent text-accent-fg',
+          )}
         >
           {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </button>

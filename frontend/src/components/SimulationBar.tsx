@@ -83,7 +83,7 @@ function CtrlButton({
       title={label}
       className={cn(
         'grid h-7 w-7 place-items-center rounded transition-colors',
-        active ? 'bg-accent text-fg' : 'text-fg/80 hover:bg-fg/10',
+        active ? 'bg-accent text-accent-fg' : 'text-fg/80 hover:bg-fg/10',
       )}
     >
       {children}

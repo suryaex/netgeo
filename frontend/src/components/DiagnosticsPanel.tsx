@@ -67,7 +67,7 @@ function TabButton({
       onClick={onClick}
       className={cn(
         'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors',
-        active ? 'bg-accent text-fg' : 'text-fg/55 hover:bg-fg/8 hover:text-fg/85',
+        active ? 'bg-accent text-accent-fg' : 'text-fg/55 hover:bg-fg/8 hover:text-fg/85',
       )}
     >
       <Icon className="h-3.5 w-3.5" />
@@ -144,7 +144,7 @@ function SrcDstRow({
           'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
           !src || !dst || running
             ? 'bg-fg/10 text-fg/35'
-            : 'bg-accent text-fg hover:bg-accent/85',
+            : 'bg-accent text-accent-fg hover:bg-accent/85',
         )}
       >
         {running ? 'Running…' : runLabel}
@@ -320,7 +320,7 @@ function CaptureTool() {
         </button>
         <button
           onClick={() => void labApi.downloadPcapng(projectId!, linkId || undefined)}
-          className="rounded-md bg-accent/80 px-2 py-1.5 text-xs font-medium text-fg hover:bg-accent"
+          className="rounded-md bg-accent/80 px-2 py-1.5 text-xs font-medium text-accent-fg hover:bg-accent"
           title="Download as .pcapng — opens in Wireshark"
         >
           .pcapng

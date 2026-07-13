@@ -68,7 +68,7 @@ export function ActivityListPanel() {
           </button>
           <button
             onClick={() => selectForAuthor(null)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1.5 text-xs font-semibold text-fg hover:bg-accent-soft"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-soft"
           >
             <Plus className="h-3.5 w-3.5" />
             New activity
@@ -116,7 +116,7 @@ export function ActivityListPanel() {
             </p>
             <button
               onClick={() => selectForAuthor(null)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-fg hover:bg-accent-soft"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-soft"
             >
               <Plus className="h-3.5 w-3.5" />
               New activity

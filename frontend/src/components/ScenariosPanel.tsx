@@ -43,7 +43,7 @@ export function ScenariosPanel() {
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium text-fg/90">{sc.name}</h4>
             <button
-              className="flex items-center gap-1 rounded bg-accent px-2 py-1 text-xs text-fg hover:bg-accent-soft"
+              className="flex items-center gap-1 rounded bg-accent px-2 py-1 text-xs text-accent-fg hover:bg-accent-soft"
               aria-label={`Run scenario ${sc.name}`}
             >
               <Play className="h-3 w-3" /> Run

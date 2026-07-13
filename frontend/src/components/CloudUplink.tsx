@@ -126,7 +126,7 @@ export function CloudUplink({
               onClick={() => selected && setUplink({ adapter: selected, mode: m })}
               disabled={!selected}
               className={`flex-1 rounded px-2 py-1 text-xs uppercase ${
-                uplink?.mode === m ? 'bg-accent text-fg' : 'text-fg/60'
+                uplink?.mode === m ? 'bg-accent text-accent-fg' : 'text-fg/60'
               } disabled:opacity-40`}
             >
               {m}

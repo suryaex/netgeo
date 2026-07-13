@@ -22,7 +22,7 @@ body {
   background: radial-gradient(
       130% 130% at 10% 0%,
       var(--ng-bg-1, #11151f) 0%,
-      var(--ng-bg-0, #0b0e16) 62%
+      var(--ng-bg-0, #07111f) 62%
     )
     fixed;
   -webkit-font-smoothing: antialiased;
@@ -86,7 +86,7 @@ html.hc *:focus-visible {
 
 /* Visible keyboard focus everywhere (accessibility). */
 :focus-visible {
-  outline: 2px solid var(--ng-primary, #2f6bff);
+  outline: 2px solid var(--ng-primary, #38bdf8);
   outline-offset: 1px;
 }
 
@@ -111,7 +111,7 @@ html.hc *:focus-visible {
   width: 9px;
   height: 9px;
   border: 2px solid rgba(255, 255, 255, 0.7);
-  background: var(--ng-primary, #2f6bff);
+  background: var(--ng-primary, #38bdf8);
 }
 .react-flow__controls {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);

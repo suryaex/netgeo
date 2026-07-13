@@ -63,7 +63,7 @@ export function ReachabilityBar({ nodes }: { nodes: NodeModel[] }) {
         <button
           onClick={run}
           disabled={!canRun}
-          className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-fg transition-colors hover:bg-accent-soft disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg transition-colors hover:bg-accent-soft disabled:opacity-40"
         >
           {q.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Radar className="h-3.5 w-3.5" />}
           Analyze

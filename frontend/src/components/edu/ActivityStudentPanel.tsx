@@ -231,7 +231,7 @@ export function ActivityStudentPanel() {
             <button
               onClick={() => void instantiate(selectedId!)}
               disabled={saving}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-fg hover:bg-accent-soft disabled:opacity-40"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-soft disabled:opacity-40"
             >
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
               Start attempt
@@ -250,7 +250,7 @@ export function ActivityStudentPanel() {
                 <button
                   onClick={() => void instantiate(selectedId!)}
                   disabled={saving}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-fg hover:bg-accent-soft disabled:opacity-40"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-soft disabled:opacity-40"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   New attempt
@@ -259,7 +259,7 @@ export function ActivityStudentPanel() {
                 <button
                   onClick={onSubmit}
                   disabled={saving}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-fg hover:bg-accent-soft disabled:opacity-40"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg hover:bg-accent-soft disabled:opacity-40"
                 >
                   <Send className="h-3.5 w-3.5" />
                   Submit

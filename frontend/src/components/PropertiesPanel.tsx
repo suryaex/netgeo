@@ -11,6 +11,7 @@ import { useNosStore } from '@/store/nosStore';
 import { useUiStore } from '@/store/uiStore';
 import { nodesApi, configsApi } from '@/api/client';
 import { CloudUplink } from '@/components/CloudUplink';
+import { semantic } from '@/theme/tokens';
 import type { NodeMode, Nos } from '@/api/types';
 
 const BUILTIN_NOS: { value: string; label: string }[] = [
@@ -27,12 +28,14 @@ const BUILTIN_NOS: { value: string; label: string }[] = [
   { value: 'vrp', label: 'Huawei VRP' },
 ];
 
-/** Status color mapping */
+// Status → brand token (design tokens, not the old iOS palette). Hex values so
+// the inline `${statusColor}20` alpha suffix stays valid; the neutral "stopped"
+// reuses the app's ink.muted / node.host grey.
 const STATUS_COLORS: Record<string, string> = {
-  running: '#34C759',
-  booting: '#FF9F0A',
-  stopped: '#8E8E93',
-  error: '#FF453A',
+  running: semantic.success,
+  booting: semantic.warning,
+  stopped: '#8A93A6',
+  error: semantic.danger,
 };
 
 export function PropertiesPanel() {
@@ -72,7 +75,7 @@ export function PropertiesPanel() {
   // per-node node.status events — so we derive the effective status here.
   const effectiveStatus =
     simState === 'running' || simState === 'paused' ? 'running' : node.status;
-  const statusColor = STATUS_COLORS[effectiveStatus] ?? '#8E8E93';
+  const statusColor = STATUS_COLORS[effectiveStatus] ?? '#8A93A6';
 
   // Combine built-in + custom NOS options.
   const nosOptions = [
@@ -144,7 +147,7 @@ export function PropertiesPanel() {
                 onClick={() => patch({ mode: m })}
                 className={`flex-1 rounded px-2 py-1 text-xs uppercase transition-colors ${
                   node.mode === m
-                    ? 'bg-accent text-fg'
+                    ? 'bg-accent text-accent-fg'
                     : 'text-fg/50 hover:text-fg/80'
                 }`}
               >
@@ -198,7 +201,7 @@ export function PropertiesPanel() {
           onClick={() =>
             void configsApi.generate(node.id, node.nos).then(() => openDrawer('config'))
           }
-          className="flex flex-1 items-center justify-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-medium text-fg transition-colors hover:bg-accent-soft"
+          className="flex flex-1 items-center justify-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-soft"
         >
           <RefreshCw className="h-4 w-4" />
           Generate config

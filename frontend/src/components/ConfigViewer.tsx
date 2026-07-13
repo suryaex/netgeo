@@ -69,7 +69,7 @@ export function ConfigViewer() {
               onClick={() => setActive(i)}
               className={cn(
                 'shrink-0 rounded-md px-2 py-1 text-xs',
-                i === active ? 'bg-accent text-fg' : 'bg-fg/5 text-fg/60 hover:bg-fg/10',
+                i === active ? 'bg-accent text-accent-fg' : 'bg-fg/5 text-fg/60 hover:bg-fg/10',
               )}
             >
               {a.vendor} · {a.format}

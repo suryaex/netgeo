@@ -13,10 +13,16 @@ fi
 
 ping -c1 -W3 "$HOST" >/dev/null || { echo "host $HOST unreachable" >&2; exit 1; }
 
+# No key auth on the host; the account password doubles as the sudo password.
+# sshpass -e reads SSHPASS from env so it never appears in argv.
+export SSHPASS="$NETGEO_SUDO_PW"
+SSH="sshpass -e ssh -o StrictHostKeyChecking=accept-new"
+SCP="sshpass -e scp -o StrictHostKeyChecking=accept-new"
+
 BUNDLE="$(mktemp /tmp/netgeo-XXXXXX.bundle)"
 trap 'rm -f "$BUNDLE"' EXIT
 git -C "$REPO" bundle create "$BUNDLE" main
-scp -q "$BUNDLE" "${SSH_USER}@${HOST}:/tmp/netgeo.bundle"
+$SCP -q "$BUNDLE" "${SSH_USER}@${HOST}:/tmp/netgeo.bundle"
 
 # Password rides stdin (never argv/disk). sudo_() feeds it to sudo -S per call.
 {
@@ -40,4 +46,4 @@ sleep 5
 echo "HEAD: $(git log --oneline -1)"
 curl -fsS http://127.0.0.1:8090/api/health && echo
 EOF
-} | ssh "${SSH_USER}@${HOST}" bash
+} | $SSH "${SSH_USER}@${HOST}" bash

@@ -53,6 +53,12 @@ const ProblemsWorkspace = lazy(() =>
   import('@/components/problems/ProblemsWorkspace').then((m) => ({ default: m.ProblemsWorkspace })),
 );
 
+// Reports Center — BOM + project report documents. Lazy: it only fetches the
+// report/BOM slices when the operator opens it.
+const ReportsWorkspace = lazy(() =>
+  import('@/components/reports/ReportsWorkspace').then((m) => ({ default: m.ReportsWorkspace })),
+);
+
 export function AppShell({ projectName, conn }: { projectName: string; conn: ConnState }) {
   const viewMode = useUiStore((s) => s.viewMode);
   const simMode = useLabStore((s) => s.mode) === 'simulation';
@@ -106,6 +112,16 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
               }
             >
               <ProblemsWorkspace />
+            </Suspense>
+          ) : viewMode === 'reports' ? (
+            <Suspense
+              fallback={
+                <div className="grid h-full place-items-center text-fg/50">
+                  <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                </div>
+              }
+            >
+              <ReportsWorkspace />
             </Suspense>
           ) : viewMode === 'edu' ? (
             <Suspense

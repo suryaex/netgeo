@@ -40,13 +40,13 @@ export default {
         primary: { DEFAULT: 'var(--ng-primary)', fg: 'var(--ng-accent-fg)' },
         secondary: { DEFAULT: 'var(--ng-secondary)', fg: 'var(--ng-accent-fg)' },
 
-        // --- Dual-personality accent (theme-aware, CSS-variable backed) -------
-        // Dark = macOS Tahoe Apple blue, Light = Anthropic clay terracotta.
+        // --- Anthropic clay accent (theme-aware, CSS-variable backed) --------
+        // Coral terracotta in both themes: deep #A84B2A in light, #D97757 in dark.
         // Channel form so `bg-accent/NN` alpha modifiers still resolve. All
         // ~45 accent consumers re-skin per theme with no per-file changes.
         accent: {
           DEFAULT: 'rgb(var(--ng-accent-rgb) / <alpha-value>)',
-          soft: 'var(--ng-accent-soft)', // hover / soft fill (brand coral in light)
+          soft: 'var(--ng-accent-soft)', // hover / soft fill (brand coral)
           // On-accent foreground: ink in dark, white in light. Pair
           // `bg-accent text-accent-fg`.
           fg: 'var(--ng-accent-fg)',

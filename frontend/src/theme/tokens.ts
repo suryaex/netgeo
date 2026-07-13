@@ -22,11 +22,11 @@ export const THEME_ORDER: ThemeMode[] = ['dark', 'light', 'high-contrast'];
  * neutral ramp + surface tokens are theme-dependent (see THEMES below).
  */
 export const semantic = {
-  // Dual-personality accent (user pick 2026-07-13): dark = macOS Tahoe Apple
-  // blue, light = Anthropic clay terracotta. Per-theme values live in THEMES
-  // below; these defaults mirror the dark (macOS Tahoe) theme.
-  primary: '#409CFF', // Apple systemBlue, brightened so it reads as text on navy AND carries ink on fills (AA)
-  secondary: '#5AC8FA', // Apple teal — AI / planning, distinct from the blue primary
+  // Full Clay Anthropic across both themes (user pick 2026-07-13): coral
+  // terracotta primary + warm teal secondary. Per-theme values live in THEMES
+  // below; these defaults mirror the dark (warm charcoal) theme.
+  primary: '#D97757', // Anthropic coral — AA as text on charcoal (5.3:1) AND carries ink on fills (5.9:1)
+  secondary: '#3BAFBF', // warm teal — AI / planning, legible on charcoal (6.4:1)
   success: '#27C28B',
   warning: '#F5A623',
   danger: '#FF4D4F',
@@ -65,32 +65,34 @@ type ThemeVars = Record<string, string>;
 
 const THEMES: Record<ThemeMode, ThemeVars> = {
   dark: {
-    '--ng-bg-0': '#07111F', // design.md §2.2 App background
-    '--ng-bg-1': '#11151F',
-    '--ng-surface': 'rgba(20,25,36,0.72)',
-    '--ng-surface-2': 'rgba(28,34,48,0.72)',
-    '--ng-panel': '#141925',
-    '--ng-panel-2': '#1B2030',
-    '--ng-border': 'rgba(255,255,255,0.08)',
-    '--ng-border-strong': 'rgba(255,255,255,0.16)',
-    '--ng-fg': '#EDF0F7',
-    '--ng-fg-muted': '#9AA3B5',
-    '--ng-fg-subtle': '#5C6577',
+    // Full Clay Anthropic dark (user pick 2026-07-13): warm charcoal ink, NOT
+    // navy/blue. Three layers read as layers — ground (darkest) < surface <
+    // elevated. Warm charcoal keeps the coral accent feeling native, not glued on.
+    '--ng-bg-0': '#0F0F0E', // warm ink ground (darkest layer, gradient outer)
+    '--ng-bg-1': '#141413', // app background (gradient center highlight)
+    '--ng-surface': 'rgba(31,30,29,0.72)', // #1F1E1D glass surface
+    '--ng-surface-2': 'rgba(38,37,36,0.72)', // #262524 elevated glass
+    '--ng-panel': '#1F1E1D', // docked panels — warm charcoal
+    '--ng-panel-2': '#262524', // elevated panel
+    '--ng-border': 'rgba(250,249,245,0.12)',
+    '--ng-border-strong': 'rgba(250,249,245,0.20)',
+    '--ng-fg': '#FAF9F5', // ivory (17.5:1 on app bg)
+    '--ng-fg-muted': '#A8A49C', // warm grey (6.7:1 on surface)
+    '--ng-fg-subtle': '#847E75', // faint warm grey (4.6:1 on app bg)
     // Alpha-capable channels for the theme-aware `fg`/`recess` Tailwind aliases
     // (replace hardcoded text-white/border-white/bg-white and bg-black wells).
-    // Dark keeps pure white/black so `text-fg/NN` is pixel-identical to the old
-    // `text-white/NN`; light inverts to ink/slate so the same class stays legible.
-    '--ng-fg-rgb': '255 255 255',
-    '--ng-recess-rgb': '0 0 0',
-    '--ng-glass-bg': 'rgba(20,25,36,0.62)',
-    '--ng-glass-border': 'rgba(255,255,255,0.08)',
-    '--ng-elevate': '0 16px 50px rgba(0,0,0,0.45)',
-    // Accent = macOS Tahoe Apple blue. Bright enough to read as text on navy
-    // (6.2:1 on panel) and to carry near-black ink on fills (6.7:1) — one token
-    // serves text, icons, and button fills. Channels power `bg-accent/NN` alpha.
-    '--ng-accent-rgb': '64 156 255', // #409CFF
-    '--ng-accent-soft': '#64B5FF', // lighter hover fill
-    '--ng-accent-fg': '#07111F', // near-black ink on the bright accent fill
+    // Dark uses ivory/warm-ink so `text-fg/NN` stays warm; light inverts to ink.
+    '--ng-fg-rgb': '250 249 245', // ivory
+    '--ng-recess-rgb': '15 15 14', // warm near-black recessed wells
+    '--ng-glass-bg': 'rgba(31,30,29,0.62)',
+    '--ng-glass-border': 'rgba(250,249,245,0.10)',
+    '--ng-elevate': '0 16px 50px rgba(0,0,0,0.55)', // soft warm-charcoal drop
+    // Accent = Anthropic coral #D97757. One token serves both roles: reads as
+    // text/link on charcoal (5.3:1 on surface, AA) AND carries warm ink on the
+    // coral fill (5.9:1). Channels power `bg-accent/NN` alpha modifiers.
+    '--ng-accent-rgb': '217 119 87', // #D97757
+    '--ng-accent-soft': '#E08B66', // lighter coral — hover fill
+    '--ng-accent-fg': '#141413', // warm ink on the coral fill
     '--ng-primary': semantic.primary,
     '--ng-secondary': semantic.secondary,
     '--ng-success': semantic.success,

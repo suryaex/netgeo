@@ -241,6 +241,29 @@ async def test_auto_address_wizard_makes_topology_pingable(client):
     assert (h1_node["intent"] or {}).get("gateway6", "").startswith("fd00:")
 
 
+async def test_auto_address_dry_run_previews_without_persisting(client):
+    """The wizard Preview step (dry_run) returns the plan but must not touch
+    node addressing."""
+    pid = await _mk_project(client)
+    r1 = await _mk_node(client, pid, "r1", "router")
+    sw = await _mk_node(client, pid, "sw", "switch")
+    h1 = await _mk_node(client, pid, "h1", "host")
+    await _mk_link(client, pid, r1["id"], sw["id"])
+    await _mk_link(client, pid, h1["id"], sw["id"])
+
+    resp = await client.post(f"/api/lab/{pid}/auto-address?dry_run=true")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["dry_run"] is True
+    plan = body["plan"]
+    assert plan["assignments"] and plan["assignments6"]  # dual-stack plan present
+
+    # State is untouched: no interface got an IP from the preview.
+    for nid in (r1["id"], h1["id"]):
+        node = (await client.get(f"/api/nodes/{nid}")).json()
+        assert all(not i["ip"] for i in node["interfaces"])
+
+
 async def test_lab_endpoints_require_auth(anon_client):
     resp = await anon_client.post(
         "/api/lab/some-project/ping", json={"src": "a", "dst": "b"}

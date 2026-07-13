@@ -52,6 +52,15 @@ export interface Interface {
   peer_link_id: string | null;
 }
 
+/** Auto-addressing plan (POST /lab/{id}/auto-address). Keyed node_id -> iface_id
+ *  -> CIDR. The wizard's Preview reads the dry-run form of this. */
+export interface AddressingPlan {
+  assignments: Record<string, Record<string, string>>;
+  assignments6: Record<string, Record<string, string>>;
+  gateways: Record<string, string>;
+  gateways6: Record<string, string>;
+}
+
 /** Where a cloud node attaches to the real world. Persisted in `intent.uplink`. */
 export type UplinkMode = 'nat' | 'bridge';
 export interface Uplink {

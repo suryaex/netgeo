@@ -24,7 +24,8 @@ export type ModalId =
   | 'deviceLibrary'
   | 'fiberDetail'
   | 'onboarding'
-  | 'mapOnboarding';
+  | 'mapOnboarding'
+  | 'addressing';
 
 function initialTheme(): ThemeMode {
   const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null;

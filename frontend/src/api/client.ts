@@ -8,6 +8,7 @@ import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import type {
   Activity,
   ActivityCreate,
+  AddressingPlan,
   Cable,
   CableCreate,
   CableUpdate,
@@ -462,9 +463,13 @@ export const labApi = {
     http
       .get<Record<string, unknown>>(`/lab/${projectId}/tables/${nodeRef}`)
       .then((r) => r.data),
-  autoAddress: (projectId: string) =>
+  autoAddress: (projectId: string, dryRun = false) =>
     http
-      .post<{ nodes_updated: number }>(`/lab/${projectId}/auto-address`)
+      .post<{ nodes_updated?: number; dry_run?: boolean; plan: AddressingPlan }>(
+        `/lab/${projectId}/auto-address`,
+        undefined,
+        { params: { dry_run: dryRun } },
+      )
       .then((r) => r.data),
   /* --- Simulation mode (NG-SIM-01) --- */
   mode: (projectId: string, mode: LabMode) =>

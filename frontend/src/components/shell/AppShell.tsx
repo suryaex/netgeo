@@ -47,6 +47,12 @@ const ConfigWorkspace = lazy(() =>
   import('@/components/config/ConfigWorkspace').then((m) => ({ default: m.ConfigWorkspace })),
 );
 
+// Problem Center — health problems derived from topology + fiber budgets. Lazy:
+// it only runs its derivation + per-path budget fetches when the operator opens it.
+const ProblemsWorkspace = lazy(() =>
+  import('@/components/problems/ProblemsWorkspace').then((m) => ({ default: m.ProblemsWorkspace })),
+);
+
 export function AppShell({ projectName, conn }: { projectName: string; conn: ConnState }) {
   const viewMode = useUiStore((s) => s.viewMode);
   const simMode = useLabStore((s) => s.mode) === 'simulation';
@@ -90,6 +96,16 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
               }
             >
               <ConfigWorkspace />
+            </Suspense>
+          ) : viewMode === 'problems' ? (
+            <Suspense
+              fallback={
+                <div className="grid h-full place-items-center text-fg/50">
+                  <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                </div>
+              }
+            >
+              <ProblemsWorkspace />
             </Suspense>
           ) : viewMode === 'edu' ? (
             <Suspense

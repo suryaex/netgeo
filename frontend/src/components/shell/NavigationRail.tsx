@@ -14,6 +14,7 @@ import {
   Cable,
   Server,
   FileCode2,
+  ShieldAlert,
   FlaskConical,
   GraduationCap,
   Activity,
@@ -39,6 +40,7 @@ const ITEMS: RailItem[] = [
   { key: 'edu', label: 'Education Lab', icon: GraduationCap, view: 'edu' },
   { key: 'plant', label: 'Physical Plant', icon: Server, view: 'plant' },
   { key: 'config', label: 'Config Center', icon: FileCode2, view: 'config' },
+  { key: 'problems', label: 'Problem Center', icon: ShieldAlert, view: 'problems' },
   { key: 'labs', label: 'Labs', icon: FlaskConical, action: 'scenarios' },
   { key: 'diag', label: 'Diagnostics', icon: Activity, action: 'diagnostics' },
 ];

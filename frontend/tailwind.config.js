@@ -39,19 +39,19 @@ export default {
         recess: 'rgb(var(--ng-recess-rgb) / <alpha-value>)',
         primary: {
           DEFAULT: 'var(--ng-primary)',
-          // On the sky primary (#38BDF8) white text fails contrast (2.1:1); the
-          // paired foreground is near-black ink (9.8:1). See accent.fg.
+          // On the bright violet primary (#A78BFA) white text fails contrast;
+          // the paired foreground is near-black ink (~6.4:1). See accent.fg.
           fg: '#07111F',
         },
         secondary: { DEFAULT: 'var(--ng-secondary)', fg: '#FFFFFF' },
 
-        // --- Static brand palette (NetGeo sky primary, design.md §2.2) -------
+        // --- Static brand palette (NetGeo violet "Aurora", design.md §2.2) ---
         accent: {
-          DEFAULT: '#38BDF8', // sky-400 — design.md "Primary"
-          soft: '#7DD3FC', // sky-300 — hover
-          dark: '#0284C7', // sky-600 — design.md "Primary strong"
-          // On-accent foreground: dark ink stays legible on the bright sky fill
-          // (white would be 2.1:1). Consumers pair `bg-accent text-accent-fg`.
+          DEFAULT: '#A78BFA', // violet-400 — design.md "Primary"
+          soft: '#C4B5FD', // violet-300 — hover
+          dark: '#6D28D9', // violet-700 — design.md "Primary strong"
+          // On-accent foreground: dark ink stays legible on the bright violet
+          // fill (white would fail). Consumers pair `bg-accent text-accent-fg`.
           fg: '#07111F',
         },
         success: { DEFAULT: '#27C28B', dark: '#15805C' },

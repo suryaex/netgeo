@@ -22,8 +22,8 @@ export const THEME_ORDER: ThemeMode[] = ['dark', 'light', 'high-contrast'];
  * neutral ramp + surface tokens are theme-dependent (see THEMES below).
  */
 export const semantic = {
-  primary: '#38BDF8', // NetGeo sky primary (design.md §2.2)
-  secondary: '#7C5CFC', // violet — AI / planning
+  primary: '#A78BFA', // NetGeo violet "Aurora" primary (design.md §2.2, user pick 2026-07-13)
+  secondary: '#38BDF8', // sky — AI / planning (swapped with the old violet secondary)
   success: '#27C28B',
   warning: '#F5A623',
   danger: '#FF4D4F',
@@ -109,10 +109,10 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-glass-bg': 'rgba(247,249,252,0.78)',
     '--ng-glass-border': 'rgba(15,23,42,0.14)',
     '--ng-elevate': '0 12px 36px rgba(15,23,42,0.14)',
-    // Deep sky (not the bright dark-mode #38BDF8) so the focus ring / handle
-    // keeps >=3:1 against light surfaces while staying in the sky family.
-    '--ng-primary': '#0369A1',
-    '--ng-secondary': '#6B45F5',
+    // Deep violet (not the bright dark-mode #A78BFA) so the focus ring / handle
+    // keeps >=3:1 against light surfaces while staying in the violet family.
+    '--ng-primary': '#6D28D9',
+    '--ng-secondary': '#0369A1',
     '--ng-success': '#159E6E',
     '--ng-warning': '#D98410',
     '--ng-danger': '#E23B3D',
@@ -135,8 +135,8 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-glass-bg': '#000000',
     '--ng-glass-border': '#FFFFFF',
     '--ng-elevate': '0 0 0 1px #FFFFFF',
-    '--ng-primary': '#4DA3FF',
-    '--ng-secondary': '#C9A7FF',
+    '--ng-primary': '#C9A7FF',
+    '--ng-secondary': '#4DA3FF',
     '--ng-success': '#3BE6A0',
     '--ng-warning': '#FFC44D',
     '--ng-danger': '#FF6B6D',

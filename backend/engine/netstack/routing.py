@@ -48,6 +48,8 @@ from engine.netstack.frames import (
     MplsPacket,
     TcpSegment,
     UdpSegment,
+    VXLAN_UDP_PORT,
+    VxlanPacket,
 )
 from engine.netstack.iface import Interface
 
@@ -285,6 +287,9 @@ class Router(L3Device):
         self.iface_vrf: dict[str, str] = {}           # iface name -> vrf name
         self.vpn_labels: dict[int, str] = {}          # my VPN label -> vrf name
         self.sr_adj: dict[int, AdjSidEntry] = {}      # SR adjacency-SID -> egress
+        # VXLAN access ports (NG-SIM-10): iface names whose ingress frames are
+        # bridged into the overlay by the VxlanProcess. Empty = zero overhead.
+        self.vxlan_ports: set[str] = set()
 
     # ----- route table management -------------------------------------------------
     def sync_connected_routes(self) -> None:
@@ -413,6 +418,14 @@ class Router(L3Device):
     # ----- ingress -----------------------------------------------------------------
     def on_frame(self, net: "Network", iface: Interface, frame: EthernetFrame) -> None:
         if not self.powered_on:
+            return
+        # VXLAN access port (NG-SIM-10): the tenant frame is bridged into the
+        # overlay, so it is *not* addressed to this router's MAC — intercept it
+        # before the normal "addressed to me" NIC filter drops it.
+        if iface.name in self.vxlan_ports:
+            for proc in self.processes:
+                if getattr(proc, "proto", "") == "vxlan":
+                    proc.on_access_frame(net, iface, frame)
             return
         if (
             frame.dst_mac not in (iface.mac, BROADCAST_MAC)
@@ -675,15 +688,23 @@ class Router(L3Device):
         if pkt.proto == PROTO_TCP and isinstance(pkt.payload, TcpSegment):
             seg = pkt.payload
             if seg.dst_port == 179 or seg.src_port == 179:
-                # Port 179 carries both BGP-4 and the VPNv4 side-channel; hand
-                # to both — each process ignores messages that aren't its own.
+                # Port 179 carries BGP-4 plus the VPNv4 and EVPN side-channels;
+                # hand to all — each process ignores messages that aren't its own.
                 for proc in self.processes:
-                    if getattr(proc, "proto", "") in ("bgp", "l3vpn"):
+                    if getattr(proc, "proto", "") in ("bgp", "l3vpn", "vxlan"):
                         proc.on_packet(net, iface, pkt)
                 return
         if pkt.proto == PROTO_UDP and isinstance(pkt.payload, UdpSegment):
             udp = pkt.payload
             app = udp.payload
+            if isinstance(app, VxlanPacket) and udp.dst_port == VXLAN_UDP_PORT:
+                # VTEP decapsulation (NG-SIM-10): hand the overlay packet to the
+                # VxlanProcess, which bridges the inner frame to a local access
+                # port in the matching VNI.
+                for proc in self.processes:
+                    if getattr(proc, "proto", "") == "vxlan":
+                        proc.on_overlay(net, pkt, app)
+                return
             if isinstance(app, DhcpMessage) and udp.dst_port == 67:
                 self._dhcp_serve(net, iface, app)
                 return

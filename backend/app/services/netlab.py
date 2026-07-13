@@ -34,6 +34,9 @@ Node ``intent`` fields understood by the builder (all optional):
     vrf: {"<iface-name>": {"name": "red", "rd": "65000:1",
                            "rt_import": ["100:1"], "rt_export": ["100:1"]}}
           # routers: L3VPN VRFs bound to interfaces; VPNv4 rides the iBGP peers
+    vxlan: {"access": {"<iface-name>": 10}}       # routers: VTEP; access port
+          # -> VNI bindings. EVPN Type-2/Type-3 ride the iBGP peers (TCP:179);
+          # loopback = VTEP IP; underlay reachability via OSPF/IS-IS/BGP.
     dhcp_server: {"pools": [{"network": "192.168.88.0/24",
                              "gateway": "192.168.88.1", "dns": "..."}]}
     dns_zone: {"nas.lab": "192.168.1.40"}
@@ -62,6 +65,7 @@ from engine.netstack.protocols.isis import IsisProcess
 from engine.netstack.protocols.mpls import L3vpnProcess, LdpProcess
 from engine.netstack.protocols.ospf import OspfProcess
 from engine.netstack.protocols.vrrp import VrrpProcess
+from engine.netstack.protocols.vxlan import VxlanProcess
 
 logger = logging.getLogger("netgeo.netlab")
 
@@ -306,6 +310,17 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
             except (KeyError, ValueError) as exc:
                 logger.warning("%s: bad vrf config %r: %s", dev.name, vc, exc)
 
+    # EVPN/VXLAN VTEP (NG-SIM-10): one VTEP per node; EVPN rides the iBGP peers.
+    vxlan_cfg = intent.get("vxlan") or {}
+    access = vxlan_cfg.get("access") or {}
+    if access:
+        vx = VxlanProcess(dev)
+        for iface_name, vni in sorted(access.items()):
+            try:
+                vx.bind_access(str(iface_name), int(vni))
+            except (KeyError, ValueError) as exc:
+                logger.warning("%s: bad vxlan access %r: %s", dev.name, iface_name, exc)
+
     dhcp_cfg = intent.get("dhcp_server") or {}
     for pool in dhcp_cfg.get("pools") or []:
         try:
@@ -349,7 +364,7 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
 
 def _settle_time(net: Network) -> float:
     """Sim-seconds to run at build so protocols converge before first use."""
-    has_bgp = has_ospf = has_vrrp = has_isis = has_mpls = False
+    has_bgp = has_ospf = has_vrrp = has_isis = has_mpls = has_evpn = False
     for dev in net.devices.values():
         for proc in getattr(dev, "processes", []):
             proto = getattr(proc, "proto", "")
@@ -358,7 +373,8 @@ def _settle_time(net: Network) -> float:
             has_vrrp |= proto == "vrrp"
             has_isis |= proto == "isis"
             has_mpls |= proto in ("ldp", "l3vpn")
-    if has_bgp or has_ospf or has_isis or has_mpls:
+            has_evpn |= proto == "vxlan"
+    if has_bgp or has_ospf or has_isis or has_mpls or has_evpn:
         return 65.0
     if any(isinstance(d, Switch) for d in net.devices.values()):
         return 12.0

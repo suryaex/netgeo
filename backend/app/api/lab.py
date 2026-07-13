@@ -346,6 +346,12 @@ async def lab_tables(project_id: str, node_ref: str, r: MemoryRepository = Depen
                 out["mpls_forwarding"] = dev.mpls_forwarding_rows()
             elif proto == "l3vpn":
                 out["vrfs"] = {name: dev.vrf_route_rows(name) for name in dev.vrf_names()}
+            elif proto == "vxlan":
+                out["vxlan"] = {
+                    "mac_vni": proc.mac_vni_rows(),
+                    "vtep": proc.vtep_rows(),
+                    "evpn": proc.evpn_rows(),
+                }
         return out
 
     return await run_in_threadpool(work)

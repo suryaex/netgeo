@@ -515,6 +515,71 @@ MPLS_L2_PDUS = (LdpBinding, SrSidAdvert)
 
 
 # ---------------------------------------------------------------------------
+# EVPN/VXLAN (NG-SIM-10) — L2-over-L3 overlay
+# ---------------------------------------------------------------------------
+# VXLAN wraps a tenant Ethernet frame in an 8-byte VXLAN header carried over
+# UDP:4789 (outer IP VTEP->VTEP). EVPN Type-2 (MAC/IP) and Type-3 (IMET,
+# ingress-replication) routes ride the existing BGP TCP:179 side-channel, like
+# the VPNv4 side-channel used by mpls.L3vpnProcess.
+VXLAN_UDP_PORT = 4789
+
+
+@dataclass(slots=True)
+class VxlanPacket:
+    """A VXLAN-encapsulated tenant frame: the VNI plus the inner Ethernet
+    frame. Egress VTEP decaps and bridges ``inner`` onto a local access port."""
+
+    vni: int
+    inner: Any = None       # inner EthernetFrame
+
+    @property
+    def wire_size(self) -> int:
+        inner = getattr(self.inner, "size_bytes", 0)
+        return 8 + inner       # 8-byte VXLAN header + inner L2 frame
+
+    def copy(self) -> "VxlanPacket":
+        import copy
+
+        return VxlanPacket(self.vni, copy.deepcopy(self.inner))
+
+    def summary(self) -> str:
+        tail = self.inner.summary() if self.inner is not None else "-"
+        return f"VXLAN vni={self.vni} | {tail}"
+
+
+@dataclass(slots=True)
+class EvpnRoute:
+    """One EVPN NLRI. ``route_type`` 2 = MAC/IP advertisement (``mac``/``ip``),
+    3 = Inclusive Multicast (IMET, ingress-replication for BUM). ``vtep`` is the
+    advertising VTEP IP (the overlay next hop)."""
+
+    route_type: int          # 2 (MAC/IP) | 3 (IMET)
+    vni: int
+    vtep: str
+    mac: str = ""            # Type-2 only
+    ip: str = ""            # Type-2 MAC/IP (optional, unused for pure-L2)
+
+    @property
+    def wire_size(self) -> int:
+        return 25 + (12 if self.route_type == 2 else 0)
+
+
+@dataclass(slots=True)
+class EvpnUpdate:
+    """MP-BGP-lite EVPN UPDATE (full snapshot of the sender's advertised MAC
+    and IMET routes) carried as the payload of a TCP:179 segment."""
+
+    routes: list[EvpnRoute] = field(default_factory=list)
+
+    @property
+    def wire_size(self) -> int:
+        return 23 + sum(r.wire_size for r in self.routes)
+
+    def summary(self) -> str:
+        return f"BGP EVPN UPDATE {len(self.routes)} route(s)"
+
+
+# ---------------------------------------------------------------------------
 # L2 frame
 # ---------------------------------------------------------------------------
 

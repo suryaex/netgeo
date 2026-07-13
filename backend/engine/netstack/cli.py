@@ -286,6 +286,25 @@ class CliSession:
             for r in dev.sr_adj_rows():
                 rows.append(f"{r['label']:<7} {r['peer']:<16} {r['out_iface']}")
             return "\n".join(rows) + "\n"
+        if low.startswith("show bgp evpn") or low.startswith("show bgp l2vpn evpn"):
+            vx = self._proc("vxlan")
+            if vx is None:
+                return "% EVPN/VXLAN is not enabled\n"
+            rows = ["Type  VNI     MAC                  VTEP             Origin"]
+            for r in vx.evpn_rows():
+                rows.append(
+                    f"T{r['type']:<4} {r['vni']:<7} {r['mac']:<20} "
+                    f"{r['vtep']:<16} {r['origin']}"
+                )
+            return "\n".join(rows) + "\n"
+        if low.startswith("show vxlan vtep") or low.startswith("show nve peers"):
+            vx = self._proc("vxlan")
+            if vx is None:
+                return "% EVPN/VXLAN is not enabled\n"
+            rows = ["VNI     Remote VTEP"]
+            for r in vx.vtep_rows():
+                rows.append(f"{r['vni']:<7} {r['remote_vtep']}")
+            return "\n".join(rows) + "\n"
         if low.startswith("show ip route"):
             if not isinstance(dev, Router):
                 return "% This device does not route\n"
@@ -518,6 +537,17 @@ class CliSession:
                     f"{n}  {r['iface']:<10} {r['vrid']:<5} {r['priority']:<9} "
                     f"{r['state']:<8} {r['vip']}"
                 )
+            return "\n".join(rows) + "\n"
+        if low in ("/interface vxlan print", "/interface bridge vxlan print"):
+            vx = next(
+                (p for p in getattr(dev, "processes", []) if getattr(p, "proto", "") == "vxlan"),
+                None,
+            )
+            if vx is None:
+                return "no vxlan interfaces\n"
+            rows = ["#  VNI     MAC                  LOCATION"]
+            for n, r in enumerate(vx.mac_vni_rows()):
+                rows.append(f"{n}  {r['vni']:<7} {r['mac']:<20} {r['location']}")
             return "\n".join(rows) + "\n"
         if low == "/interface print":
             rows = ["#  NAME       MTU   MAC-ADDRESS        RUNNING"]

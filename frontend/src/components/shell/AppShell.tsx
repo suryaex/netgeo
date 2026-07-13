@@ -35,6 +35,12 @@ const EduWorkspace = lazy(() =>
   import('@/components/edu/EduWorkspace').then((m) => ({ default: m.EduWorkspace })),
 );
 
+// Projects Portal — card grid of every project. Lazy: it's an entry surface,
+// not part of the topology-first initial view.
+const ProjectsWorkspace = lazy(() =>
+  import('@/components/projects/ProjectsWorkspace').then((m) => ({ default: m.ProjectsWorkspace })),
+);
+
 export function AppShell({ projectName, conn }: { projectName: string; conn: ConnState }) {
   const viewMode = useUiStore((s) => s.viewMode);
   const simMode = useLabStore((s) => s.mode) === 'simulation';
@@ -49,7 +55,17 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
         <NavigationRail />
 
         <main className="relative min-w-0 flex-1 overflow-hidden" aria-label="Workspace">
-          {viewMode === 'map' ? (
+          {viewMode === 'projects' ? (
+            <Suspense
+              fallback={
+                <div className="grid h-full place-items-center text-fg/50">
+                  <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                </div>
+              }
+            >
+              <ProjectsWorkspace />
+            </Suspense>
+          ) : viewMode === 'map' ? (
             <MapView />
           ) : viewMode === 'twin' ? (
             <TwinWorkspace />

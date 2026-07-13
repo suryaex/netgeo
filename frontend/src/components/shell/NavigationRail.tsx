@@ -2,8 +2,8 @@
  * NavigationRail — 64px icon rail, the app's primary navigation (design §3.2).
  * Topology/Map/Twin/RF/Fiber/Education/Physical Plant switch the workspace view.
  * Labs opens the Scenarios modal, Diagnostics opens the shared drawer (in a
- * canvas mode), Settings opens the Settings modal. Modules without a workspace
- * yet (Projects) are shown disabled so the rail maps the product honestly.
+ * canvas mode), Settings opens the Settings modal. Projects opens the Projects
+ * Portal workspace (card grid of every project).
  */
 import {
   FolderKanban,
@@ -29,7 +29,7 @@ type RailItem = {
 } & ({ view: ViewMode } | { action: 'scenarios' | 'diagnostics' | 'settings' } | { soon: true });
 
 const ITEMS: RailItem[] = [
-  { key: 'projects', label: 'Projects', icon: FolderKanban, soon: true },
+  { key: 'projects', label: 'Projects', icon: FolderKanban, view: 'projects' },
   { key: 'topology', label: 'Topology', icon: Network, view: 'topology' },
   { key: 'map', label: 'Map', icon: MapIcon, view: 'map' },
   { key: 'twin', label: 'Digital Twin', icon: Boxes, view: 'twin' },

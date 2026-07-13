@@ -37,22 +37,19 @@ export default {
         // Recessed wells/fields: `bg-recess/NN` replaces the old `bg-black/NN`.
         // Black in dark (pixel-identical), slate tint in light.
         recess: 'rgb(var(--ng-recess-rgb) / <alpha-value>)',
-        primary: {
-          DEFAULT: 'var(--ng-primary)',
-          // On the bright violet primary (#A78BFA) white text fails contrast;
-          // the paired foreground is near-black ink (~6.4:1). See accent.fg.
-          fg: '#07111F',
-        },
-        secondary: { DEFAULT: 'var(--ng-secondary)', fg: '#FFFFFF' },
+        primary: { DEFAULT: 'var(--ng-primary)', fg: 'var(--ng-accent-fg)' },
+        secondary: { DEFAULT: 'var(--ng-secondary)', fg: 'var(--ng-accent-fg)' },
 
-        // --- Static brand palette (NetGeo violet "Aurora", design.md §2.2) ---
+        // --- Dual-personality accent (theme-aware, CSS-variable backed) -------
+        // Dark = macOS Tahoe Apple blue, Light = Anthropic clay terracotta.
+        // Channel form so `bg-accent/NN` alpha modifiers still resolve. All
+        // ~45 accent consumers re-skin per theme with no per-file changes.
         accent: {
-          DEFAULT: '#A78BFA', // violet-400 — design.md "Primary"
-          soft: '#C4B5FD', // violet-300 — hover
-          dark: '#6D28D9', // violet-700 — design.md "Primary strong"
-          // On-accent foreground: dark ink stays legible on the bright violet
-          // fill (white would fail). Consumers pair `bg-accent text-accent-fg`.
-          fg: '#07111F',
+          DEFAULT: 'rgb(var(--ng-accent-rgb) / <alpha-value>)',
+          soft: 'var(--ng-accent-soft)', // hover / soft fill (brand coral in light)
+          // On-accent foreground: ink in dark, white in light. Pair
+          // `bg-accent text-accent-fg`.
+          fg: 'var(--ng-accent-fg)',
         },
         success: { DEFAULT: '#27C28B', dark: '#15805C' },
         warning: { DEFAULT: '#F5A623', dark: '#9E6300' },

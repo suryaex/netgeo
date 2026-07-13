@@ -51,6 +51,22 @@ body {
     background: var(--ng-panel, #141925);
     border-color: var(--ng-border, rgba(255, 255, 255, 0.08));
   }
+
+  /* Liquid-glass sheen (macOS Tahoe) — subtle top highlight + inset edge on
+     solid accent CTAs. Opt-in: add alongside `bg-accent`. Pure CSS, theme-safe
+     (white sheen reads on the blue and clay fills alike), respects the fill's
+     own radius. */
+  .liquid-sheen {
+    position: relative;
+    background-image: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0) 45%
+    );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  }
 }
 
 /* ---- Scrollbars (thin, theme-friendly) ------------------------------------ */
@@ -86,7 +102,7 @@ html.hc *:focus-visible {
 
 /* Visible keyboard focus everywhere (accessibility). */
 :focus-visible {
-  outline: 2px solid var(--ng-primary, #38bdf8);
+  outline: 2px solid var(--ng-primary, #409cff);
   outline-offset: 1px;
 }
 
@@ -111,7 +127,7 @@ html.hc *:focus-visible {
   width: 9px;
   height: 9px;
   border: 2px solid rgba(255, 255, 255, 0.7);
-  background: var(--ng-primary, #38bdf8);
+  background: var(--ng-primary, #409cff);
 }
 .react-flow__controls {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);

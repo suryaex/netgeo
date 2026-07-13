@@ -22,8 +22,11 @@ export const THEME_ORDER: ThemeMode[] = ['dark', 'light', 'high-contrast'];
  * neutral ramp + surface tokens are theme-dependent (see THEMES below).
  */
 export const semantic = {
-  primary: '#A78BFA', // NetGeo violet "Aurora" primary (design.md §2.2, user pick 2026-07-13)
-  secondary: '#38BDF8', // sky — AI / planning (swapped with the old violet secondary)
+  // Dual-personality accent (user pick 2026-07-13): dark = macOS Tahoe Apple
+  // blue, light = Anthropic clay terracotta. Per-theme values live in THEMES
+  // below; these defaults mirror the dark (macOS Tahoe) theme.
+  primary: '#409CFF', // Apple systemBlue, brightened so it reads as text on navy AND carries ink on fills (AA)
+  secondary: '#5AC8FA', // Apple teal — AI / planning, distinct from the blue primary
   success: '#27C28B',
   warning: '#F5A623',
   danger: '#FF4D4F',
@@ -82,6 +85,12 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-glass-bg': 'rgba(20,25,36,0.62)',
     '--ng-glass-border': 'rgba(255,255,255,0.08)',
     '--ng-elevate': '0 16px 50px rgba(0,0,0,0.45)',
+    // Accent = macOS Tahoe Apple blue. Bright enough to read as text on navy
+    // (6.2:1 on panel) and to carry near-black ink on fills (6.7:1) — one token
+    // serves text, icons, and button fills. Channels power `bg-accent/NN` alpha.
+    '--ng-accent-rgb': '64 156 255', // #409CFF
+    '--ng-accent-soft': '#64B5FF', // lighter hover fill
+    '--ng-accent-fg': '#07111F', // near-black ink on the bright accent fill
     '--ng-primary': semantic.primary,
     '--ng-secondary': semantic.secondary,
     '--ng-success': semantic.success,
@@ -90,33 +99,37 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-info': semantic.info,
   },
   light: {
-    // Layered light (per Stitch light variants): the canvas ground sits a step
-    // darker than panels so surfaces read as surfaces instead of one glaring
-    // white field; borders are strong enough to carry the hierarchy.
-    '--ng-bg-0': '#E7EBF3',
-    '--ng-bg-1': '#D6DDEA',
-    '--ng-surface': 'rgba(249,250,253,0.88)',
-    '--ng-surface-2': 'rgba(242,245,251,0.90)',
-    '--ng-panel': '#F7F9FC',
-    '--ng-panel-2': '#EDF1F8',
-    '--ng-border': 'rgba(15,23,42,0.14)',
-    '--ng-border-strong': 'rgba(15,23,42,0.24)',
-    '--ng-fg': '#101626',
-    '--ng-fg-muted': '#4D5871',
-    '--ng-fg-subtle': '#7C8598',
-    '--ng-fg-rgb': '16 22 38', // ink — legible foreground/hairline on light surfaces
-    '--ng-recess-rgb': '15 23 42', // slate — subtle recessed wells on light surfaces
-    '--ng-glass-bg': 'rgba(247,249,252,0.78)',
-    '--ng-glass-border': 'rgba(15,23,42,0.14)',
-    '--ng-elevate': '0 12px 36px rgba(15,23,42,0.14)',
-    // Deep violet (not the bright dark-mode #A78BFA) so the focus ring / handle
-    // keeps >=3:1 against light surfaces while staying in the violet family.
-    '--ng-primary': '#6D28D9',
-    '--ng-secondary': '#0369A1',
-    '--ng-success': '#159E6E',
-    '--ng-warning': '#D98410',
-    '--ng-danger': '#E23B3D',
-    '--ng-info': '#1597A4',
+    // Full Clay Anthropic (user pick 2026-07-13): warm ivory/cream surfaces,
+    // ink text, terracotta accent. Three layers read as layers — cream ground
+    // (canvas) < ivory panels < white elevated surfaces.
+    '--ng-bg-0': '#EFEDE6', // warm cream canvas ground (darkest layer)
+    '--ng-bg-1': '#F3F1EA', // radial-gradient partner, a step lighter
+    '--ng-surface': 'rgba(255,255,255,0.92)', // elevated glass — white
+    '--ng-surface-2': 'rgba(250,249,245,0.94)',
+    '--ng-panel': '#FAF9F5', // ivory docked panels
+    '--ng-panel-2': '#F0EEE6', // recessed panel
+    '--ng-border': 'rgba(20,20,19,0.12)',
+    '--ng-border-strong': 'rgba(20,20,19,0.22)',
+    '--ng-fg': '#141413', // Anthropic ink
+    '--ng-fg-muted': '#6B6862', // warm grey
+    '--ng-fg-subtle': '#928E85',
+    '--ng-fg-rgb': '20 20 19', // ink — legible foreground/hairline on clay surfaces
+    '--ng-recess-rgb': '41 37 36', // warm brown-black recessed wells
+    '--ng-glass-bg': 'rgba(255,255,255,0.82)',
+    '--ng-glass-border': 'rgba(20,20,19,0.12)',
+    '--ng-elevate': '0 12px 34px rgba(80,60,45,0.14)', // warm claymorphism shadow
+    // Deep terracotta (not the bright #D97757 fill) so it doubles as text/link
+    // on ivory (5.4:1) and carries white on fills (5.7:1). Brand coral #D97757
+    // lives in --ng-accent-soft for decorative/hover fills.
+    '--ng-accent-rgb': '168 75 42', // #A84B2A
+    '--ng-accent-soft': '#D97757', // Anthropic brand coral — hover / soft fills (pair with ink)
+    '--ng-accent-fg': '#FFFFFF', // white on the deep terracotta fill
+    '--ng-primary': '#A84B2A',
+    '--ng-secondary': '#0E7C88', // teal — AI / planning
+    '--ng-success': '#15805C',
+    '--ng-warning': '#B45309',
+    '--ng-danger': '#C0392B',
+    '--ng-info': '#0E7C88',
   },
   'high-contrast': {
     '--ng-bg-0': '#000000',
@@ -135,8 +148,11 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-glass-bg': '#000000',
     '--ng-glass-border': '#FFFFFF',
     '--ng-elevate': '0 0 0 1px #FFFFFF',
-    '--ng-primary': '#C9A7FF',
-    '--ng-secondary': '#4DA3FF',
+    '--ng-accent-rgb': '124 192 255', // #7CC0FF — bright blue, huge contrast on black
+    '--ng-accent-soft': '#A9D4FF',
+    '--ng-accent-fg': '#000000',
+    '--ng-primary': '#7CC0FF',
+    '--ng-secondary': '#5AC8FA',
     '--ng-success': '#3BE6A0',
     '--ng-warning': '#FFC44D',
     '--ng-danger': '#FF6B6D',

@@ -211,7 +211,7 @@ export function LoginPage() {
                 'flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold text-accent-fg transition-all',
                 submitDisabled
                   ? 'cursor-not-allowed bg-accent/50'
-                  : 'bg-accent hover:bg-accent-soft active:scale-[0.98]',
+                  : 'liquid-sheen bg-accent hover:bg-accent-soft active:scale-[0.98]',
               )}
             >
               {loading ? (

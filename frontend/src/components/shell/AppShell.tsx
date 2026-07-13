@@ -41,6 +41,12 @@ const ProjectsWorkspace = lazy(() =>
   import('@/components/projects/ProjectsWorkspace').then((m) => ({ default: m.ProjectsWorkspace })),
 );
 
+// Config Center — device config running/diff/export workspace. Lazy: it pulls a
+// diff/export slice of the config API only when the operator opens it.
+const ConfigWorkspace = lazy(() =>
+  import('@/components/config/ConfigWorkspace').then((m) => ({ default: m.ConfigWorkspace })),
+);
+
 export function AppShell({ projectName, conn }: { projectName: string; conn: ConnState }) {
   const viewMode = useUiStore((s) => s.viewMode);
   const simMode = useLabStore((s) => s.mode) === 'simulation';
@@ -75,6 +81,16 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
             <FiberWorkspace />
           ) : viewMode === 'plant' ? (
             <PlantWorkspace />
+          ) : viewMode === 'config' ? (
+            <Suspense
+              fallback={
+                <div className="grid h-full place-items-center text-fg/50">
+                  <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                </div>
+              }
+            >
+              <ConfigWorkspace />
+            </Suspense>
           ) : viewMode === 'edu' ? (
             <Suspense
               fallback={

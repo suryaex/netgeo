@@ -9,7 +9,7 @@ import type { SimState } from '@/api/types';
 
 const THEME_KEY = 'netgeo.theme';
 
-export type ViewMode = 'projects' | 'topology' | 'map' | 'twin' | 'rf' | 'fiber' | 'edu' | 'plant';
+export type ViewMode = 'projects' | 'topology' | 'map' | 'twin' | 'rf' | 'fiber' | 'edu' | 'plant' | 'config';
 
 /** Bottom-drawer tabs (design 12-UI §2.1) — each body is an existing panel. */
 export type DrawerTab = 'console' | 'diagnostics' | 'ledger' | 'config';

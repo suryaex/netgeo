@@ -13,6 +13,7 @@ import {
   RadioTower,
   Cable,
   Server,
+  FileCode2,
   FlaskConical,
   GraduationCap,
   Activity,
@@ -37,6 +38,7 @@ const ITEMS: RailItem[] = [
   { key: 'fiber', label: 'Fiber / FTTH', icon: Cable, view: 'fiber' },
   { key: 'edu', label: 'Education Lab', icon: GraduationCap, view: 'edu' },
   { key: 'plant', label: 'Physical Plant', icon: Server, view: 'plant' },
+  { key: 'config', label: 'Config Center', icon: FileCode2, view: 'config' },
   { key: 'labs', label: 'Labs', icon: FlaskConical, action: 'scenarios' },
   { key: 'diag', label: 'Diagnostics', icon: Activity, action: 'diagnostics' },
 ];

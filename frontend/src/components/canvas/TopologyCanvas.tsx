@@ -283,7 +283,7 @@ export function TopologyCanvas() {
             nodeBorderRadius={3}
             offsetScale={4}
             nodeColor={(n) => nodeColors[(n.data as DeviceNodeData).kind] ?? '#888'}
-            style={{ width: 168, height: 112 }}
+            style={{ width: 148, height: 100 }}
             className="!m-3 !rounded-lg !border !border-fg/10 !bg-surface/70 !shadow-glass backdrop-blur"
           />
         )}

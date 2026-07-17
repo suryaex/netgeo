@@ -17,12 +17,12 @@ export function TopologyToolbar() {
 
   return (
     <div className={cn('pointer-events-auto absolute bottom-4 left-4 flex items-center gap-1', zc.workspace)}>
-      <div className="glass flex items-center gap-1 rounded-xl border border-fg/12 p-1 shadow-glass">
+      <div className="glass flex items-center gap-1 rounded-full border border-fg/12 p-1 shadow-glass">
         <button
           onClick={() => openPicker()}
           aria-label="Add device"
           title="Add device (A)"
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-accent-fg transition-colors hover:bg-accent-soft"
+          className="flex items-center gap-1.5 rounded-full bg-accent px-3 py-2 text-xs font-medium text-accent-fg transition-colors hover:bg-accent-soft"
         >
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Add</span>
@@ -61,7 +61,7 @@ function ToolButton({
       aria-pressed={active}
       title={hint}
       className={cn(
-        'flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs transition-colors',
+        'flex items-center gap-1.5 rounded-full px-2.5 py-2 text-xs transition-colors',
         disabled && 'cursor-not-allowed opacity-40',
         !disabled && active && 'bg-fg/12 text-fg',
         !disabled && !active && 'text-fg/60 hover:bg-fg/8 hover:text-fg/90',

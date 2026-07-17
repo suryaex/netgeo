@@ -107,10 +107,12 @@ html.hc *:focus-visible {
 .react-flow__edge:hover .react-flow__edge-path {
   stroke-width: 3 !important;
 }
+/* Port dots — accent fill with a theme-aware hairline so the ring stays
+   visible on both charcoal (dark) and ivory (light) surfaces (WCAG AA). */
 .react-flow__handle {
   width: 9px;
   height: 9px;
-  border: 2px solid rgba(255, 255, 255, 0.7);
+  border: 1.5px solid rgb(var(--ng-recess-rgb) / 0.55);
   background: var(--ng-primary, #d97757);
 }
 .react-flow__controls {

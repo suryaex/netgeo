@@ -10,9 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Check, LogOut, Moon, Search, Settings2, Sun, Wand2, Wifi, WifiOff } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ConnState } from '@/api/ws';
-import { labApi } from '@/api/client';
 import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 import { useTopologyStore } from '@/store/topologyStore';
@@ -58,15 +56,9 @@ export function TopBar({ projectName, conn }: TopBarProps) {
   const dirty = useTopologyStore((s) => s.dirty);
   const username = useAuthStore((s) => s.username);
   const logout = useAuthStore((s) => s.logout);
-  const queryClient = useQueryClient();
   const [clock, setClock] = useState(() => new Date());
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-
-  const autoAddress = useMutation({
-    mutationFn: () => labApi.autoAddress(projectId!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['topology', projectId] }),
-  });
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 30_000);
@@ -122,13 +114,13 @@ export function TopBar({ projectName, conn }: TopBarProps) {
 
       <div className="flex items-center gap-1.5">
         <button
-          onClick={() => projectId && autoAddress.mutate()}
-          disabled={!projectId || autoAddress.isPending}
-          aria-label="Auto-assign IP addressing"
-          title="Auto-address: assign IPv4 plan to the whole topology"
+          onClick={() => projectId && openModal('addressingWizard')}
+          disabled={!projectId}
+          aria-label="Open the auto-addressing wizard"
+          title="Auto-address: preview and apply a dual-stack IP plan"
           className={cn(
             'grid h-8 w-8 place-items-center rounded-md transition-colors',
-            autoAddress.isPending ? 'animate-pulse text-accent' : 'text-fg/60 hover:bg-fg/10 hover:text-fg',
+            'text-fg/60 hover:bg-fg/10 hover:text-fg disabled:opacity-40',
           )}
         >
           <Wand2 className="h-4 w-4" />

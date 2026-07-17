@@ -386,16 +386,32 @@ async def lab_rebuild(project_id: str, r: MemoryRepository = Depends(repo)):
 
 
 @router.post("/{project_id}/auto-address")
-async def lab_auto_address(project_id: str, r: MemoryRepository = Depends(repo)):
+async def lab_auto_address(
+    project_id: str, dry_run: bool = False, r: MemoryRepository = Depends(repo)
+):
     """Auto-assign dual-stack (IPv4 + IPv6 ULA) addressing to the whole
     topology and persist it (NG-TD-03).
 
     /30 + /64 for router-to-router links, /24 + /64 per switch broadcast
     domain, host default gateways (v4 and v6) pointed at the first router in
     their domain.
+
+    With ``dry_run=true`` the plan is computed and summarized for the
+    addressing wizard's Preview step but NOTHING is persisted — no node update,
+    no gateway write, no lab invalidation — so the wizard can show the plan
+    before the operator commits.
     """
     topo = await _topo(r, project_id)
     plan = netlab.plan_auto_addressing(topo)
+
+    if dry_run:
+        return {
+            "project_id": project_id,
+            "dry_run": True,
+            "nodes_updated": 0,
+            "plan": plan,
+            "summary": netlab.summarize_plan(plan),
+        }
 
     changed = 0
     for node in topo.nodes:
@@ -425,6 +441,8 @@ async def lab_auto_address(project_id: str, r: MemoryRepository = Depends(repo))
     netlab.get_lab_manager().invalidate(project_id)
     return {
         "project_id": project_id,
+        "dry_run": False,
         "nodes_updated": changed,
         "plan": plan,
+        "summary": netlab.summarize_plan(plan),
     }

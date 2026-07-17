@@ -52,7 +52,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from functools import lru_cache
-from ipaddress import IPv4Address, IPv4Network, IPv6Address
+from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
 
 from app.models import Topology
 from engine.netstack import Network
@@ -676,4 +676,55 @@ def plan_auto_addressing(topo: Topology) -> dict:
         "gateways": gateways,
         "assignments6": assignments6,
         "gateways6": gateways6,
+    }
+
+
+def summarize_plan(plan: dict) -> dict:
+    """Roll a raw auto-addressing plan into the wizard's preview tables.
+
+    Groups the assigned CIDRs by network so the dry-run wizard can show one row
+    per subnet (segment / subnet / gateway / usable hosts for v4; segment /
+    prefix / gateway for v6). Everything here is derived from the numbers the
+    planner already produced — no new addressing logic, no fabricated values.
+    """
+    # v4: group interface CIDRs by their /prefix network.
+    v4_nets: dict[str, list[IPv4Address]] = {}
+    for ifaces in plan.get("assignments", {}).values():
+        for cidr in ifaces.values():
+            net = IPv4Network(cidr, strict=False)
+            v4_nets.setdefault(str(net), []).append(IPv4Address(cidr.split("/")[0]))
+
+    ipv4 = []
+    for net_str, addrs in sorted(v4_nets.items(), key=lambda kv: int(IPv4Network(kv[0]).network_address)):
+        net = IPv4Network(net_str)
+        gw = min(addrs)  # lowest assigned address = the domain's first router / gateway
+        p2p = net.prefixlen >= 30
+        ipv4.append(
+            {
+                "segment": f"{'P2P' if p2p else 'LAN'} {net_str}",
+                "subnet": net_str,
+                "gateway": str(gw),
+                "hosts": net.num_addresses - 2 if net.prefixlen <= 30 else net.num_addresses,
+            }
+        )
+
+    # v6: group by /64.
+    v6_nets: dict[str, list[IPv6Address]] = {}
+    for ifaces in plan.get("assignments6", {}).values():
+        for cidr in ifaces.values():
+            net = IPv6Network(cidr, strict=False)
+            v6_nets.setdefault(str(net), []).append(IPv6Address(cidr.split("/")[0]))
+
+    ipv6 = []
+    for net_str, addrs in sorted(v6_nets.items(), key=lambda kv: int(IPv6Network(kv[0]).network_address)):
+        gw = min(addrs)
+        ipv6.append({"segment": f"ULA {net_str}", "prefix": net_str, "gateway": str(gw)})
+
+    p2p_count = sum(1 for r in ipv4 if r["subnet"].endswith("/30"))
+    return {
+        "interfaces": sum(len(i) for i in plan.get("assignments", {}).values()),
+        "lan_domains": len(ipv4) - p2p_count,
+        "p2p_links": p2p_count,
+        "ipv4": ipv4,
+        "ipv6": ipv6,
     }

@@ -14,6 +14,7 @@ import { ModalScrim } from './ModalScrim';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { ScenariosPanel } from '@/components/ScenariosPanel';
 import { OnboardingModal, ONBOARDING_KEY } from '@/components/OnboardingModal';
+import { AddressingWizard } from '@/components/lab/AddressingWizard';
 
 export function ModalLayer() {
   const activeModal = useUiStore((s) => s.activeModal);
@@ -32,6 +33,8 @@ export function ModalLayer() {
   };
 
   if (activeModal === 'onboarding') return <OnboardingModal onClose={dismissOnboarding} />;
+
+  if (activeModal === 'addressingWizard') return <AddressingWizard />;
 
   if (activeModal === 'settings')
     return (

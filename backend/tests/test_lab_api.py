@@ -241,6 +241,43 @@ async def test_auto_address_wizard_makes_topology_pingable(client):
     assert (h1_node["intent"] or {}).get("gateway6", "").startswith("fd00:")
 
 
+async def test_auto_address_dry_run_is_zero_persist(client):
+    """dry_run=true returns a summarized plan but MUST NOT touch any node."""
+    pid = await _mk_project(client)
+    r1 = await _mk_node(client, pid, "r1", "router")
+    r2 = await _mk_node(client, pid, "r2", "router")
+    sw = await _mk_node(client, pid, "sw", "switch")
+    h1 = await _mk_node(client, pid, "h1", "host")
+    await _mk_link(client, pid, r1["id"], r2["id"])
+    await _mk_link(client, pid, r1["id"], sw["id"])
+    await _mk_link(client, pid, h1["id"], sw["id"])
+
+    # Snapshot every node's addressing + intent before the dry run.
+    before = {
+        n["id"]: ([i["ip"] for i in n["interfaces"]], n.get("intent"))
+        for n in (await client.get(f"/api/projects/{pid}/topology")).json()["nodes"]
+    }
+
+    resp = await client.post(f"/api/lab/{pid}/auto-address", params={"dry_run": True})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["dry_run"] is True
+    assert body["nodes_updated"] == 0
+    # The summary carries preview rows the wizard renders.
+    summary = body["summary"]
+    assert summary["ipv4"], "dry run should preview at least one IPv4 domain"
+    assert summary["p2p_links"] >= 1 and summary["lan_domains"] >= 1
+    for row in summary["ipv4"]:
+        assert "/" in row["subnet"] and row["gateway"] and row["hosts"] >= 0
+
+    # Nothing persisted: every node's interfaces + intent are byte-for-byte the same.
+    after = {
+        n["id"]: ([i["ip"] for i in n["interfaces"]], n.get("intent"))
+        for n in (await client.get(f"/api/projects/{pid}/topology")).json()["nodes"]
+    }
+    assert after == before
+
+
 async def test_lab_endpoints_require_auth(anon_client):
     resp = await anon_client.post(
         "/api/lab/some-project/ping", json={"src": "a", "dst": "b"}

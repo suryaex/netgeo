@@ -426,6 +426,34 @@ export interface CliResult {
   prompt: string;
 }
 
+/** One IPv4 subnet row in the addressing-wizard preview (server-summarized). */
+export interface AddressV4Row {
+  segment: string;
+  subnet: string;
+  gateway: string;
+  hosts: number;
+}
+/** One IPv6 (ULA) /64 row in the addressing-wizard preview. */
+export interface AddressV6Row {
+  segment: string;
+  prefix: string;
+  gateway: string;
+}
+export interface AddressPlanSummary {
+  interfaces: number;
+  lan_domains: number;
+  p2p_links: number;
+  ipv4: AddressV4Row[];
+  ipv6: AddressV6Row[];
+}
+/** Result of POST /lab/{id}/auto-address (dry_run or apply). */
+export interface AutoAddressResult {
+  project_id: string;
+  dry_run: boolean;
+  nodes_updated: number;
+  summary: AddressPlanSummary;
+}
+
 export const labApi = {
   ping: (projectId: string, src: string, dst: string, count = 4) =>
     http
@@ -462,9 +490,11 @@ export const labApi = {
     http
       .get<Record<string, unknown>>(`/lab/${projectId}/tables/${nodeRef}`)
       .then((r) => r.data),
-  autoAddress: (projectId: string) =>
+  autoAddress: (projectId: string, opts?: { dryRun?: boolean }) =>
     http
-      .post<{ nodes_updated: number }>(`/lab/${projectId}/auto-address`)
+      .post<AutoAddressResult>(`/lab/${projectId}/auto-address`, undefined, {
+        params: { dry_run: opts?.dryRun ? true : undefined },
+      })
       .then((r) => r.data),
   /* --- Simulation mode (NG-SIM-01) --- */
   mode: (projectId: string, mode: LabMode) =>

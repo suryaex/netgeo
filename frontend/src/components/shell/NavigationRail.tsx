@@ -15,6 +15,7 @@ import {
   Server,
   FileCode2,
   Siren,
+  FileBarChart2,
   FlaskConical,
   GraduationCap,
   Activity,
@@ -41,6 +42,7 @@ const ITEMS: RailItem[] = [
   { key: 'plant', label: 'Physical Plant', icon: Server, view: 'plant' },
   { key: 'config', label: 'Config Center', icon: FileCode2, view: 'config' },
   { key: 'problems', label: 'Problem Center', icon: Siren, view: 'problems' },
+  { key: 'reports', label: 'Reports Center', icon: FileBarChart2, view: 'reports' },
   { key: 'labs', label: 'Labs', icon: FlaskConical, action: 'scenarios' },
   { key: 'diag', label: 'Diagnostics', icon: Activity, action: 'diagnostics' },
 ];

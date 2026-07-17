@@ -5,8 +5,10 @@
  * along the edge path via SMIL animateMotion — direction follows the sending
  * node, so students literally watch the frame travel. Pure SVG: no rAF loop,
  * no per-frame React renders.
+ *
+ * Edges are bezier curves (n8n-style) — one edge type across the whole canvas.
  */
-import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from '@xyflow/react';
 import type { PacketPulse } from '@/store/labStore';
 
 export interface PulseEdgeData extends Record<string, unknown> {
@@ -18,7 +20,7 @@ export interface PulseEdgeData extends Record<string, unknown> {
 }
 
 export function PulseEdge(props: EdgeProps) {
-  const [path, labelX, labelY] = getSmoothStepPath({
+  const [path, labelX, labelY] = getBezierPath({
     sourceX: props.sourceX,
     sourceY: props.sourceY,
     sourcePosition: props.sourcePosition,

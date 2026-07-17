@@ -257,7 +257,7 @@ export function TopologyCanvas() {
         maxZoom={2.5}
         onlyRenderVisibleElements
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: 'smoothstep' }}
+        defaultEdgeOptions={{ type: 'pulse' }}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--ng-border)" />
         <Controls position="bottom-right" className="!border-fg/10 !bg-fg/5 backdrop-blur" />

@@ -75,6 +75,11 @@ interface UiState {
   /** The one open modal, or null. Exclusive by construction (design 12-UI §2.3). */
   activeModal: ModalId | null;
 
+  /** Pending "select + center this node in topology" request (BUG-08). Held in
+   *  the store (not a window event) so it survives the workspace switch when
+   *  TopologyCanvas isn't mounted yet; the canvas consumes and clears it. */
+  focusNodeId: string | null;
+
   setTheme: (mode: ThemeMode) => void;
   /** Cycle Dark → Light → High Contrast → Dark. */
   toggleTheme: () => void;
@@ -97,6 +102,8 @@ interface UiState {
 
   openModal: (id: ModalId) => void;
   closeModal: () => void;
+
+  setFocusNode: (id: string | null) => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -114,6 +121,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   drawerTab: 'console',
   drawerHeight: 320,
   activeModal: null,
+  focusNodeId: null,
 
   setTheme: (mode) => {
     applyTheme(mode);
@@ -151,4 +159,6 @@ export const useUiStore = create<UiState>((set, get) => ({
   // Single slot → opening any modal evicts the previous one; two can never stack.
   openModal: (activeModal) => set({ activeModal }),
   closeModal: () => set({ activeModal: null }),
+
+  setFocusNode: (focusNodeId) => set({ focusNodeId }),
 }));

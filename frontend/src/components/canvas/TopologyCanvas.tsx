@@ -85,21 +85,28 @@ export function TopologyCanvas() {
     [select],
   );
 
-  // BUG-08: "Open in Topology" (Problem Center) dispatches netgeo:focus-node.
-  // Consume it here — actually SELECT the node in the store (drives the React
-  // Flow `selected` prop + the StatusBar), then center the viewport on it.
+  // BUG-08: "Open in Topology" (Problem Center) parks the node id in the ui
+  // store; consume it here — SELECT the node (drives the React Flow `selected`
+  // prop + the StatusBar), center the viewport, then clear the request. Store
+  // instead of a window event so the request survives the workspace switch
+  // (this canvas mounts after the dispatch); rfReady gates until the React
+  // Flow instance exists so the centering isn't silently skipped.
+  const focusNodeId = useUiStore((s) => s.focusNodeId);
+  const setFocusNode = useUiStore((s) => s.setFocusNode);
+  const [rfReady, setRfReady] = useState(false);
   useEffect(() => {
-    const onFocus = (e: Event) => {
-      const nodeId = (e as CustomEvent<{ nodeId?: string }>).detail?.nodeId;
-      if (!nodeId) return;
-      const n = nodesMap.get(nodeId);
-      if (!n) return;
-      select({ nodeId });
-      rfRef.current?.setCenter(n.x, n.y, { zoom: 1.2, duration: 400 });
-    };
-    window.addEventListener('netgeo:focus-node', onFocus);
-    return () => window.removeEventListener('netgeo:focus-node', onFocus);
-  }, [nodesMap, select]);
+    if (!focusNodeId || !rfReady) return;
+    const n = nodesMap.get(focusNodeId);
+    if (!n) {
+      // Stale id (node deleted) — drop the request and do the fit we suppressed.
+      setFocusNode(null);
+      rfRef.current?.fitView({ duration: 400 });
+      return;
+    }
+    select({ nodeId: focusNodeId });
+    rfRef.current?.setCenter(n.x, n.y, { zoom: 1.2, duration: 400 });
+    setFocusNode(null);
+  }, [focusNodeId, rfReady, nodesMap, select, setFocusNode]);
 
   // Project store Maps -> React Flow nodes/edges (memoized by identity).
   const rfNodes: Node<DeviceNodeData>[] = useMemo(
@@ -272,6 +279,7 @@ export function TopologyCanvas() {
       <ReactFlow
         onInit={(inst) => {
           rfRef.current = inst;
+          setRfReady(true);
           // Register the fit action so the global `F` shortcut and the command
           // palette can fit the view without holding the React Flow instance.
           setFit(() => inst.fitView({ duration: 400 }));
@@ -294,7 +302,11 @@ export function TopologyCanvas() {
         // click-to-connect kills React Flow's pending click-connect state — the
         // one that turned every stray click after a link into a phantom edge.
         connectOnClick={false}
-        fitView
+        // The initial fit runs AFTER nodes are measured — i.e. after the
+        // focus-node effect's setCenter, which it would silently override
+        // (BUG-08 round 2). A pending focus request suppresses it; the prop is
+        // only read at init, so flipping back to true later is a no-op.
+        fitView={!focusNodeId}
         snapToGrid
         snapGrid={[16, 16]}
         minZoom={0.2}

@@ -260,7 +260,9 @@ export function ProblemsWorkspace() {
   const openInTopology = useCallback(
     (nodeId?: string) => {
       setViewMode('topology');
-      if (nodeId) window.dispatchEvent(new CustomEvent('netgeo:focus-node', { detail: { nodeId } }));
+      // Store, not a window event: TopologyCanvas isn't mounted yet during the
+      // workspace switch, so an event fired here would be lost (BUG-08).
+      if (nodeId) useUiStore.getState().setFocusNode(nodeId);
     },
     [setViewMode],
   );

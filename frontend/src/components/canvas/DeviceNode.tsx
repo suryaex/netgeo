@@ -114,7 +114,7 @@ function DeviceNodeImpl({ data, selected }: NodeProps) {
           type="source"
           position={position}
           id={side}
-          className="!h-2 !w-2 opacity-40 transition-opacity duration-fast group-hover:opacity-100"
+          className="!h-2 !w-2 !opacity-40 transition-opacity duration-fast group-hover:!opacity-100"
         />
       ))}
 

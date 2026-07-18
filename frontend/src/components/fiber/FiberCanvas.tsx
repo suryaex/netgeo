@@ -5,7 +5,6 @@
  * dashed, drop (final hop) dotted — a visual grouping of the real element chain,
  * toggled by the top-left chips. PASS/FAIL comes straight from the path budget.
  */
-import { Cable } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useFiberStore, type SegKey } from '@/store/fiberStore';
 import { KIND_LABEL, elementSummary } from './fiberLogic';
@@ -36,16 +35,11 @@ export function FiberCanvas() {
   const budget = useFiberStore((s) => (s.selectedId ? s.budgets[s.selectedId] : undefined));
   const seg = useFiberStore((s) => s.seg);
 
-  if (!path) {
-    return (
-      <Centered>
-        <Cable className="h-9 w-9 text-fg/25" />
-        <p className="max-w-xs text-sm text-fg/55">
-          Select a fiber path, or create one from the toolbar below, to plan its optical budget.
-        </p>
-      </Centered>
-    );
-  }
+  // No selected path → render nothing. The single canonical empty-state lives in
+  // FiberWorkspace (WorkspaceEmptyState); `load` always auto-selects a path when
+  // any exist, so this only fires with zero paths — where showing a second
+  // centered message here just overlapped the parent's (carry-over a).
+  if (!path) return null;
 
   const passed = budget?.passed ?? true;
   const firstSplitter = path.elements.findIndex((e) => e.kind === 'splitter'); // -1 if none
@@ -166,13 +160,5 @@ function NodeGlyph({
         </text>
       )}
     </g>
-  );
-}
-
-function Centered({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="absolute inset-0 grid place-items-center">
-      <div className="grid max-w-sm place-items-center gap-3 px-6 text-center">{children}</div>
-    </div>
   );
 }

@@ -6,27 +6,43 @@
  * node, so students literally watch the frame travel. Pure SVG: no rAF loop,
  * no per-frame React renders.
  *
- * Edges are bezier curves (n8n-style) — one edge type across the whole canvas.
+ * Edges are floating bezier curves (n8n-style): each end anchors on the border
+ * side of its node that faces the other node, so cables leave the nearest port
+ * dot instead of a fixed top/bottom handle. One edge type across the canvas.
  */
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from '@xyflow/react';
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
+  useInternalNode,
+  type EdgeProps,
+} from '@xyflow/react';
 import type { PacketPulse } from '@/store/labStore';
+import { getFloatingEdgeParams } from './floatingEdge';
 
 export interface PulseEdgeData extends Record<string, unknown> {
   pulse?: PacketPulse;
   /** true when the pulse travels target -> source. */
   pulseReverse?: boolean;
-  /** Midpoint label shown when the L2/L3 overlay is on (design §6.1). */
+  /** Midpoint label shown whenever a link carries bandwidth (design §6.1). */
   label?: string;
 }
 
 export function PulseEdge(props: EdgeProps) {
+  const sourceNode = useInternalNode(props.source);
+  const targetNode = useInternalNode(props.target);
+
+  // Nodes not yet measured (first paint) — skip; React Flow re-renders once sized.
+  if (!sourceNode || !targetNode) return null;
+
+  const { sx, sy, tx, ty, sourcePos, targetPos } = getFloatingEdgeParams(sourceNode, targetNode);
   const [path, labelX, labelY] = getBezierPath({
-    sourceX: props.sourceX,
-    sourceY: props.sourceY,
-    sourcePosition: props.sourcePosition,
-    targetX: props.targetX,
-    targetY: props.targetY,
-    targetPosition: props.targetPosition,
+    sourceX: sx,
+    sourceY: sy,
+    sourcePosition: sourcePos,
+    targetX: tx,
+    targetY: ty,
+    targetPosition: targetPos,
   });
   const data = (props.data ?? {}) as PulseEdgeData;
   const pulse = data.pulse;

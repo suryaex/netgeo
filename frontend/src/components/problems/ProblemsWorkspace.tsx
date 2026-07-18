@@ -454,8 +454,13 @@ function ProblemRow({
         acked && 'opacity-55',
       )}
     >
-      {active && <td className="absolute inset-y-0 left-0 w-1 rounded-r bg-accent p-0" aria-hidden />}
-      <td className="px-4 py-2.5">
+      {/* Active accent bar — an absolutely-positioned span INSIDE the first cell,
+          never its own <td>. A sibling <td> shifted every column one to the
+          right (BUG-06); the icon/problem/node/detected mapping now lines up. */}
+      <td className="relative px-4 py-2.5">
+        {active && (
+          <span className="absolute inset-y-0 left-0 w-1 rounded-r bg-accent" aria-hidden />
+        )}
         <Icon className={cn('h-[18px] w-[18px]', tone)} aria-hidden />
       </td>
       <td className="px-4 py-2.5 font-sans text-[13px] text-fg">{problem.title}</td>

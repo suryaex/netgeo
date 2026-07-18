@@ -27,6 +27,24 @@ export type ModalId =
   | 'mapOnboarding'
   | 'addressingWizard';
 
+/** The workspace views that own a URL path (all of them). ViewMode === path slug,
+ *  so the map is the identity — but listing them keeps the parse total + typed. */
+const VIEW_PATHS: readonly ViewMode[] = [
+  'projects', 'topology', 'map', 'twin', 'rf', 'fiber', 'edu', 'plant', 'config', 'problems', 'reports',
+];
+
+/** Read the current view from location.pathname; unknown/`/` → 'topology'. */
+function viewFromPath(): ViewMode {
+  const slug = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  return (VIEW_PATHS as readonly string[]).includes(slug) ? (slug as ViewMode) : 'topology';
+}
+
+/** Reflect the active view into the URL without a navigation (F5 restores it). */
+function syncPath(view: ViewMode) {
+  const next = `/${view}`;
+  if (window.location.pathname !== next) window.history.replaceState(null, '', next);
+}
+
 function initialTheme(): ThemeMode {
   const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null;
   if (saved === 'light' || saved === 'dark' || saved === 'high-contrast') return saved;
@@ -88,7 +106,10 @@ export const useUiStore = create<UiState>((set, get) => ({
   simTime: 0,
   simMetrics: null,
   projectId: null,
-  viewMode: 'topology',
+  // Restore the workspace from the URL on load so F5 on /problems (etc.) stays
+  // put instead of snapping back to topology (BUG-07). LoginPage is gated on auth
+  // upstream, so this never interferes with the login redirect.
+  viewMode: viewFromPath(),
   drawerOpen: false,
   drawerTab: 'console',
   drawerHeight: 320,
@@ -116,7 +137,10 @@ export const useUiStore = create<UiState>((set, get) => ({
       return { simTime: t, simMetrics: metrics ?? s.simMetrics, simState: next };
     }),
   setProject: (projectId) => set({ projectId }),
-  setViewMode: (viewMode) => set({ viewMode }),
+  setViewMode: (viewMode) => {
+    syncPath(viewMode);
+    set({ viewMode });
+  },
 
   openDrawer: (tab) =>
     set((s) => (s.drawerOpen && s.drawerTab === tab ? { drawerOpen: false } : { drawerOpen: true, drawerTab: tab })),

@@ -11,7 +11,7 @@
  * cheap. Node moves are committed locally immediately, pushed to the server
  * on drag-stop only (not on every frame).
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -60,6 +60,7 @@ export function TopologyCanvas() {
   const nodesMap = useTopologyStore((s) => s.nodes);
   const linksMap = useTopologyStore((s) => s.links);
   const selectedNodeId = useTopologyStore((s) => s.selectedNodeId);
+  const selectedLinkId = useTopologyStore((s) => s.selectedLinkId);
   const moveNode = useTopologyStore((s) => s.moveNode);
   const upsertLink = useTopologyStore((s) => s.upsertLink);
   const select = useTopologyStore((s) => s.select);
@@ -68,7 +69,12 @@ export function TopologyCanvas() {
   const setFit = useTopoUiStore((s) => s.setFit);
   const setCenterOn = useTopoUiStore((s) => s.setCenterOn);
   const overlays = useTopoUiStore((s) => s.overlays);
+  const inspectorPinned = useTopoUiStore((s) => s.inspectorPinned);
   const protoActive = overlays.ospf || overlays.bgp || overlays.vlan;
+  // BUG-05: the ContextInspector (360px right panel) is on-screen whenever
+  // something is selected or the inspector is pinned — mirror that condition so
+  // the minimap can slide clear of it instead of hiding underneath.
+  const inspectorOpen = Boolean(selectedNodeId || selectedLinkId) || inspectorPinned;
 
   /** Select a node and pan/zoom the viewport to center it (search "locate"). */
   const locateNode = useCallback(
@@ -78,6 +84,22 @@ export function TopologyCanvas() {
     },
     [select],
   );
+
+  // BUG-08: "Open in Topology" (Problem Center) dispatches netgeo:focus-node.
+  // Consume it here — actually SELECT the node in the store (drives the React
+  // Flow `selected` prop + the StatusBar), then center the viewport on it.
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const nodeId = (e as CustomEvent<{ nodeId?: string }>).detail?.nodeId;
+      if (!nodeId) return;
+      const n = nodesMap.get(nodeId);
+      if (!n) return;
+      select({ nodeId });
+      rfRef.current?.setCenter(n.x, n.y, { zoom: 1.2, duration: 400 });
+    };
+    window.addEventListener('netgeo:focus-node', onFocus);
+    return () => window.removeEventListener('netgeo:focus-node', onFocus);
+  }, [nodesMap, select]);
 
   // Project store Maps -> React Flow nodes/edges (memoized by identity).
   const rfNodes: Node<DeviceNodeData>[] = useMemo(
@@ -122,6 +144,9 @@ export function TopologyCanvas() {
         // On a protocol overlay, keep only edges whose both ends are members.
         const onOverlay =
           !protoActive || (memberById(nodesMap, source, overlays) && memberById(nodesMap, target, overlays));
+        // A down/errored/admin-down link reads as a dashed line (on top of its red
+        // status color); an up link keeps its type-based dash (wireless/virtual).
+        const down = l.status && l.status !== 'up' && l.status !== 'unknown';
         return {
           id: l.id,
           source,
@@ -131,7 +156,7 @@ export function TopologyCanvas() {
           style: {
             stroke: color,
             strokeWidth: EDGE_WIDTH[l.type] ?? 2,
-            strokeDasharray: EDGE_DASH[l.type],
+            strokeDasharray: down ? '6 5' : EDGE_DASH[l.type],
             opacity: onOverlay ? 1 : 0.12,
           },
           data: {
@@ -139,7 +164,9 @@ export function TopologyCanvas() {
             bandwidth: l.bandwidth,
             pulse,
             pulseReverse: pulse ? pulse.fromNode === target : false,
-            label: overlays.l3 && l.bandwidth ? `${l.bandwidth}M` : undefined,
+            // Bandwidth pill shows whenever the link carries a rate (n8n-look),
+            // no overlay required; no data → no label (never fabricated).
+            label: l.bandwidth ? `${l.bandwidth}M` : undefined,
           },
         } as Edge;
       }),
@@ -168,9 +195,22 @@ export function TopologyCanvas() {
   );
 
   /* --- Link creation ------------------------------------------------------- */
+  // A completed handle→handle drag is the ONLY thing that creates a link. We
+  // reject self-links and duplicates (an identical A↔B pair already present),
+  // so stray clicks after a link is drawn can't spawn phantom edges.
   const onConnect = useCallback(
     (conn: Connection) => {
       if (!conn.source || !conn.target || !projectId) return;
+      if (conn.source === conn.target) return; // no self-loops
+      // Duplicate guard: same unordered node pair already linked → no-op.
+      const exists = Array.from(linksMap.values()).some((l) => {
+        const s = ifaceNodeId(nodesMap, l.a_iface);
+        const t = ifaceNodeId(nodesMap, l.b_iface);
+        return (
+          (s === conn.source && t === conn.target) || (s === conn.target && t === conn.source)
+        );
+      });
+      if (exists) return;
       const aIface = firstFreeIface(nodesMap.get(conn.source));
       const bIface = firstFreeIface(nodesMap.get(conn.target));
       if (!aIface || !bIface) return;
@@ -194,7 +234,7 @@ export function TopologyCanvas() {
         .then((real) => upsertLink(real))
         .catch(() => {});
     },
-    [nodesMap, upsertLink, projectId],
+    [nodesMap, linksMap, upsertLink, projectId],
   );
 
   /* --- Drag-drop device creation from the palette -------------------------- */
@@ -250,6 +290,10 @@ export function TopologyCanvas() {
         onPaneClick={() => select({ nodeId: null, linkId: null })}
         onEdgeClick={(_e, edge) => select({ linkId: edge.id })}
         connectionMode={ConnectionMode.Loose}
+        // BUG-02: links are made by DRAGGING a port to another port. Disabling
+        // click-to-connect kills React Flow's pending click-connect state — the
+        // one that turned every stray click after a link into a phantom edge.
+        connectOnClick={false}
         fitView
         snapToGrid
         snapGrid={[16, 16]}
@@ -284,7 +328,11 @@ export function TopologyCanvas() {
             offsetScale={4}
             nodeColor={(n) => nodeColors[(n.data as DeviceNodeData).kind] ?? '#888'}
             style={{ width: 148, height: 100 }}
-            className="!m-3 !rounded-lg !border !border-fg/10 !bg-surface/70 !shadow-glass backdrop-blur"
+            className={cn(
+              '!rounded-lg !border !border-fg/10 !bg-surface/70 !shadow-glass backdrop-blur transition-all duration-fast',
+              // Slide clear of the 360px inspector when it's open (BUG-05).
+              inspectorOpen ? '!mb-3 !mt-3 !mr-[372px]' : '!m-3',
+            )}
           />
         )}
       </ReactFlow>

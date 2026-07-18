@@ -72,18 +72,6 @@ body {
   }
 }
 
-/* ---- High-contrast hardening ---------------------------------------------- */
-html.hc .glass,
-html.hc .glass-strong,
-html.hc .panel {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-html.hc *:focus-visible {
-  outline: 2px solid #ffd400;
-  outline-offset: 2px;
-}
-
 /* Visible keyboard focus everywhere (accessibility). */
 :focus-visible {
   outline: 2px solid var(--ng-primary, #d97757);

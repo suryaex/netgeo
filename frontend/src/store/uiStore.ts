@@ -4,7 +4,7 @@
  * Persists theme to localStorage; everything else is session state.
  */
 import { create } from 'zustand';
-import { applyTheme, THEME_ORDER, type ThemeMode } from '@/theme/tokens';
+import { applyTheme, type ThemeMode } from '@/theme/tokens';
 import type { SimState } from '@/api/types';
 
 const THEME_KEY = 'netgeo.theme';
@@ -46,12 +46,9 @@ function syncPath(view: ViewMode) {
 }
 
 function initialTheme(): ThemeMode {
-  const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null;
-  if (saved === 'light' || saved === 'dark' || saved === 'high-contrast') return saved;
-  // Dark-first: the glass shell is built for the dark surface. Light mode isn't
-  // at parity yet (many panels hardcode light-on-dark text), so default to dark
-  // instead of following the OS — otherwise an OS-light user gets an unreadable
-  // white-on-white UI. Users can still pick Light in Settings.
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'light') return 'light';
+  // 'high-contrast' was removed in v1 (deferred to v2); migrate to 'dark'.
   return 'dark';
 }
 
@@ -81,7 +78,7 @@ interface UiState {
   focusNodeId: string | null;
 
   setTheme: (mode: ThemeMode) => void;
-  /** Cycle Dark → Light → High Contrast → Dark. */
+  /** Toggle Dark ↔ Light. */
   toggleTheme: () => void;
   setSimState: (s: SimState) => void;
   setSimSpeed: (n: number) => void;
@@ -129,9 +126,7 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ theme: mode });
   },
   toggleTheme: () => {
-    const order = THEME_ORDER;
-    const idx = order.indexOf(get().theme);
-    get().setTheme(order[(idx + 1) % order.length]!);
+    get().setTheme(get().theme === 'dark' ? 'light' : 'dark');
   },
   setSimState: (simState) => set({ simState }),
   setSimSpeed: (simSpeed) => set({ simSpeed }),

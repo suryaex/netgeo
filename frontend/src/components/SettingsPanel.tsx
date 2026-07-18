@@ -18,7 +18,6 @@ import {
   Package,
   ChevronDown,
   Radio,
-  Contrast,
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
@@ -96,12 +95,11 @@ function GeneralSection() {
     <div className="space-y-6">
       <SectionHeading>Appearance</SectionHeading>
 
-      <Row label="Theme" description="Light, Dark, or High Contrast interface.">
+      <Row label="Theme" description="Light or Dark interface.">
         <div className="flex flex-wrap gap-2">
           {([
             { key: 'dark', label: 'Dark', icon: Moon },
             { key: 'light', label: 'Light', icon: Sun },
-            { key: 'high-contrast', label: 'High Contrast', icon: Contrast },
           ] as const).map(({ key, label, icon: Icon }) => (
             <button
               key={key}

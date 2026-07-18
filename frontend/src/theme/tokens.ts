@@ -8,13 +8,11 @@
  *   2. TypeScript (canvas / inline styles)  → this module
  *   3. CSS custom properties on <html>      → applyTheme(), drives theming
  *
- * Themes (03_UI_UX_GUIDELINES §Theme): Light · Dark · High Contrast.
+ * Themes (03_UI_UX_GUIDELINES §Theme): Light · Dark.
  */
 import type { NodeKind } from '@/api/types';
 
-export type ThemeMode = 'light' | 'dark' | 'high-contrast';
-
-export const THEME_ORDER: ThemeMode[] = ['dark', 'light', 'high-contrast'];
+export type ThemeMode = 'light' | 'dark';
 
 /**
  * Semantic color tokens (03_UI_UX_GUIDELINES §Color Tokens).
@@ -133,33 +131,6 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
     '--ng-danger': '#C0392B',
     '--ng-info': '#0E7C88',
   },
-  'high-contrast': {
-    '--ng-bg-0': '#000000',
-    '--ng-bg-1': '#000000',
-    '--ng-surface': '#000000',
-    '--ng-surface-2': '#0A0A0A',
-    '--ng-panel': '#000000',
-    '--ng-panel-2': '#0A0A0A',
-    '--ng-border': '#FFFFFF',
-    '--ng-border-strong': '#FFFFFF',
-    '--ng-fg': '#FFFFFF',
-    '--ng-fg-muted': '#E6E6E6',
-    '--ng-fg-subtle': '#BFBFBF',
-    '--ng-fg-rgb': '255 255 255',
-    '--ng-recess-rgb': '0 0 0',
-    '--ng-glass-bg': '#000000',
-    '--ng-glass-border': '#FFFFFF',
-    '--ng-elevate': '0 0 0 1px #FFFFFF',
-    '--ng-accent-rgb': '124 192 255', // #7CC0FF — bright blue, huge contrast on black
-    '--ng-accent-soft': '#A9D4FF',
-    '--ng-accent-fg': '#000000',
-    '--ng-primary': '#7CC0FF',
-    '--ng-secondary': '#5AC8FA',
-    '--ng-success': '#3BE6A0',
-    '--ng-warning': '#FFC44D',
-    '--ng-danger': '#FF6B6D',
-    '--ng-info': '#5BE0EC',
-  },
 };
 
 /**
@@ -168,9 +139,7 @@ const THEMES: Record<ThemeMode, ThemeVars> = {
  */
 export function applyTheme(mode: ThemeMode): void {
   const root = document.documentElement;
-  // Dark utilities should also apply in high-contrast (it's a dark base).
-  root.classList.toggle('dark', mode === 'dark' || mode === 'high-contrast');
-  root.classList.toggle('hc', mode === 'high-contrast');
+  root.classList.toggle('dark', mode === 'dark');
   root.dataset.theme = mode;
 
   const vars = THEMES[mode];

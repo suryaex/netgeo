@@ -73,7 +73,7 @@ def validate() -> list[str]:
         return [f"no library files found under {LIBRARY}"]
     for path in files:
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
             findings.append(f"{path.name}: invalid JSON: {exc}")
             continue

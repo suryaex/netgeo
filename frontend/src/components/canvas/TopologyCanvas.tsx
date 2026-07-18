@@ -94,6 +94,12 @@ export function TopologyCanvas() {
   const focusNodeId = useUiStore((s) => s.focusNodeId);
   const setFocusNode = useUiStore((s) => s.setFocusNode);
   const [rfReady, setRfReady] = useState(false);
+  // Frozen at mount: React Flow's initial fit runs deferred (after nodes are
+  // measured) and consults the fitView prop AT THAT TIME — so the suppression
+  // must hold for the whole mount, not just until the request is consumed
+  // (clearing focusNodeId first flipped the prop back and the late fit
+  // overrode setCenter; QA round 2).
+  const [suppressInitialFit] = useState(() => Boolean(useUiStore.getState().focusNodeId));
   useEffect(() => {
     if (!focusNodeId || !rfReady) return;
     const n = nodesMap.get(focusNodeId);
@@ -302,11 +308,10 @@ export function TopologyCanvas() {
         // click-to-connect kills React Flow's pending click-connect state — the
         // one that turned every stray click after a link into a phantom edge.
         connectOnClick={false}
-        // The initial fit runs AFTER nodes are measured — i.e. after the
-        // focus-node effect's setCenter, which it would silently override
-        // (BUG-08 round 2). A pending focus request suppresses it; the prop is
-        // only read at init, so flipping back to true later is a no-op.
-        fitView={!focusNodeId}
+        // A focus request pending at mount suppresses the initial whole-graph
+        // fit for this mount (see suppressInitialFit above) so it can't
+        // override the focus-node setCenter (BUG-08).
+        fitView={!suppressInitialFit}
         snapToGrid
         snapGrid={[16, 16]}
         minZoom={0.2}

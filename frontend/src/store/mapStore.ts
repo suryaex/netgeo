@@ -31,7 +31,7 @@ function initialGisLayers(): Record<string, GisLayerState> {
   return out;
 }
 
-export type MapTool = 'select' | 'ap' | 'cpe' | 'tower' | 'measure' | 'profile';
+export type MapTool = 'select' | 'ap' | 'cpe' | 'tower' | 'measure' | 'profile' | 'deploy';
 export type MapDeviceKind = 'ap' | 'cpe' | 'tower';
 
 /**

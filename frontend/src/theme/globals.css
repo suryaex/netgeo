@@ -145,6 +145,15 @@ html[data-theme='dark'] .leaflet-tile {
   filter: saturate(0.85) brightness(0.88);
 }
 
+/* Container background matches the surface so unloaded tiles (before the
+   first tile arrives, or on slow connections) don't show jarring black boxes. */
+html[data-theme='light'] .leaflet-container {
+  background: #e8e8e4;
+}
+html[data-theme='dark'] .leaflet-container {
+  background: #0d1117;
+}
+
 .ng-map-label {
   background: var(--ng-surface, rgba(22, 27, 42, 0.85)) !important;
   border: 1px solid var(--ng-border-strong, rgba(255, 255, 255, 0.15)) !important;

@@ -66,6 +66,7 @@ export default {
           switch: '#27C28B',
           host: '#8A93A6',
           ap: '#7C5CFC',
+          cpe: '#007AFF',  // map-deploy CPE (wireless client)
           olt: '#F5A623',
           firewall: '#FF4D4F',
           server: '#27B5C2',

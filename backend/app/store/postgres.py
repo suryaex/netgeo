@@ -259,6 +259,24 @@ class PostgresRepository:
     # --- links --------------------------------------------------------------
     async def add_link(self, link: Link) -> Link:
         async with self._txn() as s:
+            # Mirror of MemoryRepository.add_link's per-interface guard: one
+            # interface may only be an endpoint of one live link at a time.
+            # Query-in-txn is enough here (no DB constraint; txn races are
+            # tolerated for this app — see memory.py for the invariant note).
+            ids = (link.a_iface, link.b_iface)
+            rows = (await s.execute(
+                select(LinkRow.a_iface, LinkRow.b_iface).where(
+                    (LinkRow.project_id == link.project_id)
+                    & (LinkRow.a_iface.in_(ids) | LinkRow.b_iface.in_(ids))
+                )
+            )).all()
+            occupied = {i for row in rows for i in row}
+            busy = [iid for iid in ids if iid in occupied]
+            if busy:
+                from app.exceptions.base import Conflict
+                raise Conflict(
+                    f"interface(s) already in use by another link: {', '.join(busy)}"
+                )
             s.add(LinkRow(
                 id=link.id, project_id=link.project_id, a_iface=link.a_iface,
                 b_iface=link.b_iface, type=str(link.type), bandwidth=link.bandwidth,

@@ -234,65 +234,9 @@ export function TopologyCanvas() {
       if (!aIface || !bIface) return;
 
       // Optimistic local edge; backend assigns the real link id.
+      // OBS-01 fix: removeLink(tempId) before inserting the real link so the
+      // store never holds both at once (was the source of the transient double-count).
       const tempId = `tmp-${conn.source}-${conn.target}-${Date.now()}`;
-      upsertLink({
-        id: tempId,
-        project_id: projectId,
-        a_iface: aIface,
-        b_iface: bIface,
-        type: 'copper',
-        bandwidth: 1000,
-        delay: 1,
-        loss: 0,
-        mtu: 1500,
-        status: 'up',
-      });
-      void linksApi
-        .create({ project_id: projectId, a_iface: aIface, b_iface: bIface, type: 'copper' })
-        .then((real) => upsertLink(real))
-        .catch(() => {});
-    },
-    [nodesMap, linksMap, upsertLink, projectId],
-  );
-
-  /* --- Edge reconnect: drag endpoint of an existing edge to a new node ------ */
-  // React Flow v12 API: onReconnect fires when the user drops a dragged edge
-  // endpoint onto a new handle. We delete the old link then create a fresh one.
-  // Drop on empty space → React Flow does NOT fire onReconnect (edge is restored
-  // to its previous position automatically), so no cancel logic needed here.
-  const onReconnect = useCallback(
-    (oldEdge: Edge, newConnection: Connection) => {
-      if (!newConnection.source || !newConnection.target || !projectId) return;
-      if (newConnection.source === newConnection.target) return;
-
-      // Capture rollback data before removing.
-      const oldData = oldEdge.data as { a_iface?: string; b_iface?: string } | undefined;
-      const oldAIface = oldData?.a_iface ?? oldEdge.source;
-      const oldBIface = oldData?.b_iface ?? oldEdge.target;
-
-      // Optimistic: remove old edge from store then create a new link.
-      removeLink(oldEdge.id);
-      void linksApi.remove(oldEdge.id).catch(() => {
-        // Rollback: restore the old link on API failure.
-        upsertLink({
-          id: oldEdge.id,
-          project_id: projectId,
-          a_iface: oldAIface,
-          b_iface: oldBIface,
-          type: 'copper',
-          bandwidth: 1000,
-          delay: 1,
-          loss: 0,
-          mtu: 1500,
-          status: 'up',
-        });
-      });
-
-      const aIface = firstFreeIface(nodesMap.get(newConnection.source));
-      const bIface = firstFreeIface(nodesMap.get(newConnection.target));
-      if (!aIface || !bIface) return;
-
-      const tempId = `tmp-${newConnection.source}-${newConnection.target}-${Date.now()}`;
       upsertLink({
         id: tempId,
         project_id: projectId,
@@ -311,11 +255,81 @@ export function TopologyCanvas() {
           removeLink(tempId);
           upsertLink(real);
         })
+        .catch(() => removeLink(tempId));
+    },
+    [nodesMap, linksMap, upsertLink, removeLink, projectId],
+  );
+
+  /* --- Edge reconnect: drag endpoint of an existing edge to a new node ------ */
+  // React Flow v12 API: onReconnect fires when the user drops a dragged edge
+  // endpoint onto a new handle. We delete the old link then create a fresh one.
+  // Drop on empty space → React Flow does NOT fire onReconnect (edge is restored
+  // to its previous position automatically), so no cancel logic needed here.
+  const onReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      if (!newConnection.source || !newConnection.target || !projectId) return;
+      if (newConnection.source === newConnection.target) return;
+
+      // Fix #2: compute both ifaces BEFORE touching the store.
+      // If either is null the reconnect cannot proceed — bail without removing
+      // the existing link (was: link disappeared even on failed reconnects).
+      const aIface = firstFreeIface(nodesMap.get(newConnection.source));
+      const bIface = firstFreeIface(nodesMap.get(newConnection.target));
+      if (!aIface || !bIface) return;
+
+      // Fix #1: capture the full LinkModel from the store for rollback so we
+      // restore the original type/bandwidth/delay/loss/mtu (was: hardcoded defaults).
+      const oldLink = linksMap.get(oldEdge.id);
+
+      // Optimistic: remove old edge from store then create a new link.
+      removeLink(oldEdge.id);
+      void linksApi.remove(oldEdge.id).catch(() => {
+        // Rollback: restore the original link with its real properties.
+        if (oldLink) {
+          upsertLink(oldLink);
+        } else {
+          // Fallback if the link was somehow already evicted from the store.
+          const oldData = oldEdge.data as { a_iface?: string; b_iface?: string } | undefined;
+          upsertLink({
+            id: oldEdge.id,
+            project_id: projectId,
+            a_iface: oldData?.a_iface ?? oldEdge.source,
+            b_iface: oldData?.b_iface ?? oldEdge.target,
+            type: 'copper',
+            bandwidth: 1000,
+            delay: 1,
+            loss: 0,
+            mtu: 1500,
+            status: 'up',
+          });
+        }
+      });
+
+      // Fix #3: inherit link properties from the old link instead of copper defaults.
+      const inheritedProps = oldLink
+        ? { type: oldLink.type, bandwidth: oldLink.bandwidth, delay: oldLink.delay, loss: oldLink.loss, mtu: oldLink.mtu }
+        : { type: 'copper' as const, bandwidth: 1000, delay: 1, loss: 0, mtu: 1500 };
+
+      const tempId = `tmp-${newConnection.source}-${newConnection.target}-${Date.now()}`;
+      upsertLink({
+        id: tempId,
+        project_id: projectId,
+        a_iface: aIface,
+        b_iface: bIface,
+        ...inheritedProps,
+        status: 'up',
+      });
+      void linksApi
+        .create({ project_id: projectId, a_iface: aIface, b_iface: bIface, type: inheritedProps.type })
+        .then((real) => {
+          removeLink(tempId);
+          upsertLink(real);
+        })
         .catch(() => {
           removeLink(tempId);
         });
     },
-    [nodesMap, projectId, removeLink, upsertLink],
+    [nodesMap, linksMap, projectId, removeLink, upsertLink],
   );
 
   /* --- Drag-drop device creation from the palette -------------------------- */

@@ -26,12 +26,13 @@ from typing import TYPE_CHECKING, Optional
 from engine.events import EventType, SimEvent
 from engine.netstack.addr import MacAddr, link_local_for, solicited_node
 from engine.netstack.frames import EthernetFrame, Ipv4Packet, Ipv6Packet
+from engine.netstack.qos import QosClass, QosConfig, classify
 
 if TYPE_CHECKING:  # pragma: no cover
     from engine.netstack.device import Device
     from engine.netstack.network import Network
 
-PRIORITY_DSCP_THRESHOLD = 40  # CS5 and above ride the priority queue
+PRIORITY_DSCP_THRESHOLD = 40  # CS5 and above ride the priority queue (legacy constant kept for external callers)
 
 
 @dataclass(slots=True)
@@ -95,8 +96,7 @@ class Interface:
         "enabled",
         "attachment",
         "counters",
-        "_queue_be",
-        "_queue_prio",
+        "_queues",
         "_transmitting",
         "queue_depth",
         # STP per-port state (used when the owning device is a Switch)
@@ -126,8 +126,10 @@ class Interface:
         self.enabled: bool = True
         self.attachment: Optional[LinkAttachment] = None
         self.counters = IfaceCounters()
-        self._queue_be: deque[EthernetFrame] = deque()
-        self._queue_prio: deque[EthernetFrame] = deque()
+        # Three deques indexed by QosClass (EF=0, AF=1, BE=2).
+        # When QoS is disabled only EF and BE slots are used — mirrors the
+        # former _queue_prio / _queue_be split for disabled-path parity.
+        self._queues: tuple[deque[EthernetFrame], ...] = (deque(), deque(), deque())
         self._transmitting = False
         self.queue_depth = queue_depth
         self.stp_state: str = "forwarding"       # forwarding | blocking | learning
@@ -204,27 +206,39 @@ class Interface:
             self.device.on_mtu_drop(net, self, frame)
             return
 
-        queue = (
-            self._queue_prio
-            if _frame_priority(frame) >= PRIORITY_DSCP_THRESHOLD
-            else self._queue_be
-        )
-        if len(self._queue_be) + len(self._queue_prio) >= self.queue_depth:
-            self.counters.drops_queue += 1
-            net.record_drop("queue_overflow")
-            net.capture.record(net.now, att.id, self.qualified_name, "drop", frame)
-            return
+        qos_cfg = att.qos
+        cls = classify(_frame_priority(frame), qos_cfg)
+        queue = self._queues[cls]
+
+        # Depth check: disabled path uses shared depth (legacy); enabled path
+        # enforces per-class depth so EF/AF cannot be crowded out by BE.
+        if qos_cfg.enabled:
+            if len(queue) >= qos_cfg.depth_per_class:
+                self.counters.drops_queue += 1
+                net.record_drop("queue_overflow")
+                net.capture.record(net.now, att.id, self.qualified_name, "drop", frame)
+                return
+        else:
+            # Legacy shared-depth check — EF+BE only (AF slot always empty here).
+            if len(self._queues[QosClass.EF]) + len(self._queues[QosClass.BE]) >= self.queue_depth:
+                self.counters.drops_queue += 1
+                net.record_drop("queue_overflow")
+                net.capture.record(net.now, att.id, self.qualified_name, "drop", frame)
+                return
 
         queue.append(frame)
         if not self._transmitting:
             self._start_next(net)
 
     def _start_next(self, net: "Network") -> None:
+        # Strict-priority drain: EF first, then AF, then BE.
+        # Disabled path: AF queue is always empty so EF→BE order is preserved
+        # bit-for-bit (same as former _queue_prio → _queue_be drain).
         frame = None
-        if self._queue_prio:
-            frame = self._queue_prio.popleft()
-        elif self._queue_be:
-            frame = self._queue_be.popleft()
+        for q in self._queues:
+            if q:
+                frame = q.popleft()
+                break
         if frame is None:
             self._transmitting = False
             return
@@ -256,7 +270,7 @@ class Interface:
         att = self.attachment
         # Keep the pipe busy with whatever queued up meanwhile.
         self._transmitting = False
-        if att is not None and (self._queue_prio or self._queue_be):
+        if att is not None and any(self._queues):
             self._start_next(net)
 
         if att is None or not att.up:
@@ -347,6 +361,7 @@ class LinkAttachment:
     mtu: int = 1500
     up: bool = True
     kind: str = "copper"          # copper | fiber | wireless | virtual
+    qos: QosConfig = field(default_factory=QosConfig)  # default: disabled, legacy behaviour
 
     def __post_init__(self) -> None:
         self.a.attachment = self

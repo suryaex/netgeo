@@ -11,8 +11,8 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import repo, translate_not_found
 from app.exceptions.base import AppException, SimulationError
-from app.models import Interface, Link, Node
-from app.services import configimport, notify, reachability
+from app.models import DriftReport, ImportSnapshot, Interface, Link, Node
+from app.services import configimport, notify, reachability, twindiff
 from app.store import MemoryRepository
 from app.store import NotFound as StoreNotFound
 from app.utils.ids import new_id
@@ -66,6 +66,11 @@ async def import_config(
         intent=intent,
     )
     created = await r.add_node(node)
+    # NG-TW-03: persist the raw import text so drift-diff can compare against it later.
+    await r.save_import_snapshot(
+        ImportSnapshot(id=new_id(), node_id=created.id, project_id=project_id,
+                       vendor=body.vendor, text=body.text)
+    )
     await notify.node_changed(r, created)
     return created
 
@@ -107,6 +112,35 @@ async def infer_links(project_id: str, r: MemoryRepository = Depends(repo)):
         await notify.link_changed(r, link)
         created.append(link)
     return created
+
+
+@router.get("/projects/{project_id}/nodes/{node_id}/drift", response_model=DriftReport)
+async def node_drift(
+    project_id: str, node_id: str, r: MemoryRepository = Depends(repo)
+):
+    """Diff the last-imported config against the node's current intent (NG-TW-03)."""
+    try:
+        await r.get_project(project_id)
+        node = await r.get_node(node_id)
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+    snap = await r.get_import_snapshot(node_id)
+    return twindiff.drift_report(node, snap)
+
+
+@router.get("/projects/{project_id}/drift", response_model=list[DriftReport])
+async def project_drift(project_id: str, r: MemoryRepository = Depends(repo)):
+    """Drift summary for all imported nodes in a project (NG-TW-03)."""
+    try:
+        topo = await r.topology(project_id)
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+    imported = [n for n in topo.nodes if (n.intent or {}).get("imported")]
+    reports = []
+    for node in imported:
+        snap = await r.get_import_snapshot(node.id)
+        reports.append(twindiff.drift_report(node, snap))
+    return reports
 
 
 class ReachabilityRequest(BaseModel):

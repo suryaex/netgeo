@@ -21,6 +21,7 @@ from app.models import (
     Cable,
     FiberPath,
     GradeResult,
+    ImportSnapshot,
     Link,
     Node,
     Project,
@@ -89,6 +90,8 @@ class MemoryRepository:
         self._activities: dict[str, Activity] = {}
         # Graded attempts (NG-EDU-03), keyed by result id.
         self._grade_results: dict[str, GradeResult] = {}
+        # Import snapshots (NG-TW-03): latest snapshot per node_id (re-import overwrites).
+        self._import_snapshots: dict[str, ImportSnapshot] = {}
 
     # --- projects -----------------------------------------------------------
     async def list_projects(self) -> list[Project]:
@@ -194,6 +197,8 @@ class MemoryRepository:
             for lid in dead:
                 del self._links[lid]
                 self._drop_cables_for_link(lid)
+            # cascade: drop import snapshot for this node (NG-TW-03)
+            self._import_snapshots.pop(nid, None)
             del self._nodes[nid]
 
     # --- links --------------------------------------------------------------
@@ -355,6 +360,19 @@ class MemoryRepository:
             if fid not in self._fiber_paths:
                 raise NotFound(fid)
             del self._fiber_paths[fid]
+
+    # --- import snapshots (NG-TW-03) ----------------------------------------
+    async def save_import_snapshot(self, snap: ImportSnapshot) -> ImportSnapshot:
+        async with self._lock:
+            self._import_snapshots[snap.node_id] = snap
+            return snap
+
+    async def get_import_snapshot(self, node_id: str) -> ImportSnapshot | None:
+        return self._import_snapshots.get(node_id)
+
+    async def delete_import_snapshot(self, node_id: str) -> None:
+        async with self._lock:
+            self._import_snapshots.pop(node_id, None)
 
     # --- config artifacts (append-only history) -----------------------------
     async def add_config(self, artifact: ConfigArtifact) -> ConfigArtifact:

@@ -948,3 +948,27 @@ class ProductSelectResult(_Base):
     freq_mhz: float
     target_throughput_mbps: float
     ranked: list[ProductSelectItem] = Field(default_factory=list)
+
+
+# --- digital twin: drift-diff (NG-TW-03) ------------------------------------
+
+class ImportSnapshot(_Base):
+    """Raw config text as imported, keyed by node — one snapshot per node (latest wins)."""
+
+    id: str
+    node_id: str
+    project_id: str
+    vendor: str           # key into configimport.PARSERS
+    text: str             # raw config as imported (size-capped at import boundary)
+    imported_at: datetime = Field(default_factory=_now)
+
+
+class DriftReport(_Base):
+    """Canonical diff between the last-imported snapshot and the node's current intent."""
+
+    node_id: str
+    node_name: str
+    has_snapshot: bool
+    drifted: bool         # diff non-empty
+    diff: str             # unified diff, "" when clean or no snapshot
+    imported_at: datetime | None

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from app.models.schemas import (  # noqa: F401
     Activity,
+    DriftReport,
+    ImportSnapshot,
     ActivityCreate,
     BomItem,
     Cable,

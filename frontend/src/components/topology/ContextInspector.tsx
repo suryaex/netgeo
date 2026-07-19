@@ -32,9 +32,14 @@ export function ContextInspector() {
     <aside
       aria-label="Selection inspector"
       className={cn(
+        // B2-glitch-2 fix: removed animate-fade-in — its opacity:0→1 + translateY
+        // left the panel semi-transparent over the map workspace during the
+        // topology-mount frame (the animation starts before React commits the
+        // old workspace unmount). The panel surface (.panel) is already opaque;
+        // no transition is needed to avoid layout pop because the panel
+        // is absolutely positioned outside normal flow.
         'panel absolute right-0 top-0 flex h-full w-[360px] max-w-[85vw] flex-col border-l border-fg/10 shadow-glass-lg',
         zc.workspace,
-        'animate-fade-in',
       )}
     >
       <div className="flex shrink-0 items-center justify-between border-b border-fg/10 px-3 py-2">

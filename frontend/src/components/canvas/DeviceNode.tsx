@@ -106,15 +106,15 @@ function DeviceNodeImpl({ data, selected }: NodeProps) {
         aria-hidden
       />
 
-      {/* Connection ports: faint dots at rest (n8n-style), fully revealed on
-          hover so linking targets are obvious without crowding the canvas. */}
+      {/* Connection ports: larger hit area (12px) with 8px visual dot (n8n-style).
+          Fully revealed on hover; faint at rest so they don't crowd the canvas. */}
       {SIDES.map(([side, position]) => (
         <Handle
           key={side}
           type="source"
           position={position}
           id={side}
-          className="!h-2 !w-2 !opacity-40 transition-opacity duration-fast group-hover:!opacity-100"
+          className="!h-3 !w-3 !opacity-40 transition-opacity duration-fast group-hover:!opacity-100"
         />
       ))}
 

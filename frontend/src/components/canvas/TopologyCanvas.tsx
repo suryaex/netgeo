@@ -32,6 +32,7 @@ import '@xyflow/react/dist/style.css';
 import { Search, Plus, X } from 'lucide-react';
 import { DeviceNode, type DeviceNodeData } from './DeviceNode';
 import { PulseEdge } from './PulseEdge';
+import { ConnectionLine } from './ConnectionLine';
 import { OverlayChips } from './OverlayChips';
 import { useTopologyStore } from '@/store/topologyStore';
 import { useUiStore } from '@/store/uiStore';
@@ -63,6 +64,7 @@ export function TopologyCanvas() {
   const selectedLinkId = useTopologyStore((s) => s.selectedLinkId);
   const moveNode = useTopologyStore((s) => s.moveNode);
   const upsertLink = useTopologyStore((s) => s.upsertLink);
+  const removeLink = useTopologyStore((s) => s.removeLink);
   const select = useTopologyStore((s) => s.select);
   const projectId = useUiStore((s) => s.projectId);
   const openPicker = useTopoUiStore((s) => s.openPicker);
@@ -180,6 +182,9 @@ export function TopologyCanvas() {
             // Bandwidth pill shows whenever the link carries a rate (n8n-look),
             // no overlay required; no data → no label (never fabricated).
             label: l.bandwidth ? `${l.bandwidth}M` : undefined,
+            // Stashed for onReconnect rollback (not rendered).
+            a_iface: l.a_iface,
+            b_iface: l.b_iface,
           },
         } as Edge;
       }),
@@ -250,6 +255,69 @@ export function TopologyCanvas() {
     [nodesMap, linksMap, upsertLink, projectId],
   );
 
+  /* --- Edge reconnect: drag endpoint of an existing edge to a new node ------ */
+  // React Flow v12 API: onReconnect fires when the user drops a dragged edge
+  // endpoint onto a new handle. We delete the old link then create a fresh one.
+  // Drop on empty space → React Flow does NOT fire onReconnect (edge is restored
+  // to its previous position automatically), so no cancel logic needed here.
+  const onReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      if (!newConnection.source || !newConnection.target || !projectId) return;
+      if (newConnection.source === newConnection.target) return;
+
+      // Capture rollback data before removing.
+      const oldData = oldEdge.data as { a_iface?: string; b_iface?: string } | undefined;
+      const oldAIface = oldData?.a_iface ?? oldEdge.source;
+      const oldBIface = oldData?.b_iface ?? oldEdge.target;
+
+      // Optimistic: remove old edge from store then create a new link.
+      removeLink(oldEdge.id);
+      void linksApi.remove(oldEdge.id).catch(() => {
+        // Rollback: restore the old link on API failure.
+        upsertLink({
+          id: oldEdge.id,
+          project_id: projectId,
+          a_iface: oldAIface,
+          b_iface: oldBIface,
+          type: 'copper',
+          bandwidth: 1000,
+          delay: 1,
+          loss: 0,
+          mtu: 1500,
+          status: 'up',
+        });
+      });
+
+      const aIface = firstFreeIface(nodesMap.get(newConnection.source));
+      const bIface = firstFreeIface(nodesMap.get(newConnection.target));
+      if (!aIface || !bIface) return;
+
+      const tempId = `tmp-${newConnection.source}-${newConnection.target}-${Date.now()}`;
+      upsertLink({
+        id: tempId,
+        project_id: projectId,
+        a_iface: aIface,
+        b_iface: bIface,
+        type: 'copper',
+        bandwidth: 1000,
+        delay: 1,
+        loss: 0,
+        mtu: 1500,
+        status: 'up',
+      });
+      void linksApi
+        .create({ project_id: projectId, a_iface: aIface, b_iface: bIface, type: 'copper' })
+        .then((real) => {
+          removeLink(tempId);
+          upsertLink(real);
+        })
+        .catch(() => {
+          removeLink(tempId);
+        });
+    },
+    [nodesMap, projectId, removeLink, upsertLink],
+  );
+
   /* --- Drag-drop device creation from the palette -------------------------- */
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -301,6 +369,7 @@ export function TopologyCanvas() {
         onNodeDragStop={onNodeDragStop}
         onNodeClick={onSelectionNode}
         onConnect={onConnect}
+        onReconnect={onReconnect}
         onPaneClick={() => select({ nodeId: null, linkId: null })}
         onEdgeClick={(_e, edge) => select({ linkId: edge.id })}
         connectionMode={ConnectionMode.Loose}
@@ -308,6 +377,10 @@ export function TopologyCanvas() {
         // click-to-connect kills React Flow's pending click-connect state — the
         // one that turned every stray click after a link into a phantom edge.
         connectOnClick={false}
+        // Figma-style live connection preview (dashed bezier with glow dot).
+        connectionLineComponent={ConnectionLine}
+        // ±30px snap radius so dragged connections snap to the nearest port (n8n feel).
+        connectionRadius={30}
         // A focus request pending at mount suppresses the initial whole-graph
         // fit for this mount (see suppressInitialFit above) so it can't
         // override the focus-node setCenter (BUG-08).
@@ -318,7 +391,7 @@ export function TopologyCanvas() {
         maxZoom={2.5}
         onlyRenderVisibleElements
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: 'pulse' }}
+        defaultEdgeOptions={{ type: 'pulse', reconnectable: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--ng-border)" />
         <Controls position="bottom-right" className="!border-fg/10 !bg-fg/5 backdrop-blur" />

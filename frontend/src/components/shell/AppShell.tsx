@@ -76,7 +76,7 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
           {viewMode === 'projects' ? (
             <Suspense
               fallback={
-                <div className="grid h-full place-items-center text-fg/50">
+                <div className="grid h-full w-full place-items-center bg-surface text-fg/50">
                   <Loader2 className="h-6 w-6 animate-spin text-accent" />
                 </div>
               }
@@ -96,7 +96,7 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
           ) : viewMode === 'config' ? (
             <Suspense
               fallback={
-                <div className="grid h-full place-items-center text-fg/50">
+                <div className="grid h-full w-full place-items-center bg-surface text-fg/50">
                   <Loader2 className="h-6 w-6 animate-spin text-accent" />
                 </div>
               }
@@ -106,7 +106,7 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
           ) : viewMode === 'problems' ? (
             <Suspense
               fallback={
-                <div className="grid h-full place-items-center text-fg/50">
+                <div className="grid h-full w-full place-items-center bg-surface text-fg/50">
                   <Loader2 className="h-6 w-6 animate-spin text-accent" />
                 </div>
               }
@@ -116,7 +116,7 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
           ) : viewMode === 'reports' ? (
             <Suspense
               fallback={
-                <div className="grid h-full place-items-center text-fg/50">
+                <div className="grid h-full w-full place-items-center bg-surface text-fg/50">
                   <Loader2 className="h-6 w-6 animate-spin text-accent" />
                 </div>
               }
@@ -126,7 +126,7 @@ export function AppShell({ projectName, conn }: { projectName: string; conn: Con
           ) : viewMode === 'edu' ? (
             <Suspense
               fallback={
-                <div className="grid h-full place-items-center text-fg/50">
+                <div className="grid h-full w-full place-items-center bg-surface text-fg/50">
                   <Loader2 className="h-6 w-6 animate-spin text-accent" />
                 </div>
               }

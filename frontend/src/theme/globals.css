@@ -96,12 +96,20 @@ body {
   stroke-width: 3 !important;
 }
 /* Port dots — accent fill with a theme-aware hairline so the ring stays
-   visible on both charcoal (dark) and ivory (light) surfaces (WCAG AA). */
+   visible on both charcoal (dark) and ivory (light) surfaces (WCAG AA).
+   Hit area is 12px (h-3/w-3 in DeviceNode); the visual ring matches.
+   During an active connection drag React Flow adds .react-flow__handle-connecting
+   to the canvas root — reveal all handles so the user can see snap targets. */
 .react-flow__handle {
-  width: 9px;
-  height: 9px;
+  width: 12px;
+  height: 12px;
   border: 1.5px solid rgb(var(--ng-recess-rgb) / 0.55);
   background: var(--ng-primary, #d97757);
+}
+/* Show all handles while dragging a new connection (n8n snap feel). */
+.react-flow__handle-connecting .react-flow__handle,
+.react-flow__handle-valid .react-flow__handle {
+  opacity: 1 !important;
 }
 .react-flow__controls {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
@@ -143,6 +151,15 @@ html[data-theme='light'] .leaflet-tile {
 }
 html[data-theme='dark'] .leaflet-tile {
   filter: saturate(0.85) brightness(0.88);
+}
+
+/* Container background matches the surface so unloaded tiles (before the
+   first tile arrives, or on slow connections) don't show jarring black boxes. */
+html[data-theme='light'] .leaflet-container {
+  background: #e8e8e4;
+}
+html[data-theme='dark'] .leaflet-container {
+  background: #0d1117;
 }
 
 .ng-map-label {

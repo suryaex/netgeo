@@ -45,7 +45,7 @@ BEGIN
   -- Node.kind
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'node_kind') THEN
     CREATE TYPE node_kind AS ENUM
-      ('router','switch','host','ap','olt','firewall','server');
+      ('router','switch','host','ap','cpe','olt','firewall','server');
   END IF;
 
   -- Node.nos (network operating system). 'forgeos' = NOS deklaratif NetGeo (§5).

@@ -9,6 +9,7 @@ export type NodeKind =
   | 'switch'
   | 'host'
   | 'ap'
+  | 'cpe'   // Customer Premises Equipment — wireless client placed via map deploy
   | 'olt'
   | 'firewall'
   | 'server'
@@ -59,6 +60,17 @@ export interface Uplink {
   mode: UplinkMode;
 }
 
+/** Wireless radio parameters (mirrors backend Radio schema). Present on ap/cpe nodes. */
+export interface Radio {
+  tx_power_dbm: number;
+  frequency_ghz: number;
+  antenna_gain_dbi: number;
+  bandwidth_mhz: number;
+  rx_sensitivity_dbm: number;
+  misc_loss_db: number;
+  max_range_m: number | null;
+}
+
 export interface NodeModel {
   id: string;
   project_id: string;
@@ -68,6 +80,11 @@ export interface NodeModel {
   mode: NodeMode;
   x: number;
   y: number;
+  /** Geographic position (WGS84). null => canvas-only node (no map marker). */
+  lat?: number | null;
+  lon?: number | null;
+  /** Wireless radio params — present on ap/cpe nodes placed on the map. */
+  radio?: Radio | null;
   interfaces: Interface[];
   config_ref: string | null;
   status: NodeStatus;

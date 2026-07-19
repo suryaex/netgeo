@@ -37,6 +37,7 @@ export const nodeColors: Record<NodeKind, string> = {
   switch: '#27C28B',
   host: '#8A93A6',
   ap: '#7C5CFC',
+  cpe: '#007AFF',  // wireless client (map deploy)
   olt: '#F5A623',
   firewall: '#FF4D4F',
   server: '#27B5C2',

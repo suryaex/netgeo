@@ -204,6 +204,19 @@ class MemoryRepository:
     # --- links --------------------------------------------------------------
     async def add_link(self, link: Link) -> Link:
         async with self._lock:
+            # Guard: an interface may only be an endpoint of one live link at a
+            # time (the correct invariant is per-interface, not per-node-pair —
+            # multi-link LAG between the same two nodes is intentionally allowed,
+            # as long as each physical interface is only used once).
+            occupied = {l.a_iface for l in self._links.values()} | {
+                l.b_iface for l in self._links.values()
+            }
+            busy = [iid for iid in (link.a_iface, link.b_iface) if iid in occupied]
+            if busy:
+                from app.exceptions.base import Conflict
+                raise Conflict(
+                    f"interface(s) already in use by another link: {', '.join(busy)}"
+                )
             self._links[link.id] = link
             return link
 

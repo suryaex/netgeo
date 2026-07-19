@@ -31,6 +31,7 @@ import {
   ZoomControl,
 } from 'react-leaflet';
 import type { LeafletMouseEvent } from 'leaflet';
+import type { NodeModel, LinkModel } from '@/api/types';
 import L from 'leaflet';
 import {
   useMapStore,
@@ -66,8 +67,10 @@ import { RfBeamLayer } from './RfBeamLayer';
 import { DeviceLibraryModal } from './DeviceLibraryModal';
 import { Layers as LayersIcon, AlertTriangle } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
+import { useTopologyStore } from '@/store/topologyStore';
 import { cn } from '@/lib/cn';
 import { zc } from '@/theme/z';
+import { MapDeployMenu } from './MapDeployMenu';
 
 // Prevent default marker icon 404 errors in Vite. We use CircleMarker, not Marker.
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)['_getIconUrl'];
@@ -84,7 +87,7 @@ const COVERAGE_RINGS = [
 ];
 
 /* -------------------------------------------------------------------------- */
-/* Device kind display                                                         */
+/* Device kind display (legacy mapStore devices)                               */
 /* -------------------------------------------------------------------------- */
 const KIND_COLOR: Record<MapDeviceKind, string> = {
   ap: '#5856D6',
@@ -96,6 +99,27 @@ const KIND_LABEL: Record<MapDeviceKind, string> = {
   ap: 'AP',
   cpe: 'CPE',
   tower: 'TWR',
+};
+
+/* -------------------------------------------------------------------------- */
+/* Topology node kind → map color + label (real backend nodes)                 */
+/* -------------------------------------------------------------------------- */
+const NODE_KIND_COLOR: Record<string, string> = {
+  router:   '#2F6BFF',
+  switch:   '#27C28B',
+  host:     '#8A93A6',
+  ap:       '#7C5CFC',
+  cpe:      '#007AFF',
+  olt:      '#F5A623',
+  firewall: '#FF4D4F',
+  server:   '#27B5C2',
+  cloud:    '#6B7280',
+};
+
+const NODE_KIND_LABEL: Record<string, string> = {
+  router: 'RTR', switch: 'SW', host: 'HOST',
+  ap: 'AP', cpe: 'CPE', olt: 'OLT',
+  firewall: 'FW', server: 'SRV', cloud: 'CLD',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -659,9 +683,21 @@ function ProfileLine() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Map event handler: device placement + distance measure                      */
+/* Map event handler: device placement + distance measure + deploy             */
 /* -------------------------------------------------------------------------- */
-function MapEventHandler() {
+
+/** Deploy menu anchor — pixel coords + geo coords of the map click. */
+interface DeployAnchor {
+  px: { x: number; y: number };
+  lat: number;
+  lon: number;
+}
+
+function MapEventHandler({
+  onDeployClick,
+}: {
+  onDeployClick: (anchor: DeployAnchor) => void;
+}) {
   const tool = useMapStore((s) => s.tool);
   const setTool = useMapStore((s) => s.setTool);
   const addDevice = useMapStore((s) => s.addDevice);
@@ -699,11 +735,16 @@ function MapEventHandler() {
       }
 
       if (tool === 'measure') {
-        // Fresh click (or one after a finished measurement) sets start; the
-        // next click sets end and freezes the in-map distance label.
         setMeasure((m) =>
           !m || m.end ? { start: [lat, lng], end: null } : { start: m.start, end: [lat, lng] },
         );
+        return;
+      }
+
+      // Deploy tool: show the popover at the click pixel position
+      if (tool === 'deploy') {
+        const cp = e.containerPoint;
+        onDeployClick({ px: { x: cp.x, y: cp.y }, lat, lon: lng });
         return;
       }
 
@@ -900,6 +941,137 @@ function LinkPolyline({
 }
 
 /* -------------------------------------------------------------------------- */
+/* Topology node marker — renders real backend nodes that have lat/lon         */
+/* -------------------------------------------------------------------------- */
+
+function TopologyNodeMarker({ node }: { node: NodeModel }) {
+  const select = useTopologyStore((s) => s.select);
+  const selectedId = useTopologyStore((s) => s.selectedNodeId);
+  const isSelected = selectedId === node.id;
+  const color = NODE_KIND_COLOR[node.kind] ?? '#8A93A6';
+  const label = NODE_KIND_LABEL[node.kind] ?? node.kind.toUpperCase();
+
+  return (
+    <CircleMarker
+      center={[node.lat!, node.lon!]}
+      radius={isSelected ? 12 : 8}
+      pathOptions={{
+        color: isSelected ? '#FFFFFF' : color,
+        fillColor: color,
+        fillOpacity: 0.9,
+        weight: isSelected ? 3 : 2,
+      }}
+      eventHandlers={{
+        click: (e) => {
+          L.DomEvent.stopPropagation(e);
+          select({ nodeId: node.id });
+        },
+      }}
+    >
+      <Tooltip permanent direction="top" offset={[0, -12]} className="ng-map-label">
+        <span style={{ color, fontWeight: 700, fontSize: 10 }}>
+          [{label}] {node.name}
+        </span>
+      </Tooltip>
+      <Popup>
+        <div className="min-w-[160px] space-y-1 p-1">
+          <p className="text-sm font-bold" style={{ color }}>{node.name}</p>
+          <p className="text-xs text-gray-500">{node.kind.toUpperCase()} · {node.status}</p>
+          <p className="font-mono text-[10px] text-gray-400">
+            {node.lat?.toFixed(6)}, {node.lon?.toFixed(6)}
+          </p>
+        </div>
+      </Popup>
+    </CircleMarker>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Topology link polyline — dashed for wireless, solid cyan for cabled         */
+/* -------------------------------------------------------------------------- */
+function TopologyLinkLayer({
+  links,
+  nodeById,
+}: {
+  links: LinkModel[];
+  nodeById: Map<string, NodeModel>;
+}) {
+  // Resolve node for a link endpoint — endpoint may be a node id or iface id;
+  // we look up by finding the node whose ifaces include the endpoint.
+  function nodeForEndpoint(ref: string): NodeModel | undefined {
+    // Direct node id match (the most common case after auto-mint)
+    const direct = nodeById.get(ref);
+    if (direct) return direct;
+    // Fall back to iface id scan
+    for (const n of nodeById.values()) {
+      if (n.interfaces.some((i) => i.id === ref)) return n;
+    }
+    return undefined;
+  }
+
+  return (
+    <>
+      {links.map((link) => {
+        const a = nodeForEndpoint(link.a_iface);
+        const b = nodeForEndpoint(link.b_iface);
+        if (!a || !b) return null;
+        if (a.lat == null || a.lon == null || b.lat == null || b.lon == null) return null;
+
+        const isWireless = link.type === 'wireless';
+        return (
+          <Polyline
+            key={link.id}
+            positions={[
+              [a.lat, a.lon],
+              [b.lat, b.lon],
+            ]}
+            pathOptions={{
+              color: isWireless ? '#7C5CFC' : '#27B5C2',
+              weight: 2,
+              opacity: 0.85,
+              dashArray: isWireless ? '6 4' : undefined,
+            }}
+          >
+            <Tooltip direction="center" className="ng-map-label">
+              <span style={{ fontSize: 10 }}>
+                {a.name} ↔ {b.name} · {link.type}
+              </span>
+            </Tooltip>
+          </Polyline>
+        );
+      })}
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* ResizeObserver: fix tile blank-on-layout-shift by calling invalidateSize    */
+/* -------------------------------------------------------------------------- */
+function MapResizeWatcher() {
+  const map = useMap();
+  const containerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const el = map.getContainer();
+    containerRef.current = el;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const obs = new ResizeObserver(() => {
+      if (timer) clearTimeout(timer);
+      // ponytail: 150ms debounce — drawer animation ~180ms, so this fires after settle
+      timer = setTimeout(() => map.invalidateSize(), 150);
+    });
+    obs.observe(el);
+    return () => {
+      obs.disconnect();
+      if (timer) clearTimeout(timer);
+    };
+  }, [map]);
+
+  return null;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Signal legend                                                               */
 /* -------------------------------------------------------------------------- */
 function SignalLegend() {
@@ -993,9 +1165,10 @@ function SignalLegend() {
 /* -------------------------------------------------------------------------- */
 const TOOL_HINTS: Record<string, string> = {
   select: 'Click a device to select it • Delete key removes selected device',
-  ap: 'Click the map to place an Access Point (coverage rings shown)',
-  cpe: 'Click the map to place a CPE client — auto-connects to nearest AP',
-  tower: 'Click the map to place a Tower / relay node',
+  deploy: 'Click the map to deploy a real device — choose wireless or cabled',
+  ap: 'Click the map to place an Access Point (legacy, local-only)',
+  cpe: 'Click the map to place a CPE client (legacy, local-only)',
+  tower: 'Click the map to place a Tower (legacy, local-only)',
   measure: 'Click two points to measure distance',
   profile: 'Click two points to draw a terrain elevation profile',
 };
@@ -1184,6 +1357,24 @@ export function MapView({ rfMode = false }: { rfMode?: boolean } = {}) {
   const openModal = useUiStore((s) => s.openModal);
   const devById = useMapStore((s) => s.devices);
 
+  // Topology nodes/links — the real backend data set rendered as map markers
+  const topoNodes = useTopologyStore((s) => s.nodeList());
+  const topoLinks = useTopologyStore((s) => s.linkList());
+  const topoNodeById = useTopologyStore((s) => s.nodes);
+
+  // Geo-filtered: only nodes with lat+lon appear as map markers
+  const geoNodes = useMemo(
+    () => topoNodes.filter((n) => n.lat != null && n.lon != null),
+    [topoNodes],
+  );
+
+  // Deploy menu state
+  const [deployAnchor, setDeployAnchor] = useState<{
+    px: { x: number; y: number };
+    lat: number;
+    lon: number;
+  } | null>(null);
+
   // First visit to the standalone map claims the shared modal slot for the
   // quickstart (never in RF, which owns its own chrome). Exclusive by construction.
   useEffect(() => {
@@ -1202,7 +1393,7 @@ export function MapView({ rfMode = false }: { rfMode?: boolean } = {}) {
         zoom={mapZoom}
         zoomControl={false}
         className="h-full w-full"
-        style={{ background: '#0d1117' }}
+        style={{ background: 'var(--ng-surface, #0d1117)' }}
       >
         {/* Layer-aware basemap — Satellite / Street / Hybrid (see MapLayerSwitcher) */}
         <BaseTiles />
@@ -1212,8 +1403,11 @@ export function MapView({ rfMode = false }: { rfMode?: boolean } = {}) {
 
         <ZoomControl position="bottomright" />
 
+        {/* Fix tile blank on layout resize (drawer open/close, panel resize) */}
+        <MapResizeWatcher />
+
         {/* Map interaction */}
-        <MapEventHandler />
+        <MapEventHandler onDeployClick={setDeployAnchor} />
 
         {/* OSM existing telecom towers — gated by the GIS "Telecom Towers" layer */}
         {towersVisible && <OsmTowerLayer />}
@@ -1232,7 +1426,17 @@ export function MapView({ rfMode = false }: { rfMode?: boolean } = {}) {
         {/* Elevation-profile tool line + endpoints */}
         <ProfileLine />
 
-        {/* Links — rendered before devices so devices appear on top */}
+        {/* ------------------------------------------------------------------ */}
+        {/* Topology links from backend — drawn before nodes so nodes sit on top */}
+        {/* ------------------------------------------------------------------ */}
+        <TopologyLinkLayer links={topoLinks} nodeById={topoNodeById} />
+
+        {/* Topology node markers (real backend nodes with geo coords) */}
+        {geoNodes.map((node) => (
+          <TopologyNodeMarker key={node.id} node={node} />
+        ))}
+
+        {/* Legacy mapStore links (RF-only planning, will fade as deploy is adopted) */}
         {links.map((link) => {
           const from = devById.get(link.fromId);
           const to = devById.get(link.toId);
@@ -1242,7 +1446,7 @@ export function MapView({ rfMode = false }: { rfMode?: boolean } = {}) {
           );
         })}
 
-        {/* Device markers with coverage rings */}
+        {/* Legacy mapStore device markers — kept for RF planning / coverage rings */}
         {devices.map((dev) => (
           <DeviceMarker key={dev.id} device={dev} />
         ))}
@@ -1269,6 +1473,16 @@ export function MapView({ rfMode = false }: { rfMode?: boolean } = {}) {
       <WeatherBar />
       <MapLayerSwitcher />
       {!rfMode && <ElevationProfilePanel />}
+
+      {/* Deploy popover — positioned in absolute px coords over the map */}
+      {deployAnchor && (
+        <MapDeployMenu
+          px={deployAnchor.px}
+          lat={deployAnchor.lat}
+          lon={deployAnchor.lon}
+          onClose={() => setDeployAnchor(null)}
+        />
+      )}
 
       {/* First-run + device library — share the single exclusive modal slot. */}
       {activeModal === 'mapOnboarding' && <MapOnboardingModal />}

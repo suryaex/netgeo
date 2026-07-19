@@ -35,3 +35,6 @@ Thumbs.db
 infra/.env.prod
 *.pem
 *.key
+
+NetGeo/Bootabler-1.4.dmg_.zip
+NetGeo/Unconfirmed*.crdownload

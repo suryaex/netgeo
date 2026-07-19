@@ -8,8 +8,8 @@
 
 [![CI](https://github.com/suryaex/netgeo/actions/workflows/backend.yml/badge.svg)](https://github.com/suryaex/netgeo/actions)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Version](https://img.shields.io/badge/version-1.2.34-brightgreen)
-![Python](https://img.shields.io/badge/python-3.13+-blue)
+![Version](https://img.shields.io/badge/version-1.2.35-brightgreen)
+![Python](https://img.shields.io/badge/python-3.12+-blue)
 ![React](https://img.shields.io/badge/react-18-61dafb)
 
 </div>
@@ -68,7 +68,7 @@ API docs         ->  http://<LAN-IP>:8090/docs
 ```bash
 # Backend
 cd backend
-python3.13 -m venv .venv && source .venv/bin/activate
+python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000   # http://localhost:8000/docs
 pytest -q
@@ -93,6 +93,8 @@ A pure-Python engine (no native dependencies — runs on Linux, Windows, and ARM
 
 - **Digital twin** — import a running device config (**Cisco IOS-like** or **MikroTik RouterOS**, including OSPF/BGP) into the model; link inference wires devices that share a subnet into a connected twin; the **reachability engine** answers *"can A reach B?"* with evidence — ping result, traceroute path, and the source router's routing decision.
 
+- **Map deploy** — click a point on the GIS map and choose **Wireless** (AP / CPE) or **Cabled** (router / switch / OLT): the device is created as a real topology node at those coordinates, auto-linked to its nearest upstream, and rack-mounted kinds are slotted into the site rack automatically. Map markers and link lines render straight from the live topology.
+
 - **RF planning** — FSPL / Hata / COST-231 propagation, coverage rasters, and point-to-point / point-to-multipoint link budgets with automatic product selection.
 
 - **Fiber & FTTH** — GPON loss-budget planner with splitter tables, plus bill-of-materials and HTML report generation.
@@ -101,9 +103,9 @@ A pure-Python engine (no native dependencies — runs on Linux, Windows, and ARM
 
 - **Education** — author lab activities and auto-grade a student's topology (interface addressing, VLANs, OSPF adjacency, reachability), with timed and shareable labs.
 
-- **Addressing & config** — one-click dual-stack (IPv4 + IPv6 ULA) auto-addressing wizard, whole-project vendor config export, and a config regeneration diff view.
+- **Addressing & config** — auto-addressing wizard with a dry-run preview step (shows planned assignments before committing), one-click dual-stack (IPv4 + IPv6 ULA) assignment, whole-project vendor config export, and a config regeneration diff view.
 
-- **Workspace UI** — an n8n-style topology canvas (floating bezier edges, port dots, hover-to-connect, minimap) plus dedicated workspaces — Projects Portal, Config Center, Problem Center, and Reports Center — in matching dark & light themes.
+- **Workspace UI** — an n8n/Figma-style topology canvas (floating bezier edges, port dots, hover-to-connect, drag-to-reconnect edge endpoints, live dashed connection preview, minimap) plus dedicated workspaces — Projects Portal, Config Center, Problem Center, and Reports Center — in matching dark & light themes.
 
 - **Projects** — multi-project workspace with export/import archives, real-time collaboration channel, JWT + WebSocket auth, and in-app self-update from GitHub releases.
 
@@ -113,7 +115,7 @@ Designed to start in under 3 seconds and idle below 300 MB RAM.
 
 ## Tech stack
 
-**Backend:** Python 3.13+, FastAPI (async), Pydantic, PostgreSQL, Pytest.
+**Backend:** Python 3.12+, FastAPI (async), Pydantic, PostgreSQL, Pytest.
 **Frontend:** React 18 + TypeScript, Vite, Zustand, React Flow, Tailwind CSS.
 **Infra:** Docker + Docker Compose behind an nginx gateway.
 

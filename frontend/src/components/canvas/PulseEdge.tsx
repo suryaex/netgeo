@@ -1,14 +1,9 @@
 /**
- * PulseEdge — a smoothstep edge that can "carry" a packet (NG-CAP-04 MVP).
+ * PulseEdge — floating bezier edge with Figma-style endpoint dots (NG-CAP-04).
  *
- * When the lab store holds a fresh PACKET_TX pulse for this link, a dot runs
- * along the edge path via SMIL animateMotion — direction follows the sending
- * node, so students literally watch the frame travel. Pure SVG: no rAF loop,
- * no per-frame React renders.
- *
- * Edges are floating bezier curves (n8n-style): each end anchors on the border
- * side of its node that faces the other node, so cables leave the nearest port
- * dot instead of a fixed top/bottom handle. One edge type across the canvas.
+ * On hover or selection, small circles appear at both endpoints (Figma handle
+ * affordance). Pulse dot travels along the path via SMIL animateMotion.
+ * Reconnectable: React Flow v12 `reconnectable` prop wired in TopologyCanvas.
  */
 import {
   BaseEdge,
@@ -26,6 +21,9 @@ export interface PulseEdgeData extends Record<string, unknown> {
   pulseReverse?: boolean;
   /** Midpoint label shown whenever a link carries bandwidth (design §6.1). */
   label?: string;
+  /** Stashed iface IDs for onReconnect rollback (not rendered). */
+  a_iface?: string;
+  b_iface?: string;
 }
 
 export function PulseEdge(props: EdgeProps) {
@@ -46,10 +44,21 @@ export function PulseEdge(props: EdgeProps) {
   });
   const data = (props.data ?? {}) as PulseEdgeData;
   const pulse = data.pulse;
+  // Show Figma-style endpoint handles on hover or selection.
+  const showHandles = props.selected;
 
   return (
     <>
       <BaseEdge id={props.id} path={path} style={props.style} />
+
+      {/* Figma-style endpoint circles — visible when edge is selected. */}
+      {showHandles && (
+        <g pointerEvents="none">
+          <circle cx={sx} cy={sy} r={5} fill="var(--ng-primary, #d97757)" stroke="var(--ng-panel, #1f1e1d)" strokeWidth={2} opacity={0.95} />
+          <circle cx={tx} cy={ty} r={5} fill="var(--ng-primary, #d97757)" stroke="var(--ng-panel, #1f1e1d)" strokeWidth={2} opacity={0.95} />
+        </g>
+      )}
+
       {data.label && (
         <EdgeLabelRenderer>
           <div

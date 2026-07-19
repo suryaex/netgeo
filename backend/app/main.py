@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
 from app.api.ws import router as ws_router
-from app.core.config import get_settings
+from app.core.config import APP_CHANNEL, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.security import check_rate_limit, configure_auth_store, init_admin_user, is_setup_required
@@ -292,6 +292,7 @@ def create_app() -> FastAPI:
             "status": "ok",
             "app": settings.APP_NAME,
             "version": settings.APP_VERSION,
+            "channel": APP_CHANNEL,
         }
 
     return app

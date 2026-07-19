@@ -9,7 +9,7 @@
 [![CI](https://github.com/suryaex/netgeo/actions/workflows/backend.yml/badge.svg)](https://github.com/suryaex/netgeo/actions)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![Version](https://img.shields.io/badge/version-1.2.34-brightgreen)
-![Python](https://img.shields.io/badge/python-3.13+-blue)
+![Python](https://img.shields.io/badge/python-3.12+-blue)
 ![React](https://img.shields.io/badge/react-18-61dafb)
 
 </div>
@@ -68,7 +68,7 @@ API docs         ->  http://<LAN-IP>:8090/docs
 ```bash
 # Backend
 cd backend
-python3.13 -m venv .venv && source .venv/bin/activate
+python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000   # http://localhost:8000/docs
 pytest -q
@@ -101,7 +101,7 @@ A pure-Python engine (no native dependencies — runs on Linux, Windows, and ARM
 
 - **Education** — author lab activities and auto-grade a student's topology (interface addressing, VLANs, OSPF adjacency, reachability), with timed and shareable labs.
 
-- **Addressing & config** — one-click dual-stack (IPv4 + IPv6 ULA) auto-addressing wizard, whole-project vendor config export, and a config regeneration diff view.
+- **Addressing & config** — auto-addressing wizard with a dry-run preview step (shows planned assignments before committing), one-click dual-stack (IPv4 + IPv6 ULA) assignment, whole-project vendor config export, and a config regeneration diff view.
 
 - **Workspace UI** — an n8n-style topology canvas (floating bezier edges, port dots, hover-to-connect, minimap) plus dedicated workspaces — Projects Portal, Config Center, Problem Center, and Reports Center — in matching dark & light themes.
 
@@ -113,7 +113,7 @@ Designed to start in under 3 seconds and idle below 300 MB RAM.
 
 ## Tech stack
 
-**Backend:** Python 3.13+, FastAPI (async), Pydantic, PostgreSQL, Pytest.
+**Backend:** Python 3.12+, FastAPI (async), Pydantic, PostgreSQL, Pytest.
 **Frontend:** React 18 + TypeScript, Vite, Zustand, React Flow, Tailwind CSS.
 **Infra:** Docker + Docker Compose behind an nginx gateway.
 

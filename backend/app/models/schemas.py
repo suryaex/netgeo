@@ -35,6 +35,7 @@ class NodeKind(str, Enum):
     switch = "switch"
     host = "host"
     ap = "ap"
+    cpe = "cpe"   # Customer Premises Equipment — wireless client (map deploy)
     olt = "olt"
     firewall = "firewall"
     server = "server"

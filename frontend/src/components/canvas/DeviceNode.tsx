@@ -41,6 +41,7 @@ const KIND_ICON: Record<NodeKind, typeof Router> = {
   switch: Network,
   host: Monitor,
   ap: Wifi,
+  cpe: Wifi,   // CPE is a wireless client — same icon as AP
   olt: Cable,
   firewall: ShieldAlert,
   server: Server,

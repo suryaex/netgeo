@@ -1,6 +1,6 @@
 # NetGeo — Installation & Operations Guide
 
-Version: v1.2.35
+Version: v1.2.36
 
 ---
 

@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/suryaex/netgeo/actions/workflows/backend.yml/badge.svg)](https://github.com/suryaex/netgeo/actions)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Version](https://img.shields.io/badge/version-1.2.35-brightgreen)
+![Version](https://img.shields.io/badge/version-1.2.36-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12+-blue)
 ![React](https://img.shields.io/badge/react-18-61dafb)
 

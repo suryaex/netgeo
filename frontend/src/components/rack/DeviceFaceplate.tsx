@@ -1,99 +1,427 @@
 /**
- * DeviceFaceplate — generative 19" rack faceplate for a placed device.
+ * DeviceFaceplate — 2D parametric SVG rack faceplate.
  *
- * No copyrighted product photos: the faceplate is an SVG synthesised from the
- * node's real data — port count/type from `node.interfaces` (kind-based
- * fallback), brand accent + label from `node.nos` (routeros→MikroTik, ios→Cisco,
- * …). Front shows the port field + status LEDs + rack ears; back shows PSUs,
- * a fan grille and rear ports. It fills its container (stretched to the RU
- * block), so a 1U reads short-and-wide like the real thing.
+ * Driven by `resolveDeviceType(nos, kind, interfaces)` from deviceTypes.ts.
+ * Renders faithful per-brand front/back panels:
+ *   Front: chassis body + rack ears + brand stripe + LEDs (optional LCD) + port zones
+ *   Back:  PSU slots, fan trays, IEC inlet, ground lug, vent grille, rear port-zones
  *
- * ponytail: schematic, not a pixel-exact vendor render — one parametric face
- * covers every kind. Swap for per-model art only if a device library ships it.
+ * Port renderers:
+ *   rj45       → notched cage w/ 2 LED pips
+ *   sfp/sfp+   → dark rect cage, accent-tinted stroke
+ *   sfp28      → slightly taller dark rect
+ *   qsfp28     → wider dark rect (double-wide feel)
+ *   pon        → round SC/APC circle
+ *   console-*  → small trapezoid
+ *   mgmt-rj45  → small rect, labelled
+ *   usb        → flat rect
+ *   drive-sff  → bezel slot + handle bar + status LED (left pip)
+ *   drive-lff  → taller bezel slot + handle + status LED
+ *
+ * ponytail: schematic-faithful, not pixel-exact vendor render. One parametric
+ * engine covers every kind. Upgrade path: add NodeModel.model → look up
+ * DEVICE_TYPES by slug → eventually swap SVG shapes for per-model art / 3D.
  */
-import type { NodeModel, NodeKind, Nos } from '@/api/types';
+import type { NodeModel } from '@/api/types';
+import { resolveDeviceType } from './deviceTypes';
+import type { DeviceType, PortType, PortSpec, PortZone } from './deviceTypes';
 
 export type Face = 'front' | 'back';
 
-interface Brand {
-  name: string;
-  accent: string;
-}
+// ─── Viewport constants ───────────────────────────────────────────────────────
+const W = 280;            // viewBox width (SVG units)
+const RU_H = 32;          // height per 1U in SVG units
+const EAR_W = 10;         // rack ear width
+const PANEL_X0 = EAR_W + 2;  // usable panel left edge
+const PANEL_X1 = W - EAR_W - 2; // usable panel right edge
+const PANEL_W = PANEL_X1 - PANEL_X0;
 
-/** NOS → brand badge + accent stripe (best-effort, purely cosmetic). */
-const BRAND: Record<Nos, Brand> = {
-  forgeos: { name: 'NetGeo', accent: '#D97757' },
-  ios: { name: 'Cisco', accent: '#1BA0D7' },
-  iosxr: { name: 'Cisco', accent: '#1BA0D7' },
-  nxos: { name: 'Cisco', accent: '#1BA0D7' },
-  junos: { name: 'Juniper', accent: '#84B135' },
-  eos: { name: 'Arista', accent: '#2A6EBB' },
-  routeros: { name: 'MikroTik', accent: '#E4002B' },
-  vyos: { name: 'VyOS', accent: '#8A93A6' },
-  sros: { name: 'Nokia', accent: '#124191' },
-  frr: { name: 'FRR', accent: '#F5A623' },
-  vrp: { name: 'Huawei', accent: '#E40521' },
+// ─── Port shape helpers ───────────────────────────────────────────────────────
+
+/** LED dot colours */
+const LED_FILL: Record<'green' | 'amber' | 'blue' | 'red' | 'white', string> = {
+  green: '#27C28B',
+  amber: '#F5A623',
+  blue:  '#4FA9F0',
+  red:   '#F05050',
+  white: '#E8E6E0',
 };
 
-interface Ports {
-  rj45: number;
-  sfp: number;
-  pon: number;
-}
+interface PortRect { x: number; y: number; w: number; h: number }
 
-/** Default port field per kind when a node has no interfaces yet. */
-const KIND_PORTS: Record<NodeKind, Ports> = {
-  switch: { rj45: 24, sfp: 4, pon: 0 },
-  router: { rj45: 8, sfp: 4, pon: 0 },
-  olt: { rj45: 0, sfp: 2, pon: 8 },
-  firewall: { rj45: 8, sfp: 0, pon: 0 },
-  server: { rj45: 2, sfp: 0, pon: 0 },
-  host: { rj45: 2, sfp: 0, pon: 0 },
-  ap: { rj45: 1, sfp: 0, pon: 0 },
-  cpe: { rj45: 1, sfp: 0, pon: 0 },
-  cloud: { rj45: 0, sfp: 0, pon: 0 },
-};
-
-function portProfile(node: NodeModel): Ports {
-  const ifs = node.interfaces ?? [];
-  if (ifs.length) {
-    const p: Ports = { rj45: 0, sfp: 0, pon: 0 };
-    for (const i of ifs) {
-      if (i.type === 'eth') p.rj45++;
-      else if (i.type === 'gpon') p.pon++;
-      else if (i.type === 'wifi') continue;
-      else p.sfp++; // sfp / sfp28 / qsfp
-    }
-    if (p.rj45 + p.sfp + p.pon > 0) return p;
-  }
-  return KIND_PORTS[node.kind] ?? { rj45: 4, sfp: 0, pon: 0 };
-}
-
-/** Lay `count` ports into `rows` even rows across [x0,x1], centred vertically. */
-function portRects(
+/** Distribute `count` ports into `rows` even rows across [x0,x1] × [y0,y1]. */
+function distributeRects(
   count: number,
   x0: number,
   x1: number,
-  yTop: number,
-  yBot: number,
-  rows: number,
+  y0: number,
+  y1: number,
+  rows: 1 | 2,
   gap = 1.5,
-) {
+): PortRect[] {
   if (count <= 0) return [];
   const perRow = Math.ceil(count / rows);
   const usedRows = Math.min(rows, Math.ceil(count / perRow));
   const cellW = (x1 - x0) / perRow;
-  const cellH = (yBot - yTop) / usedRows;
-  const w = Math.max(2, cellW - gap);
-  const h = Math.max(2, cellH - gap);
-  const out: { x: number; y: number; w: number; h: number }[] = [];
-  for (let i = 0; i < count; i++) {
-    const r = Math.floor(i / perRow);
-    const c = i % perRow;
-    out.push({ x: x0 + c * cellW, y: yTop + r * cellH, w, h });
-  }
-  return out;
+  const cellH = (y1 - y0) / usedRows;
+  const pw = Math.max(2, cellW - gap);
+  const ph = Math.max(2, cellH - gap);
+  return Array.from({ length: count }, (_, i) => ({
+    x: x0 + (i % perRow) * cellW,
+    y: y0 + Math.floor(i / perRow) * cellH,
+    w: pw,
+    h: ph,
+  }));
 }
+
+/** Render a single port rectangle into SVG elements. */
+function renderPort(
+  pt: PortType,
+  r: PortRect,
+  idx: number,
+  accent: string,
+  key: string,
+  poe?: boolean,
+): React.ReactNode {
+  const cx = r.x + r.w / 2;
+  const cy = r.y + r.h / 2;
+
+  if (pt === 'drive-sff' || pt === 'drive-lff') {
+    // drive bay: outer slot + inner handle bar + status pip
+    const lit = idx % 5 === 0; // every 5th bay glows
+    return (
+      <g key={key}>
+        <rect x={r.x} y={r.y} width={r.w} height={r.h} rx="1" fill="#0e0e0e" stroke="#3d3d3a" strokeWidth="0.6" />
+        <rect x={r.x + r.w * 0.08} y={r.y + r.h * 0.3} width={r.w * 0.55} height={r.h * 0.38} rx="0.5" fill="#252524" />
+        <circle cx={r.x + r.w * 0.84} cy={cy} r={Math.min(r.h * 0.14, 1.5)} fill={lit ? '#27C28B' : '#2b2b28'} />
+      </g>
+    );
+  }
+
+  if (pt === 'pon') {
+    // round SC/APC connector
+    const rad = Math.min(r.w, r.h) * 0.4;
+    return (
+      <g key={key}>
+        <circle cx={cx} cy={cy} r={rad} fill="#0d1b16" stroke="#2e7f52" strokeWidth="0.6" />
+        <circle cx={cx} cy={cy} r={rad * 0.45} fill="#0a1510" />
+      </g>
+    );
+  }
+
+  if (pt === 'console-rj45' || pt === 'console-usb') {
+    const isUsb = pt === 'console-usb';
+    return (
+      <g key={key}>
+        <rect x={r.x} y={r.y + r.h * 0.1} width={r.w} height={r.h * 0.8} rx="0.8"
+          fill={isUsb ? '#1a1a30' : '#111'} stroke={isUsb ? '#6060c0' : '#555'} strokeWidth="0.5" />
+        {isUsb && (
+          <rect x={r.x + r.w * 0.2} y={r.y + r.h * 0.3} width={r.w * 0.6} height={r.h * 0.4}
+            rx="0.3" fill="#2a2a50" />
+        )}
+      </g>
+    );
+  }
+
+  if (pt === 'mgmt-rj45') {
+    return (
+      <g key={key}>
+        <rect x={r.x} y={r.y + r.h * 0.15} width={r.w} height={r.h * 0.7} rx="0.6"
+          fill="#161616" stroke="#3a8a3a" strokeWidth="0.5" />
+        <rect x={r.x + r.w * 0.25} y={r.y + r.h * 0.55} width={r.w * 0.5} height={r.h * 0.25}
+          rx="0.3" fill="#1f401f" />
+      </g>
+    );
+  }
+
+  if (pt === 'usb') {
+    return (
+      <rect key={key} x={r.x} y={r.y + r.h * 0.2} width={r.w} height={r.h * 0.6}
+        rx="0.4" fill="#1a1a30" stroke="#5050a0" strokeWidth="0.5" />
+    );
+  }
+
+  // sfp / sfp+ / sfp28 / qsfp28
+  if (pt === 'sfp' || pt === 'sfp+' || pt === 'sfp28' || pt === 'qsfp28') {
+    const isQsfp = pt === 'qsfp28';
+    // cage: dark rect with accent-tinted top edge
+    return (
+      <g key={key}>
+        <rect x={r.x} y={r.y} width={r.w} height={r.h}
+          rx="0.6" fill="#0c0c0c" stroke={isQsfp ? accent : '#383838'} strokeWidth={isQsfp ? '0.6' : '0.4'} />
+        <rect x={r.x + r.w * 0.08} y={r.y + r.h * 0.08} width={r.w * 0.84} height={r.h * 0.28}
+          fill={`${accent}22`} />
+        {/* bail latch suggestion */}
+        <rect x={r.x + r.w * 0.35} y={r.y + r.h * 0.72} width={r.w * 0.3} height={r.h * 0.16}
+          rx="0.3" fill="#252525" />
+      </g>
+    );
+  }
+
+  // rj45 — notched cage with 2 status LEDs
+  const active = idx % 3 === 0; // cosmetic: every 3rd port has a lit green LED
+  const poeActive = poe && idx % 4 === 0;
+  return (
+    <g key={key}>
+      <rect x={r.x} y={r.y} width={r.w} height={r.h} rx="0.8" fill="#141414" stroke="#454542" strokeWidth="0.4" />
+      {/* notch tab */}
+      <rect x={r.x + r.w * 0.28} y={r.y + r.h * 0.62} width={r.w * 0.44} height={r.h * 0.3} rx="0.3" fill="#2c2c2a" />
+      {/* link LED */}
+      <circle cx={r.x + r.w * 0.2} cy={r.y + r.h * 0.25} r={Math.min(r.h * 0.12, 1.2)}
+        fill={active ? '#27C28B' : '#1a3d2a'} />
+      {/* speed / PoE LED */}
+      <circle cx={r.x + r.w * 0.8} cy={r.y + r.h * 0.25} r={Math.min(r.h * 0.12, 1.2)}
+        fill={poeActive ? '#F5A623' : active ? '#1BA0D7' : '#1a1a2a'} />
+    </g>
+  );
+}
+
+// ─── Zone layout engine ───────────────────────────────────────────────────────
+
+/**
+ * Lay out port zones left→right across [panelX0, panelX1].
+ * fill zones share the remaining width after fixed/fractional zones are allocated.
+ */
+function layoutZones(
+  zones: PortZone[],
+  x0: number,
+  x1: number,
+  _y0: number,
+  _y1: number,
+): { zone: PortZone; zx0: number; zx1: number }[] {
+  const totalW = x1 - x0;
+  // First pass: measure fixed zones
+  const fixedW = zones.reduce((s, z) => s + (z.widthFraction ? z.widthFraction * totalW : 0), 0);
+  const fillCount = zones.filter((z) => z.align === 'fill' && !z.widthFraction).length;
+  const fillW = fillCount > 0 ? (totalW - fixedW) / fillCount : 0;
+
+  const result: { zone: PortZone; zx0: number; zx1: number }[] = [];
+  let cursor = x0;
+  // Sort: left-aligned first, fill second, right-aligned last
+  const sorted = [...zones].sort((a, b) => {
+    const order = { left: 0, fill: 1, right: 2 };
+    return order[a.align] - order[b.align];
+  });
+
+  // But right-aligned zones get their space reserved from the right
+  const rightZones = sorted.filter((z) => z.align === 'right');
+  const otherZones = sorted.filter((z) => z.align !== 'right');
+
+  // Reserve right zone widths
+  const rightAllocations = rightZones.map((z) => ({
+    zone: z,
+    w: z.widthFraction ? z.widthFraction * totalW : fillW,
+  }));
+  let rightEdge = x1;
+  const rightResults: typeof result = [];
+  for (const ra of [...rightAllocations].reverse()) {
+    const zx1 = rightEdge;
+    const zx0 = rightEdge - ra.w;
+    rightResults.unshift({ zone: ra.zone, zx0, zx1 });
+    rightEdge -= ra.w;
+  }
+
+  // Fill left + fill zones up to rightEdge
+  for (const z of otherZones) {
+    const w = z.widthFraction ? z.widthFraction * totalW : fillW;
+    result.push({ zone: z, zx0: cursor, zx1: cursor + w });
+    cursor += w;
+  }
+
+  return [...result, ...rightResults];
+}
+
+// ─── Front panel renderer ─────────────────────────────────────────────────────
+
+function renderFront(dt: DeviceType, H: number, accent: string): React.ReactNode[] {
+  const els: React.ReactNode[] = [];
+  const panelY0 = H * 0.20;
+  const panelY1 = H * 0.88;
+
+  // LED column on left (inside panel, after brand stripe)
+  const ledX = PANEL_X0 + 7;
+  let ledY = panelY0 + 2;
+  for (const led of dt.front.leds) {
+    els.push(
+      <g key={`led-${led.label}`}>
+        <circle cx={ledX} cy={ledY} r={1.4} fill={LED_FILL[led.color]} />
+        <text x={ledX + 3} y={ledY + 1} fontSize="3.5" fontFamily="monospace" fill="#6a6860">
+          {led.label}
+        </text>
+      </g>
+    );
+    ledY += 6;
+  }
+
+  // LCD panel (Ubiquiti-style)
+  const ledBlockW = dt.front.leds.length > 0 ? 24 : 0;
+  const portX0 = PANEL_X0 + (dt.brand.badge === 'stripe' ? 6 : 2) + ledBlockW;
+
+  if (dt.front.hasLcd) {
+    const lcdW = 22;
+    const lcdX = dt.front.lcdPos === 'center' ? (PANEL_X0 + PANEL_X1) / 2 - lcdW / 2 : portX0;
+    els.push(
+      <g key="lcd">
+        <rect x={lcdX} y={H * 0.3} width={lcdW} height={H * 0.4} rx="1"
+          fill="#0b140d" stroke="#2a6a2a" strokeWidth="0.5" />
+        <rect x={lcdX + 2} y={H * 0.36} width={lcdW - 4} height={H * 0.12}
+          rx="0.5" fill="#1a3a1a" />
+      </g>
+    );
+  }
+
+  // Server bezel: render drive bays instead of port zones
+  if (dt.front.isServerBezel) {
+    const count = dt.front.portZones.flatMap((z): PortSpec[] => z.ports).reduce((s, p) => s + p.count, 0);
+    const driveType: PortType = dt.front.portZones[0]?.ports[0]?.type ?? 'drive-sff';
+    const bays = distributeRects(count, portX0, PANEL_X1 - 2, H * 0.10, H * 0.90, dt.uHeight >= 2 ? 2 : 1, 2);
+    bays.forEach((r, i) => els.push(renderPort(driveType, r, i, accent, `bay-${i}`)));
+    return els;
+  }
+
+  // Port zones
+  const lcdExtraX = dt.front.hasLcd ? 26 : 0;
+  const zonesX0 = portX0 + lcdExtraX;
+  const zonesX1 = PANEL_X1 - 2;
+
+  const laidOut = layoutZones(dt.front.portZones, zonesX0, zonesX1, panelY0, panelY1);
+  let portIdx = 0;
+
+  for (const { zone, zx0, zx1 } of laidOut) {
+    for (const spec of zone.ports) {
+      const rects = distributeRects(spec.count, zx0, zx1, panelY0, panelY1, zone.rows, 1.5);
+      for (let i = 0; i < rects.length; i++) {
+        const r = rects[i]!;
+        els.push(renderPort(spec.type, r, portIdx++, accent, `port-${spec.type}-${portIdx}`, spec.poe));
+        // tiny label above first port in zone (WAN/DMZ etc)
+        if (spec.label && i === 0) {
+          els.push(
+            <text
+              key={`lbl-${spec.type}-${portIdx}`}
+              x={r.x + r.w / 2}
+              y={panelY0 - 1}
+              textAnchor="middle"
+              fontSize="3"
+              fontFamily="monospace"
+              fill="#6a6860"
+            >
+              {spec.label}
+            </text>
+          );
+        }
+      }
+    }
+  }
+
+  return els;
+}
+
+// ─── Back panel renderer ──────────────────────────────────────────────────────
+
+function renderBack(dt: DeviceType, H: number, accent: string): React.ReactNode[] {
+  const els: React.ReactNode[] = [];
+  const y0 = H * 0.15;
+  const y1 = H * 0.88;
+  const mid = (y0 + y1) / 2;
+  let cursor = PANEL_X0 + 4;
+
+  for (const block of dt.rear.blocks) {
+    const count = block.count ?? 1;
+
+    if (block.type === 'psu-slot') {
+      for (let i = 0; i < count; i++) {
+        const slotW = Math.min(44, (PANEL_W - 8) / (count * 1.2));
+        els.push(
+          <g key={`psu-${i}`}>
+            <rect x={cursor} y={y0 + H * 0.05} width={slotW} height={y1 - y0 - H * 0.08}
+              rx="2" fill="#1a1a18" stroke="#454542" strokeWidth="0.5" />
+            <circle cx={cursor + slotW * 0.7} cy={mid} r={slotW * 0.15}
+              fill="none" stroke="#3a3a38" strokeWidth="0.6" />
+            <rect x={cursor + 2} y={y0 + H * 0.12} width={slotW * 0.4} height={(y1 - y0) * 0.08}
+              rx="0.5" fill="#252523" />
+          </g>
+        );
+        cursor += slotW + 3;
+      }
+    } else if (block.type === 'fan-tray') {
+      const rad = Math.min((y1 - y0) * 0.35, 9);
+      for (let i = 0; i < count; i++) {
+        const cx = cursor + rad;
+        els.push(
+          <g key={`fan-${cursor}-${i}`}>
+            <circle cx={cx} cy={mid} r={rad} fill="none" stroke="#3d3d3a" strokeWidth="0.8" />
+            <circle cx={cx} cy={mid} r={rad * 0.35} fill="#1a1a18" />
+            {[0, 90, 180, 270].map((deg) => {
+              const angle = (deg * Math.PI) / 180;
+              return (
+                <line key={deg} x1={cx} y1={mid}
+                  x2={cx + Math.cos(angle) * rad * 0.75}
+                  y2={mid + Math.sin(angle) * rad * 0.75}
+                  stroke="#3d3d3a" strokeWidth="0.6" />
+              );
+            })}
+          </g>
+        );
+        cursor += rad * 2 + 4;
+      }
+    } else if (block.type === 'vent-grille') {
+      const gw = 30;
+      for (let row = 0; row < 3; row++) {
+        els.push(
+          <line key={`vent-${row}`}
+            x1={cursor} y1={y0 + (y1 - y0) * (0.25 + row * 0.25)}
+            x2={cursor + gw} y2={y0 + (y1 - y0) * (0.25 + row * 0.25)}
+            stroke="#3d3d3a" strokeWidth="1" />
+        );
+      }
+      cursor += gw + 4;
+    } else if (block.type === 'iec-inlet') {
+      const iw = 14, ih = (y1 - y0) * 0.5;
+      els.push(
+        <g key="iec">
+          <rect x={cursor} y={mid - ih / 2} width={iw} height={ih}
+            rx="2" fill="#181816" stroke="#3d3d3a" strokeWidth="0.6" />
+          <path d={`M ${cursor + iw * 0.3} ${mid - ih * 0.25} l ${iw * 0.4} 0 l 0 ${ih * 0.5} l -${iw * 0.4} 0 Z`}
+            fill="#252523" />
+        </g>
+      );
+      cursor += iw + 4;
+    } else if (block.type === 'ground-lug') {
+      els.push(
+        <g key="ground">
+          <rect x={cursor} y={mid - 3} width={8} height={6}
+            rx="0.5" fill="#b5952f" stroke="#8a6f22" strokeWidth="0.4" />
+          <line x1={cursor + 4} y1={mid - 3} x2={cursor + 4} y2={mid - 7}
+            stroke="#b5952f" strokeWidth="1.2" />
+        </g>
+      );
+      cursor += 12;
+    } else if (block.type === 'port-zone' && block.portZone) {
+      const zw = 60;
+      const rects = layoutZones(
+        [block.portZone],
+        cursor,
+        cursor + zw,
+        y0,
+        y1,
+      );
+      let pi = 0;
+      for (const { zone, zx0, zx1 } of rects) {
+        for (const spec of zone.ports) {
+          const pr = distributeRects(spec.count, zx0, zx1, y0, y1, zone.rows, 1.5);
+          pr.forEach((r) => {
+            els.push(renderPort(spec.type, r, pi++, accent, `rp-${spec.type}-${pi}`));
+          });
+        }
+      }
+      cursor += zw + 4;
+    }
+  }
+
+  return els;
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
   node: NodeModel;
@@ -102,19 +430,15 @@ interface Props {
 }
 
 export function DeviceFaceplate({ node, span, face }: Props) {
-  const brand = BRAND[node.nos] ?? { name: node.kind.toUpperCase(), accent: '#8A93A6' };
-  const p = portProfile(node);
-  const W = 240;
-  const H = Math.max(26, span * 30);
-  const rows = span >= 2 || p.rj45 + p.sfp + p.pon > 14 ? 2 : 1;
+  const dt = resolveDeviceType(node.nos, node.kind, node.interfaces);
+  const H = Math.max(RU_H, span * RU_H);
+  const { accent, chassis, label } = dt.brand;
 
-  const yTop = H * 0.42;
-  const yBot = H * 0.86;
-  const isServer = node.kind === 'server' || node.kind === 'host';
-
-  // Front port field spans the right ~78%; back has PSU/fan blocks instead.
-  const px0 = 46;
-  const px1 = W - 14;
+  // Chassis gradient: top-lit; MikroTik white chassis gets a lighter gradient
+  const isLight = chassis.toUpperCase() > '#AAAAAA'; // heuristic: light chassis
+  const gradTop = isLight ? lighten(chassis, 0.15) : lighten(chassis, 0.12);
+  const gradBot = isLight ? chassis : darken(chassis, 0.08);
+  const gradId = `chs-${node.id}`;
 
   return (
     <svg
@@ -122,79 +446,89 @@ export function DeviceFaceplate({ node, span, face }: Props) {
       preserveAspectRatio="none"
       className="h-full w-full"
       role="img"
-      aria-label={`${brand.name} ${node.kind} ${face}`}
+      aria-label={`${label} ${dt.model} ${face} view`}
     >
       <defs>
-        <linearGradient id={`chs-${node.id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#3a3a38" />
-          <stop offset="0.5" stopColor="#2b2b29" />
-          <stop offset="1" stopColor="#232321" />
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={gradTop} />
+          <stop offset="0.45" stopColor={chassis} />
+          <stop offset="1" stopColor={gradBot} />
         </linearGradient>
       </defs>
 
-      {/* chassis */}
-      <rect x="0" y="0" width={W} height={H} rx="3" fill={`url(#chs-${node.id})`} stroke="#161615" />
-      {/* rack ears with screw holes */}
-      {[6, W - 6].map((cx) => (
+      {/* Chassis body */}
+      <rect x="0" y="0" width={W} height={H} rx="2.5"
+        fill={`url(#${gradId})`} stroke={darken(chassis, 0.2)} strokeWidth="0.5" />
+
+      {/* Rack ears with screw holes */}
+      {[EAR_W / 2, W - EAR_W / 2].map((cx) => (
         <g key={cx}>
-          <rect x={cx - 6} y="1" width="12" height={H - 2} rx="1.5" fill="#1c1c1a" />
-          <circle cx={cx} cy={H * 0.28} r="1.6" fill="#4a4a46" />
-          <circle cx={cx} cy={H * 0.72} r="1.6" fill="#4a4a46" />
+          <rect x={cx - EAR_W / 2} y="0.5" width={EAR_W} height={H - 1}
+            rx="1.5" fill={darken(chassis, 0.1)} />
+          <circle cx={cx} cy={H * 0.22} r="1.8"
+            fill="none" stroke={darken(chassis, 0.3)} strokeWidth="0.6" />
+          <circle cx={cx} cy={H * 0.78} r="1.8"
+            fill="none" stroke={darken(chassis, 0.3)} strokeWidth="0.6" />
         </g>
       ))}
-      {/* brand accent stripe + label */}
-      <rect x="14" y={H * 0.16} width="3" height={H * 0.68} fill={brand.accent} rx="1.5" />
-      <text x="22" y={H * 0.36} fontSize={Math.min(9, H * 0.32)} fontFamily="monospace" fill="#e8e6e0">
-        {brand.name}
+
+      {/* Brand stripe */}
+      <rect x={PANEL_X0 + 1} y={H * 0.14} width="3" height={H * 0.72}
+        fill={accent} rx="1.5" />
+
+      {/* Brand label + model name */}
+      <text
+        x={PANEL_X0 + 7}
+        y={H * 0.32}
+        fontSize={Math.min(7, H * 0.24)}
+        fontFamily="monospace"
+        fontWeight="600"
+        fill={isLight ? '#1a1a18' : '#e8e6e0'}
+      >
+        {label}
       </text>
-      <text x="22" y={H * 0.7} fontSize={Math.min(8, H * 0.28)} fontFamily="monospace" fill="#9a968e">
+      <text
+        x={PANEL_X0 + 7}
+        y={H * 0.55}
+        fontSize={Math.min(5.5, H * 0.18)}
+        fontFamily="monospace"
+        fill={isLight ? '#5a5a58' : '#8a8880'}
+      >
+        {dt.model}
+      </text>
+      <text
+        x={PANEL_X0 + 7}
+        y={H * 0.76}
+        fontSize={Math.min(5, H * 0.16)}
+        fontFamily="monospace"
+        fill={isLight ? '#8a8880' : '#6a6860'}
+      >
         {node.name}
       </text>
 
-      {face === 'front' ? (
-        isServer ? (
-          // drive-bay grid
-          portRects(8, px0, px1, yTop - H * 0.14, yBot + H * 0.06, span >= 2 ? 2 : 1, 2).map((r, i) => (
-            <g key={i}>
-              <rect x={r.x} y={r.y} width={r.w} height={r.h} rx="1" fill="#111" stroke="#3d3d3a" />
-              <rect x={r.x + r.w * 0.12} y={r.y + r.h * 0.35} width={r.w * 0.5} height={r.h * 0.3} fill="#2a2a28" />
-              <circle cx={r.x + r.w * 0.82} cy={r.y + r.h * 0.5} r="0.9" fill={i % 4 === 0 ? '#27C28B' : '#3d3d3a'} />
-            </g>
-          ))
-        ) : (
-          <>
-            {/* RJ45 field */}
-            {portRects(p.rj45, px0, p.sfp || p.pon ? px1 - 46 : px1, yTop, yBot, rows).map((r, i) => (
-              <g key={`e${i}`}>
-                <rect x={r.x} y={r.y} width={r.w} height={r.h} rx="0.8" fill="#141414" stroke="#454542" />
-                <rect x={r.x + r.w * 0.28} y={r.y + r.h * 0.62} width={r.w * 0.44} height={r.h * 0.3} fill="#2c2c2a" />
-                <circle cx={r.x + r.w * 0.16} cy={r.y + r.h * 0.22} r="0.7" fill={i % 3 === 0 ? '#27C28B' : '#1f6b4a'} />
-              </g>
-            ))}
-            {/* SFP cages (right) */}
-            {portRects(p.sfp, px1 - 42, px1, yTop, yBot, rows).map((r, i) => (
-              <rect key={`s${i}`} x={r.x} y={r.y} width={r.w} height={r.h} rx="0.6" fill="#0c0c0c" stroke={brand.accent} strokeWidth="0.5" />
-            ))}
-            {/* PON ports (round SC/APC) */}
-            {portRects(p.pon, px0, px1, yTop, yBot, rows).map((r, i) => (
-              <circle key={`p${i}`} cx={r.x + r.w / 2} cy={r.y + r.h / 2} r={Math.min(r.w, r.h) * 0.42} fill="#0d1b16" stroke="#2e6" strokeWidth="0.5" />
-            ))}
-          </>
-        )
-      ) : (
-        // BACK: dual PSU + fan grille + a couple rear ports
-        <>
-          {[0, 1].map((i) => (
-            <rect key={i} x={px0 + i * 58} y={yTop - H * 0.08} width="50" height={yBot - yTop + H * 0.14} rx="2" fill="#1a1a18" stroke="#454542" />
-          ))}
-          {/* fan grille */}
-          {Array.from({ length: 3 }, (_, i) => (
-            <circle key={i} cx={W - 60 + i * 18} cy={(yTop + yBot) / 2} r={Math.min(7, H * 0.22)} fill="none" stroke="#3d3d3a" strokeWidth="1" />
-          ))}
-          {/* ground lug */}
-          <rect x={W - 22} y={yBot - 4} width="7" height="5" fill="#b5952f" />
-        </>
-      )}
+      {/* Port field / back blocks */}
+      {face === 'front'
+        ? renderFront(dt, H, accent)
+        : renderBack(dt, H, accent)}
     </svg>
   );
+}
+
+// ─── Tiny colour helpers (no dependency needed) ───────────────────────────────
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbToHex(r: number, g: number, b: number): string {
+  return '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+}
+function lighten(hex: string, amt: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return rgbToHex(r + 255 * amt, g + 255 * amt, b + 255 * amt);
+}
+function darken(hex: string, amt: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return rgbToHex(r - 255 * amt, g - 255 * amt, b - 255 * amt);
 }

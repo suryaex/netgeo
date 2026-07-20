@@ -19,13 +19,27 @@ import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Plus, Server, Zap } from 'lucide-react';
 import { nodesApi, physicalApi, projectsApi } from '@/api/client';
-import type { NodeModel, Rack, Site } from '@/api/types';
+import type { LinkModel, NodeKind, NodeModel, Rack, Site } from '@/api/types';
 import { useUiStore } from '@/store/uiStore';
 import { WorkspaceEmptyState } from '@/components/shell/WorkspaceEmptyState';
+import { DeviceFaceplate, type Face } from '@/components/rack/DeviceFaceplate';
+import { linkStatusColors } from '@/theme/tokens';
 import { cn } from '@/lib/cn';
 
 const RU_PX = 24; // on-screen height of one rack-unit
 const DEFAULT_RU_HEIGHT = 42;
+
+/** Selectable rack heights (10U–48U). */
+const RACK_SIZES = [10, 12, 18, 24, 36, 42, 48];
+
+/** Kinds addable straight into a rack, with their default RU span. */
+const RACK_KINDS: { kind: NodeKind; span: number }[] = [
+  { kind: 'switch', span: 1 },
+  { kind: 'router', span: 1 },
+  { kind: 'firewall', span: 1 },
+  { kind: 'olt', span: 1 },
+  { kind: 'server', span: 2 },
+];
 
 /** Estimated steady-state draw per node kind, in watts (see ponytail note). */
 const KIND_WATTS: Record<string, number> = {
@@ -60,6 +74,8 @@ export function RackElevationPanel() {
   const [newSite, setNewSite] = useState('');
   const [newRackName, setNewRackName] = useState('');
   const [newRackSite, setNewRackSite] = useState<string>('');
+  const [newRackU, setNewRackU] = useState(42);
+  const [face, setFace] = useState<Face>('front');
 
   const topoQ = useQuery({
     queryKey: ['topology', projectId],
@@ -106,18 +122,56 @@ export function RackElevationPanel() {
   });
 
   const createRack = useMutation({
-    mutationFn: (v: { name: string; siteId: string | null }) =>
-      physicalApi.createRack({ project_id: projectId!, name: v.name, site_id: v.siteId }),
+    mutationFn: (v: { name: string; siteId: string | null; ruHeight: number }) =>
+      physicalApi.createRack({ project_id: projectId!, name: v.name, site_id: v.siteId, ru_height: v.ruHeight }),
     onSuccess: () => {
       setNewRackName('');
       invalidate();
     },
   });
 
+  // Add a brand-new device straight into a rack slot (create → place).
+  const addDevice = useMutation({
+    mutationFn: async (v: { rackId: string; kind: NodeKind; ruStart: number; ruSpan: number }) => {
+      const created = await nodesApi.create({
+        project_id: projectId!,
+        name: nameFor(v.kind),
+        kind: v.kind,
+        x: 0,
+        y: 0,
+      });
+      return nodesApi.update(created.id, { rack_id: v.rackId, ru_start: v.ruStart, ru_span: v.ruSpan });
+    },
+    onSuccess: () => {
+      setError(null);
+      invalidate();
+    },
+    onError: () => setError('Failed to add device.'),
+  });
+
+  /** Auto-name `KIND-N` from existing nodes (mirrors mapDeploy). */
+  const nameFor = (kind: NodeKind): string => {
+    const prefix = kind.toUpperCase() + '-';
+    const n = (topoQ.data?.nodes ?? []).filter((x) => x.name.startsWith(prefix)).length;
+    return `${prefix}${n + 1}`;
+  };
+
   const nodes = topoQ.data?.nodes ?? [];
   const racks = topoQ.data?.racks ?? [];
   const sites = topoQ.data?.sites ?? [];
   const cables = topoQ.data?.cables ?? [];
+  const links = topoQ.data?.links ?? [];
+
+  // Resolve a link endpoint (interface id, or a bare node id from map-deploy)
+  // to its owning node id — used to draw cables between placed devices.
+  const nodeByEndpoint = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const n of nodes) {
+      m.set(n.id, n.id);
+      for (const i of n.interfaces ?? []) m.set(i.id, i.node_id ?? n.id);
+    }
+    return m;
+  }, [nodes]);
 
   const nodesByRack = useMemo(() => {
     const m = new Map<string, NodeModel[]>();
@@ -188,15 +242,43 @@ export function RackElevationPanel() {
             </option>
           ))}
         </select>
+        <select
+          value={newRackU}
+          onChange={(e) => setNewRackU(Number(e.target.value))}
+          className="rounded bg-fg/10 px-2 py-1 outline-none"
+          title="Rack height"
+        >
+          {RACK_SIZES.map((u) => (
+            <option key={u} value={u}>
+              {u}U
+            </option>
+          ))}
+        </select>
         <button
           onClick={() =>
             newRackName.trim() &&
-            createRack.mutate({ name: newRackName.trim(), siteId: newRackSite || null })
+            createRack.mutate({ name: newRackName.trim(), siteId: newRackSite || null, ruHeight: newRackU })
           }
           className="flex items-center gap-1 rounded bg-fg/10 px-2 py-1 hover:bg-fg/20"
         >
           <Plus size={12} /> Rack
         </button>
+
+        {/* Front / Back faceplate toggle */}
+        <div className="ml-auto flex items-center rounded bg-fg/10 p-0.5">
+          {(['front', 'back'] as Face[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFace(f)}
+              className={cn(
+                'rounded px-2 py-0.5 text-[11px] capitalize',
+                face === f ? 'bg-accent text-accent-fg' : 'text-fg/60 hover:text-fg',
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
       {error && (
@@ -277,10 +359,16 @@ export function RackElevationPanel() {
                       key={rack.id}
                       rack={rack}
                       devices={nodesByRack.get(rack.id) ?? []}
+                      face={face}
+                      links={links}
+                      nodeByEndpoint={nodeByEndpoint}
                       onPlace={(nodeId, ruStart, ruSpan) =>
                         place.mutate({ nodeId, rackId: rack.id, ruStart, ruSpan })
                       }
                       onUnplace={(nodeId) => unplace.mutate(nodeId)}
+                      onAdd={(kind, ruStart, ruSpan) =>
+                        addDevice.mutate({ rackId: rack.id, kind, ruStart, ruSpan })
+                      }
                       onError={setError}
                     />
                   ))}
@@ -300,14 +388,30 @@ export function RackElevationPanel() {
 interface RackColumnProps {
   rack: Rack;
   devices: NodeModel[];
+  face: Face;
+  links: LinkModel[];
+  nodeByEndpoint: Map<string, string>;
   onPlace: (nodeId: string, ruStart: number, ruSpan: number) => void;
   onUnplace: (nodeId: string) => void;
+  onAdd: (kind: NodeKind, ruStart: number, ruSpan: number) => void;
   onError: (msg: string | null) => void;
 }
 
-function RackColumn({ rack, devices, onPlace, onUnplace, onError }: RackColumnProps) {
+function RackColumn({
+  rack,
+  devices,
+  face,
+  links,
+  nodeByEndpoint,
+  onPlace,
+  onUnplace,
+  onAdd,
+  onError,
+}: RackColumnProps) {
   const ruHeight = rack.ru_height || DEFAULT_RU_HEIGHT;
   const bodyRef = useRef<HTMLDivElement>(null);
+  // null = picker closed; number = picker is open at that RU start
+  const [pickerRu, setPickerRu] = useState<number | null>(null);
 
   /** RUs occupied by every device except `exceptId`. */
   const occupied = (exceptId?: string): Set<number> => {
@@ -318,6 +422,17 @@ function RackColumn({ rack, devices, onPlace, onUnplace, onError }: RackColumnPr
       for (let u = d.ru_start; u < d.ru_start + span; u++) s.add(u);
     }
     return s;
+  };
+
+  /** Find the lowest contiguous free RU that fits `span` units. */
+  const firstFreeRu = (span = 1): number | null => {
+    const taken = occupied();
+    for (let u = 1; u <= ruHeight - span + 1; u++) {
+      let fits = true;
+      for (let i = 0; i < span; i++) if (taken.has(u + i)) { fits = false; break; }
+      if (fits) return u;
+    }
+    return null;
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -350,6 +465,37 @@ function RackColumn({ rack, devices, onPlace, onUnplace, onError }: RackColumnPr
     onPlace(load.nodeId, ruStart, span);
   };
 
+  // ── Cable overlay ─────────────────────────────────────────────────────────
+  // Build a node-id → ru_start map for placed devices in THIS rack.
+  // ponytail: cables route to a vertical mid-point of the device block and bow
+  // right — not real port geometry. Upgrade when port-position model lands.
+  const placedRu = new Map<string, { ruStart: number; ruSpan: number }>();
+  for (const d of devices) {
+    if (d.ru_start != null) placedRu.set(d.id, { ruStart: d.ru_start, ruSpan: d.ru_span ?? 1 });
+  }
+
+  const bodyH = ruHeight * RU_PX;
+  const bodyW = 160; // w-40
+
+  const cableLines: { x1: number; y1: number; x2: number; y2: number; color: string }[] = [];
+  for (const lnk of links) {
+    const aNode = nodeByEndpoint.get(lnk.a_iface);
+    const bNode = nodeByEndpoint.get(lnk.b_iface);
+    if (!aNode || !bNode || aNode === bNode) continue;
+    const a = placedRu.get(aNode);
+    const b = placedRu.get(bNode);
+    if (!a || !b) continue;
+    // vertical center of each device block (RU 1 = bottom, so flip to top-down px)
+    const yCenterA = bodyH - (a.ruStart - 1 + a.ruSpan / 2) * RU_PX;
+    const yCenterB = bodyH - (b.ruStart - 1 + b.ruSpan / 2) * RU_PX;
+    const color = linkStatusColors[lnk.status ?? 'unknown'];
+    cableLines.push({ x1: bodyW, y1: yCenterA, x2: bodyW, y2: yCenterB, color });
+  }
+
+  // ── Add-device affordance ─────────────────────────────────────────────────
+  // Find the lowest free RU (default span 1 for the affordance slot).
+  const freeRu = firstFreeRu(1);
+
   return (
     <div className="select-none">
       <div className="mb-1 text-xs font-medium text-fg/70">
@@ -370,7 +516,7 @@ function RackColumn({ rack, devices, onPlace, onUnplace, onError }: RackColumnPr
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
           className="relative w-40 rounded border border-fg/15 bg-recess/40"
-          style={{ height: ruHeight * RU_PX }}
+          style={{ height: bodyH }}
         >
           {/* RU gridlines */}
           {Array.from({ length: ruHeight }, (_, i) => (
@@ -380,7 +526,8 @@ function RackColumn({ rack, devices, onPlace, onUnplace, onError }: RackColumnPr
               style={{ top: i * RU_PX, height: RU_PX }}
             />
           ))}
-          {/* placed devices */}
+
+          {/* placed devices — faceplate fills the block, name label overlays top-left */}
           {devices
             .filter((d) => d.ru_start != null)
             .map((d) => {
@@ -398,16 +545,87 @@ function RackColumn({ rack, devices, onPlace, onUnplace, onError }: RackColumnPr
                   }
                   onDoubleClick={() => onUnplace(d.id)}
                   title={`${d.kind} · ${nodeWatts(d)} W — double-click to remove`}
-                  className={cn(
-                    'absolute inset-x-1 flex cursor-grab items-center justify-center rounded px-1 text-[11px] active:cursor-grabbing',
-                    'border border-sky-400/40 bg-sky-500/20 text-sky-900 hover:bg-sky-500/30 dark:text-sky-100',
-                  )}
+                  className="absolute inset-x-1 cursor-grab overflow-hidden rounded active:cursor-grabbing"
                   style={{ bottom, height: span * RU_PX - 2 }}
                 >
-                  <span className="truncate">{d.name}</span>
+                  <DeviceFaceplate node={d} span={span} face={face} />
+                  {/* name label: small overlay so it doesn't hide the faceplate */}
+                  <span className="absolute left-0.5 top-0.5 truncate rounded bg-recess/60 px-1 text-[9px] leading-tight text-fg/80 pointer-events-none">
+                    {d.name}
+                  </span>
                 </div>
               );
             })}
+
+          {/* Add-device affordance: dashed slot at the lowest free RU */}
+          {freeRu != null && (
+            <div
+              className="absolute inset-x-1 cursor-pointer"
+              style={{ bottom: (freeRu - 1) * RU_PX, height: RU_PX - 2 }}
+              onClick={() => setPickerRu(pickerRu === freeRu ? null : freeRu)}
+            >
+              <div className="flex h-full items-center justify-center rounded border border-dashed border-fg/20 text-[10px] text-fg/40 hover:border-accent/60 hover:text-accent/80">
+                + Add device
+              </div>
+              {/* inline kind picker */}
+              {pickerRu === freeRu && (
+                <div className="glass-strong absolute bottom-full left-0 z-10 mb-1 flex flex-wrap gap-1 rounded p-1.5 shadow-lg">
+                  {RACK_KINDS.map(({ kind, span: kSpan }) => {
+                    const fits = firstFreeRu(kSpan) != null;
+                    return (
+                      <button
+                        key={kind}
+                        disabled={!fits}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const ru = firstFreeRu(kSpan);
+                          if (ru == null) return;
+                          onAdd(kind, ru, kSpan);
+                          setPickerRu(null);
+                        }}
+                        className={cn(
+                          'rounded px-2 py-0.5 text-[10px] capitalize',
+                          fits
+                            ? 'bg-fg/10 text-fg/80 hover:bg-accent/20 hover:text-fg'
+                            : 'cursor-not-allowed opacity-40 bg-fg/5 text-fg/30',
+                        )}
+                        title={!fits ? `No ${kSpan}U gap available` : undefined}
+                      >
+                        {kind}
+                        {kSpan > 1 && <span className="ml-0.5 text-fg/40">{kSpan}U</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Cable overlay — best-effort/decorative, pointer-events-none */}
+          {cableLines.length > 0 && (
+            <svg
+              className="pointer-events-none absolute inset-0"
+              width={bodyW}
+              height={bodyH}
+              style={{ overflow: 'visible' }}
+            >
+              {cableLines.map((c, i) => {
+                const mx = bodyW + 10; // bow out to the right
+                const my = (c.y1 + c.y2) / 2;
+                return (
+                  <path
+                    key={i}
+                    d={`M ${c.x1} ${c.y1} Q ${mx} ${my} ${c.x2} ${c.y2}`}
+                    fill="none"
+                    stroke={c.color}
+                    strokeWidth="1.5"
+                    strokeOpacity="0.7"
+                    className="ng-cable-flow"
+                  />
+                );
+              })}
+            </svg>
+          )}
         </div>
       </div>
     </div>

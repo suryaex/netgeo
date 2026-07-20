@@ -89,7 +89,7 @@ export function MapDeployMenu({ px, lat, lon, onClose }: Props) {
       ref={ref}
       style={style}
       className={cn(
-        'pointer-events-auto w-52 rounded-xl border border-fg/15 bg-panel/90 p-2 shadow-glass backdrop-blur',
+        'glass-strong pointer-events-auto w-52 rounded-xl border border-fg/15 p-2 shadow-glass-lg',
         zc.popover,
       )}
       role="menu"

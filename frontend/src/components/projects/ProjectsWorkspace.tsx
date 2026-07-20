@@ -230,12 +230,12 @@ function ProjectCard({ project, onOpen }: { project: Project; onOpen: () => void
       {/* Schematic preview placeholder — no thumbnails are generated server-side. */}
       <div className="relative grid h-28 place-items-center overflow-hidden rounded-lg border border-fg/10 bg-recess/25">
         <Network className="h-8 w-8 text-fg/10" aria-hidden />
-        <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded border border-fg/10 bg-surface/70 px-2 py-0.5 backdrop-blur-sm">
+        <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded border border-fg/10 bg-surface px-2 py-0.5 backdrop-blur-sm">
           <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
           <span className="font-mono text-[11px] text-success">Active</span>
         </span>
         {/* Hover / focus affordance for the card's Open action. */}
-        <span className="pointer-events-none absolute inset-0 grid place-items-center bg-panel-2/80 opacity-0 backdrop-blur-[1px] transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="pointer-events-none absolute inset-0 grid place-items-center bg-recess/70 opacity-0 backdrop-blur-[1px] transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           <span className="flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg">
             <ExternalLink className="h-4 w-4" aria-hidden /> Open workspace
           </span>

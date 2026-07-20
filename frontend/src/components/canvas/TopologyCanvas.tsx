@@ -434,7 +434,7 @@ export function TopologyCanvas() {
             nodeColor={(n) => nodeColors[(n.data as DeviceNodeData).kind] ?? '#888'}
             style={{ width: 148, height: 100 }}
             className={cn(
-              '!rounded-lg !border !border-fg/10 !bg-surface/70 !shadow-glass backdrop-blur transition-all duration-fast',
+              '!rounded-lg !border !border-fg/10 !bg-surface !shadow-glass backdrop-blur transition-all duration-fast',
               // Slide clear of the 360px inspector when it's open (BUG-05).
               inspectorOpen ? '!mb-3 !mt-3 !mr-[372px]' : '!m-3',
             )}

@@ -63,7 +63,7 @@ export function PulseEdge(props: EdgeProps) {
         <EdgeLabelRenderer>
           <div
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
-            className="pointer-events-none absolute rounded border border-fg/10 bg-panel/90 px-1 py-0.5 font-mono text-[9px] text-fg/70 backdrop-blur-sm"
+            className="pointer-events-none absolute rounded border border-fg/10 bg-panel px-1 py-0.5 font-mono text-[9px] text-fg/70 backdrop-blur-sm"
           >
             {data.label}
           </div>

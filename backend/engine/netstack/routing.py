@@ -52,6 +52,7 @@ from engine.netstack.frames import (
     VxlanPacket,
 )
 from engine.netstack.iface import Interface
+from engine.netstack.qos import apply_marking
 
 if TYPE_CHECKING:  # pragma: no cover
     from engine.netstack.network import Network
@@ -290,6 +291,9 @@ class Router(L3Device):
         # VXLAN access ports (NG-SIM-10): iface names whose ingress frames are
         # bridged into the overlay by the VxlanProcess. Empty = zero overhead.
         self.vxlan_ports: set[str] = set()
+        # QoS marking rules (NG-SIM-11 §2.3): applied on the egress forward path.
+        # Each rule: {"match": {"proto": "udp", "dst_port": 5060}, "set_dscp": 46}
+        self.qos_marking: list[dict] = []
 
     # ----- route table management -------------------------------------------------
     def sync_connected_routes(self) -> None:
@@ -544,6 +548,10 @@ class Router(L3Device):
             net.record_drop("acl_deny_out")
             self._send_icmp_error(net, pkt, icmp_type=3, code=13)
             return
+
+        # QoS marking: mutate DSCP before egress enqueue (§2.3).
+        if self.qos_marking:
+            apply_marking(self.qos_marking, pkt)
 
         self.forwarded += 1
         self._resolve_and_send(net, out, next_hop, pkt)

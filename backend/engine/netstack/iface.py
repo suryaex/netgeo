@@ -23,10 +23,13 @@ from dataclasses import dataclass, field
 from ipaddress import IPv4Address, IPv4Interface, IPv6Address, IPv6Interface
 from typing import TYPE_CHECKING, Optional
 
+def _three_zeros() -> list:
+    return [0, 0, 0]
+
 from engine.events import EventType, SimEvent
 from engine.netstack.addr import MacAddr, link_local_for, solicited_node
 from engine.netstack.frames import EthernetFrame, Ipv4Packet, Ipv6Packet
-from engine.netstack.qos import QosClass, QosConfig, classify
+from engine.netstack.qos import QosClass, QosConfig, class_name, classify
 
 if TYPE_CHECKING:  # pragma: no cover
     from engine.netstack.device import Device
@@ -43,15 +46,19 @@ class FrameContext:
     frame: EthernetFrame
     link_id: str
     iface: str      # qualified "device:port" at the recording end
+    qos_class: "str | None" = None  # "EF"/"AF"/"BE" when QoS enabled; absent otherwise
 
     def ledger_fields(self) -> dict:
-        return {
+        d = {
             "link": self.link_id,
             "iface": self.iface,
             "frame_id": self.frame.id,
             "size": self.frame.size_bytes,
             "info": self.frame.summary(),
         }
+        if self.qos_class is not None:
+            d["qos_class"] = self.qos_class
+        return d
 
 
 @dataclass(slots=True)
@@ -64,6 +71,9 @@ class IfaceCounters:
     drops_loss: int = 0
     drops_mtu: int = 0
     drops_down: int = 0
+    # Per-class counters (len 3: EF=0, AF=1, BE=2) — additive; zero when QoS disabled.
+    tx_by_class: list = field(default_factory=_three_zeros)
+    drops_queue_by_class: list = field(default_factory=_three_zeros)
 
     def as_dict(self) -> dict:
         return {
@@ -77,6 +87,8 @@ class IfaceCounters:
                 "mtu": self.drops_mtu,
                 "down": self.drops_down,
             },
+            "tx_by_class": list(self.tx_by_class),
+            "drops_queue_by_class": list(self.drops_queue_by_class),
         }
 
 
@@ -215,6 +227,7 @@ class Interface:
         if qos_cfg.enabled:
             if len(queue) >= qos_cfg.depth_per_class:
                 self.counters.drops_queue += 1
+                self.counters.drops_queue_by_class[int(cls)] += 1
                 net.record_drop("queue_overflow")
                 net.capture.record(net.now, att.id, self.qualified_name, "drop", frame)
                 return
@@ -227,6 +240,17 @@ class Interface:
                 return
 
         queue.append(frame)
+        if qos_cfg.enabled:
+            net.scheduler.schedule_after(
+                0.0,
+                SimEvent(
+                    time=0.0,
+                    type=EventType.PACKET_ENQUEUE,
+                    payload=FrameContext(frame, att.id, self.qualified_name,
+                                        qos_class=class_name(cls)),
+                    node_id=self.device.node_id,
+                ),
+            )
         if not self._transmitting:
             self._start_next(net)
 
@@ -235,9 +259,11 @@ class Interface:
         # Disabled path: AF queue is always empty so EF→BE order is preserved
         # bit-for-bit (same as former _queue_prio → _queue_be drain).
         frame = None
-        for q in self._queues:
+        drained_cls: QosClass | None = None
+        for i, q in enumerate(self._queues):
             if q:
                 frame = q.popleft()
+                drained_cls = QosClass(i)
                 break
         if frame is None:
             self._transmitting = False
@@ -249,19 +275,23 @@ class Interface:
         ser = att.serialization_delay(frame.size_bytes)
         self.counters.tx_frames += 1
         self.counters.tx_bytes += frame.size_bytes
+        if att.qos.enabled and drained_cls is not None:
+            self.counters.tx_by_class[int(drained_cls)] += 1
         net.capture.record(net.now, att.id, self.qualified_name, "tx", frame)
 
         # TX completes after serialization — then the next queued frame starts
         # and this frame begins propagating toward the peer. The frame + link
         # ride along as the event payload so the ledger (NG-SIM-01) can show
         # per-PDU records and the canvas can animate them (NG-CAP-04).
+        qos_cls_name = class_name(drained_cls) if att.qos.enabled and drained_cls is not None else None
         net.scheduler.schedule_after(
             ser,
             SimEvent(
                 time=0.0,
                 type=EventType.PACKET_TX,
                 handler=lambda _ctx, _ev, f=frame: self._tx_done(net, f),
-                payload=FrameContext(frame, att.id, self.qualified_name),
+                payload=FrameContext(frame, att.id, self.qualified_name,
+                                     qos_class=qos_cls_name),
                 node_id=self.device.node_id,
             ),
         )

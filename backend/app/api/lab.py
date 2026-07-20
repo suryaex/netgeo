@@ -352,6 +352,24 @@ async def lab_tables(project_id: str, node_ref: str, r: MemoryRepository = Depen
                     "vtep": proc.vtep_rows(),
                     "evpn": proc.evpn_rows(),
                 }
+        # QoS per-class counters (NG-SIM-11 §2.6) — present on all devices.
+        _cls = ("EF", "AF", "BE")
+        qos_rows = []
+        for i in dev.interfaces.values():
+            enabled = i.attachment is not None and i.attachment.qos.enabled
+            qos_rows.append({
+                "iface": i.name,
+                "qos_enabled": enabled,
+                "classes": [
+                    {
+                        "class": _cls[ci],
+                        "tx_frames": i.counters.tx_by_class[ci],
+                        "drops": i.counters.drops_queue_by_class[ci],
+                    }
+                    for ci in range(3)
+                ],
+            })
+        out["qos"] = qos_rows
         return out
 
     return await run_in_threadpool(work)

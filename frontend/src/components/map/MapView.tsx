@@ -1392,7 +1392,13 @@ export function MapView({ rfMode = false }: { rfMode?: boolean } = {}) {
         center={mapCenter}
         zoom={mapZoom}
         zoomControl={false}
-        className="h-full w-full"
+        /* isolate: give Leaflet its own stacking context so its internal panes
+           and controls (z-index up to 1000) can never leak out and paint over
+           the sibling overlay chrome (toolbar / layer switcher / legends at
+           zc.workspace=100). Without this, a settled map hides those overlays
+           and they only flash back during the transform Leaflet applies while
+           zooming — the "controls disappear until you zoom" glitch. */
+        className="isolate h-full w-full"
         style={{ background: 'var(--ng-surface, #0d1117)' }}
       >
         {/* Layer-aware basemap — Satellite / Street / Hybrid (see MapLayerSwitcher) */}

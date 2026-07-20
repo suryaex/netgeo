@@ -453,7 +453,31 @@ class CliSession:
                 for mac, ip in pool.leases.items():
                     rows.append(f"{str(ip):<16} {mac:<20} {pool.network}")
             return "\n".join(rows) + "\n"
+        if low.startswith("show qos interface"):
+            return self._show_qos_iface(low.split())
         return f"% Invalid show command\n"
+
+    def _show_qos_iface(self, words: list[str]) -> str:
+        """show qos interface [<name>] — per-class tx/drops table (§2.6)."""
+        dev = self.device
+        iface_name = words[3] if len(words) >= 4 else None
+        ifaces = (
+            [dev.interfaces[iface_name]]
+            if iface_name and iface_name in dev.interfaces
+            else list(dev.interfaces.values())
+        )
+        if not ifaces:
+            return "% No interfaces\n"
+        rows = ["Interface        QoS  Class  Tx-Frames  Drops"]
+        _names = ("EF", "AF", "BE")
+        for i in ifaces:
+            enabled = i.attachment is not None and i.attachment.qos.enabled
+            state = "on " if enabled else "off"
+            for ci, cname in enumerate(_names):
+                tx = i.counters.tx_by_class[ci]
+                dr = i.counters.drops_queue_by_class[ci]
+                rows.append(f"{i.name:<16} {state}  {cname}    {tx:<10} {dr}")
+        return "\n".join(rows) + "\n"
 
     def _cisco_help(self) -> str:
         return (
@@ -548,6 +572,19 @@ class CliSession:
             rows = ["#  VNI     MAC                  LOCATION"]
             for n, r in enumerate(vx.mac_vni_rows()):
                 rows.append(f"{n}  {r['vni']:<7} {r['mac']:<20} {r['location']}")
+            return "\n".join(rows) + "\n"
+        if low.startswith("/queue print") or low.startswith("/queue simple print"):
+            rows = ["#  INTERFACE        QOS  CLASS  TX-FRAMES  DROPS"]
+            _names = ("EF", "AF", "BE")
+            n = 0
+            for i in dev.interfaces.values():
+                enabled = i.attachment is not None and i.attachment.qos.enabled
+                state = "on " if enabled else "off"
+                for ci, cname in enumerate(_names):
+                    tx = i.counters.tx_by_class[ci]
+                    dr = i.counters.drops_queue_by_class[ci]
+                    rows.append(f"{n}  {i.name:<16} {state}  {cname}    {tx:<10} {dr}")
+                n += 1
             return "\n".join(rows) + "\n"
         if low == "/interface print":
             rows = ["#  NAME       MTU   MAC-ADDRESS        RUNNING"]

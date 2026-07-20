@@ -14,12 +14,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import IntEnum
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:  # pragma: no cover
+    from engine.netstack.frames import Ipv4Packet, Ipv6Packet
 
 
 class QosClass(IntEnum):
     EF = 0   # Expedited Forwarding — drains first
     AF = 1   # Assured Forwarding
     BE = 2   # Best Effort
+
+
+_CLASS_NAME = ("EF", "AF", "BE")
 
 
 @dataclass(slots=True)
@@ -45,3 +52,45 @@ def classify(dscp: int, cfg: QosConfig) -> QosClass:
     if dscp >= cfg.af_min_dscp:
         return QosClass.AF
     return QosClass.BE
+
+
+def class_name(cls: QosClass) -> str:
+    """Return the string name for a QosClass (EF/AF/BE)."""
+    return _CLASS_NAME[int(cls)]
+
+
+def apply_marking(rules: list[dict], pkt: Any) -> None:
+    """Mutate pkt.dscp according to the first matching rule.
+
+    Rule shape: {"match": {"proto": "udp", "dst_port": 5060, ...}, "set_dscp": 46}
+    Supported match keys: proto (string name), dst_port (int), src_port (int).
+    Only Ipv4Packet/Ipv6Packet are touched; other payloads are silently skipped.
+    Called on router ingress BEFORE egress enqueue (§2.3).
+    """
+    if not rules:
+        return
+    # Only IP packets carry DSCP — duck-type: must have a .dscp field.
+    if not hasattr(pkt, "dscp"):
+        return
+    for rule in rules:
+        match = rule.get("match") or {}
+        set_dscp = rule.get("set_dscp")
+        if set_dscp is None:
+            continue
+        if not _rule_matches(match, pkt):
+            continue
+        pkt.dscp = int(set_dscp)
+        return  # first match wins
+
+
+def _rule_matches(match: dict, pkt: Any) -> bool:
+    if "proto" in match and pkt.proto_name != match["proto"]:
+        return False
+    l4 = getattr(pkt, "payload", None)
+    if "dst_port" in match:
+        if getattr(l4, "dst_port", None) != match["dst_port"]:
+            return False
+    if "src_port" in match:
+        if getattr(l4, "src_port", None) != match["src_port"]:
+            return False
+    return True

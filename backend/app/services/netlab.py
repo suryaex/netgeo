@@ -60,6 +60,7 @@ from engine.netstack.cli import CliSession
 from engine.netstack.device import Device, Host
 from engine.netstack.routing import AclRule, DhcpPool, Firewall, Router
 from engine.netstack.switching import Switch
+from engine.netstack.qos import QosConfig
 from engine.netstack.protocols.bgp import BgpProcess
 from engine.netstack.protocols.isis import IsisProcess
 from engine.netstack.protocols.mpls import L3vpnProcess, LdpProcess
@@ -361,6 +362,11 @@ def _apply_intent(net: Network, dev: Device, intent: dict) -> None:
                 target = dev.acl_in if direction == "in" else dev.acl_out
                 target[iface_name] = rules
 
+    # QoS marking rules (NG-SIM-11 §2.3): stored on the router for the forward path.
+    qos_marking = intent.get("qos_marking")
+    if qos_marking and isinstance(dev, Router):
+        dev.qos_marking = list(qos_marking)
+
 
 def _settle_time(net: Network) -> float:
     """Sim-seconds to run at build so protocols converge before first use."""
@@ -469,6 +475,28 @@ class Lab:
         self._record("cli", node=node_ref, command=command)
         return session.execute(command)
 
+    def do_set_link_qos(self, link_id: str, qos: dict) -> bool:
+        """Journaled QoS config change on a link attachment (NG-SIM-11 §2.2).
+
+        qos dict: {"enabled": bool, "ef_min_dscp": int, "af_min_dscp": int,
+                   "depth_per_class": int}
+        Returns True if the attachment was found and updated.
+        """
+        self._record("set_link_qos", link_id=link_id, qos=qos)
+        return self._set_link_qos(link_id, qos)
+
+    def _set_link_qos(self, link_id: str, qos: dict) -> bool:
+        att = self.net.attachments.get(link_id)
+        if att is None:
+            return False
+        att.qos = QosConfig(
+            enabled=bool(qos.get("enabled", False)),
+            ef_min_dscp=int(qos.get("ef_min_dscp", 40)),
+            af_min_dscp=int(qos.get("af_min_dscp", 8)),
+            depth_per_class=int(qos.get("depth_per_class", 32)),
+        )
+        return True
+
     def _apply(self, entry: dict) -> None:
         """Re-execute one journal entry during replay (no re-recording)."""
         kind, args = entry["kind"], entry["args"]
@@ -487,6 +515,8 @@ class Lab:
             session = self.session_for(args["node"])
             if session is not None:
                 session.execute(args["command"])
+        elif kind == "set_link_qos":
+            self._set_link_qos(args["link_id"], args["qos"])
 
 
 class LabManager:

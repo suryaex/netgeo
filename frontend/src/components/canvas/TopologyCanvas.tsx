@@ -135,6 +135,7 @@ export function TopologyCanvas() {
             ip: mgmtIp(n),
             highlight: member,
             dim: protoActive && !member,
+            icon: typeof n.intent?.icon === 'string' ? (n.intent.icon as string) : undefined,
           },
         };
       }),

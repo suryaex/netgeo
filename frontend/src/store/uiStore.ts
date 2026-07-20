@@ -25,7 +25,8 @@ export type ModalId =
   | 'fiberDetail'
   | 'onboarding'
   | 'mapOnboarding'
-  | 'addressingWizard';
+  | 'addressingWizard'
+  | 'iconLibrary';
 
 /** The workspace views that own a URL path (all of them). ViewMode === path slug,
  *  so the map is the identity — but listing them keeps the parse total + typed. */

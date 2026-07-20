@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/suryaex/netgeo/actions/workflows/backend.yml/badge.svg)](https://github.com/suryaex/netgeo/actions)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Version](https://img.shields.io/badge/version-1.2.36-brightgreen)
+![Version](https://img.shields.io/badge/version-1.2.37-brightgreen)
 ![Channel](https://img.shields.io/badge/channel-beta-blueviolet)
 ![Python](https://img.shields.io/badge/python-3.12+-blue)
 ![React](https://img.shields.io/badge/react-18-61dafb)
@@ -106,7 +106,9 @@ A pure-Python engine (no native dependencies — runs on Linux, Windows, and ARM
 
 - **Addressing & config** — auto-addressing wizard with a dry-run preview step (shows planned assignments before committing), one-click dual-stack (IPv4 + IPv6 ULA) assignment, whole-project vendor config export, and a config regeneration diff view.
 
-- **Workspace UI** — an n8n/Figma-style topology canvas (floating bezier edges, port dots, hover-to-connect, drag-to-reconnect edge endpoints, live dashed connection preview, minimap) plus dedicated workspaces — Projects Portal, Config Center, Problem Center, and Reports Center — in matching dark & light themes.
+- **Traffic & QoS** — DSCP classify/mark with three strict-priority classes (EF/AF/BE), per-class queueing that shapes delay and drop as a link saturates, and per-class counters surfaced in the event ledger and `show qos` CLI.
+
+- **Workspace UI** — an n8n/Figma-style topology canvas (floating bezier edges, port dots, hover-to-connect, drag-to-reconnect edge endpoints, live dashed connection preview, minimap) plus dedicated workspaces — Projects Portal, Config Center, Problem Center, and Reports Center — in matching dark & light themes. Device icons are customizable: import your own SVG/PNG symbols (GNS3-style) and assign them per node.
 
 - **Projects** — multi-project workspace with export/import archives, real-time collaboration channel, JWT + WebSocket auth, and in-app self-update from GitHub releases.
 

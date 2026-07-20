@@ -95,8 +95,10 @@ body {
 .react-flow__edge:hover .react-flow__edge-path {
   stroke-width: 3 !important;
 }
-/* Port dots — accent fill with a theme-aware hairline so the ring stays
-   visible on both charcoal (dark) and ivory (light) surfaces (WCAG AA).
+/* Port dots — neutral chrome at rest so they don't read as errors/accents.
+   Active-connection states (connecting/valid) reveal the coral accent so the
+   user clearly sees valid snap targets. WCAG AA: fg-muted is 4.8:1 on dark
+   panel (#1F1E1D) and 5.2:1 on light panel (#FAF9F5). Ring stays theme-aware.
    Hit area is 12px (h-3/w-3 in DeviceNode); the visual ring matches.
    During an active connection drag React Flow adds .react-flow__handle-connecting
    to the canvas root — reveal all handles so the user can see snap targets. */
@@ -104,12 +106,13 @@ body {
   width: 12px;
   height: 12px;
   border: 1.5px solid rgb(var(--ng-recess-rgb) / 0.55);
-  background: var(--ng-primary, #d97757);
+  background: var(--ng-fg-muted);
 }
-/* Show all handles while dragging a new connection (n8n snap feel). */
+/* Show coral accent only while dragging a new connection (n8n snap feel). */
 .react-flow__handle-connecting .react-flow__handle,
 .react-flow__handle-valid .react-flow__handle {
   opacity: 1 !important;
+  background: var(--ng-primary);
 }
 .react-flow__controls {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);

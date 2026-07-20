@@ -8,19 +8,10 @@
  */
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import {
-  Router,
-  Network,
-  Monitor,
-  Wifi,
-  Cable,
-  ShieldAlert,
-  Server,
-  Cloud,
-} from 'lucide-react';
 import type { NodeKind, NodeMode, NodeStatus, Nos } from '@/api/types';
 import { nodeColors } from '@/theme/tokens';
 import { cn } from '@/lib/cn';
+import { DeviceIcon } from './DeviceIcon';
 
 export interface DeviceNodeData extends Record<string, unknown> {
   name: string;
@@ -34,19 +25,9 @@ export interface DeviceNodeData extends Record<string, unknown> {
   dim?: boolean;
   /** Protocol overlay member → ring it so the set stands out. */
   highlight?: boolean;
+  /** Custom icon id from iconStore, if assigned. */
+  icon?: string;
 }
-
-const KIND_ICON: Record<NodeKind, typeof Router> = {
-  router: Router,
-  switch: Network,
-  host: Monitor,
-  ap: Wifi,
-  cpe: Wifi,   // CPE is a wireless client — same icon as AP
-  olt: Cable,
-  firewall: ShieldAlert,
-  server: Server,
-  cloud: Cloud,
-};
 
 /** Status → badge dot color (theme-aware semantic tokens). */
 const STATUS_DOT: Record<NodeStatus, string> = {
@@ -83,7 +64,6 @@ const SIDES = [
 
 function DeviceNodeImpl({ data, selected }: NodeProps) {
   const d = data as DeviceNodeData;
-  const Icon = KIND_ICON[d.kind];
   const color = nodeColors[d.kind];
   const secondary = d.ip ?? d.kind;
 
@@ -134,7 +114,7 @@ function DeviceNodeImpl({ data, selected }: NodeProps) {
           className="relative grid h-9 w-9 place-items-center rounded-lg shadow-soft ring-1 ring-inset ring-fg/15"
           style={{ background: `linear-gradient(155deg, ${color}38, ${color}12)`, color }}
         >
-          <Icon className="h-[18px] w-[18px]" />
+          <DeviceIcon kind={d.kind} iconId={d.icon} className="h-[18px] w-[18px]" />
         </span>
         <span
           className={cn(

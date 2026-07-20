@@ -5,9 +5,10 @@
  * nosStore so user-defined images are selectable alongside built-ins.
  */
 import { useEffect, useState } from 'react';
-import { Cpu, Plug, RefreshCw, Settings2 } from 'lucide-react';
+import { Cpu, Plug, RefreshCw, Settings2, Image as ImageIcon } from 'lucide-react';
 import { useTopologyStore } from '@/store/topologyStore';
 import { useNosStore } from '@/store/nosStore';
+import { useIconStore } from '@/store/iconStore';
 import { useUiStore } from '@/store/uiStore';
 import { nodesApi, configsApi } from '@/api/client';
 import { CloudUplink } from '@/components/CloudUplink';
@@ -44,6 +45,7 @@ export function PropertiesPanel() {
   const openDrawer = useUiStore((s) => s.openDrawer);
   const openModal = useUiStore((s) => s.openModal);
   const { customNos } = useNosStore();
+  const icons = useIconStore((s) => s.icons);
   const simState = useUiStore((s) => s.simState);
   const [name, setName] = useState('');
 
@@ -76,6 +78,10 @@ export function PropertiesPanel() {
   const effectiveStatus =
     simState === 'running' || simState === 'paused' ? 'running' : node.status;
   const statusColor = STATUS_COLORS[effectiveStatus] ?? '#8A93A6';
+
+  // Custom icon assigned to this node (via intent.icon), if any.
+  const assignedIconId = typeof node.intent?.icon === 'string' ? node.intent.icon : undefined;
+  const assignedIcon = assignedIconId ? icons.find((i) => i.id === assignedIconId) : undefined;
 
   // Combine built-in + custom NOS options.
   const nosOptions = [
@@ -163,6 +169,23 @@ export function PropertiesPanel() {
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: statusColor }} />
           {effectiveStatus}
         </span>
+      </Field>
+
+      <Field label="Icon">
+        <button
+          onClick={() => openModal('iconLibrary')}
+          className="flex w-full items-center gap-2 rounded-md border border-fg/10 bg-recess/20 px-2 py-1.5 text-sm text-fg/80 outline-none transition-colors hover:border-accent/40 hover:text-fg"
+        >
+          {assignedIcon ? (
+            <img src={assignedIcon.dataUrl} alt="" className="h-5 w-5 shrink-0 object-contain" />
+          ) : (
+            <ImageIcon className="h-4 w-4 shrink-0 text-fg/45" />
+          )}
+          <span className="truncate">
+            {assignedIcon ? assignedIcon.name.replace(/\.[^.]+$/, '') : 'Default (kind icon)'}
+          </span>
+          <span className="ml-auto text-[11px] text-fg/40">Change</span>
+        </button>
       </Field>
 
       {node.kind === 'cloud' && <CloudUplink node={node} patch={patch} />}

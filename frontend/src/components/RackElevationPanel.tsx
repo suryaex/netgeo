@@ -11,14 +11,16 @@
  * rated length error their link, listed here as warnings so the physical view
  * explains *why* a link is down.
  *
- * ponytail: per-device wattage is estimated per node kind below — the device
- * library (NG-DL-01) carries real chassis watts/RU but the /device-types API
- * doesn't surface them yet. Swap `KIND_WATTS` for the real values once it does.
+ * Per-device wattage prefers the /device-types datasheet (power_watts_max,
+ * falling back to power_watts_idle) matched by node kind → builtin icon;
+ * `KIND_WATTS` below is the fallback for kinds with no catalog match (e.g.
+ * `host`) or if the catalog fetch hasn't landed yet.
  */
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Plus, Server, Zap } from 'lucide-react';
-import { nodesApi, physicalApi, projectsApi } from '@/api/client';
+import { deviceTypesApi, nodesApi, physicalApi, projectsApi } from '@/api/client';
+import type { DeviceType } from '@/api/client';
 import type { LinkModel, LinkStatus, NodeKind, NodeModel, Rack, Site } from '@/api/types';
 import { useUiStore } from '@/store/uiStore';
 import { WorkspaceEmptyState } from '@/components/shell/WorkspaceEmptyState';
@@ -53,8 +55,13 @@ const KIND_WATTS: Record<string, number> = {
   cloud: 0,
 };
 
-function nodeWatts(n: NodeModel): number {
-  return KIND_WATTS[n.kind] ?? 150;
+/** Builtin device-type `icon` values don't always match `NodeKind` 1:1. */
+const KIND_TO_ICON: Partial<Record<NodeKind, string>> = { firewall: 'fw' };
+
+function nodeWatts(n: NodeModel, byIcon?: Map<string, DeviceType>): number {
+  const dt = byIcon?.get(KIND_TO_ICON[n.kind] ?? n.kind);
+  const watts = dt?.power_watts_max ?? dt?.power_watts_idle;
+  return watts ?? KIND_WATTS[n.kind] ?? 150;
 }
 
 /** watts → heat load in BTU/hr (1 W ≈ 3.412 BTU/hr). */
@@ -87,6 +94,20 @@ export function RackElevationPanel() {
     queryFn: () => physicalApi.plant(projectId!),
     enabled: !!projectId,
   });
+  // Static catalog (builtins never change at runtime) — fetch once, reuse
+  // across every watts lookup below instead of a per-node call.
+  const deviceTypesQ = useQuery({
+    queryKey: ['device-types'],
+    queryFn: () => deviceTypesApi.list(),
+    staleTime: Infinity,
+  });
+  const wattsByIcon = useMemo(() => {
+    const map = new Map<string, DeviceType>();
+    for (const dt of deviceTypesQ.data ?? []) {
+      if (dt.icon) map.set(dt.icon, dt);
+    }
+    return map;
+  }, [deviceTypesQ.data]);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['topology', projectId] });
@@ -331,7 +352,7 @@ export function RackElevationPanel() {
                 )
               }
               className="mb-1 cursor-grab rounded border border-fg/10 bg-fg/5 px-2 py-1 text-xs hover:bg-fg/10 active:cursor-grabbing"
-              title={`${n.kind} · ${nodeWatts(n)} W`}
+              title={`${n.kind} · ${nodeWatts(n, wattsByIcon)} W`}
             >
               {n.name}
               <span className="ml-1 text-fg/40">{n.ru_span ?? 1}U</span>
@@ -353,7 +374,7 @@ export function RackElevationPanel() {
           )}
           {bucketBySite.map((bucket) => {
             const siteNodes = bucket.racks.flatMap((r) => nodesByRack.get(r.id) ?? []);
-            const watts = siteNodes.reduce((sum, n) => sum + nodeWatts(n), 0);
+            const watts = siteNodes.reduce((sum, n) => sum + nodeWatts(n, wattsByIcon), 0);
             return (
               <div key={bucket.site?.id ?? '_unassigned'} className="mb-6">
                 <div className="mb-2 flex items-center gap-2 text-sm">
@@ -383,6 +404,7 @@ export function RackElevationPanel() {
                         addDevice.mutate({ rackId: rack.id, kind, ruStart, ruSpan })
                       }
                       onError={setError}
+                      wattsByIcon={wattsByIcon}
                     />
                   ))}
                   {bucket.racks.length === 0 && (
@@ -409,6 +431,7 @@ interface RackColumnProps {
   onUnplace: (nodeId: string) => void;
   onAdd: (kind: NodeKind, ruStart: number, ruSpan: number) => void;
   onError: (msg: string | null) => void;
+  wattsByIcon: Map<string, DeviceType>;
 }
 
 function RackColumn({
@@ -422,6 +445,7 @@ function RackColumn({
   onUnplace,
   onAdd,
   onError,
+  wattsByIcon,
 }: RackColumnProps) {
   const ruHeight = rack.ru_height || DEFAULT_RU_HEIGHT;
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -559,7 +583,7 @@ function RackColumn({
                     )
                   }
                   onDoubleClick={() => onUnplace(d.id)}
-                  title={`${d.kind} · ${nodeWatts(d)} W — double-click to remove`}
+                  title={`${d.kind} · ${nodeWatts(d, wattsByIcon)} W — double-click to remove`}
                   className="absolute inset-x-1 cursor-grab overflow-hidden rounded active:cursor-grabbing"
                   style={{ bottom, height: span * RU_PX - 2 }}
                 >

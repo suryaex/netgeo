@@ -792,6 +792,10 @@ export interface DeviceType {
   icon?: string | null;
   description: string;
   builtin: boolean;
+  /** Rack power datasheet (C-4/Rack#3) — optional, older entries omit these. */
+  power_watts_idle?: number | null;
+  power_watts_max?: number | null;
+  snmp_oids?: Record<string, string> | null;
 }
 
 export interface DeviceTypeCreate {

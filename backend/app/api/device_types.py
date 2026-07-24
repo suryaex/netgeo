@@ -66,17 +66,28 @@ class DeviceTypeCreate(BaseModel):
 # Built-in catalog  (immutable; returned in every GET response)
 # ---------------------------------------------------------------------------
 
+# Generic IF-MIB / RFC1213 OIDs, standard across vendors — enough for basic
+# up/down + traffic polling without a per-vendor MIB library.
+_IF_MIB_OIDS = {
+    "sysUpTime": "1.3.6.1.2.1.1.3.0",
+    "ifOperStatus": "1.3.6.1.2.1.2.2.1.8",
+    "ifHCInOctets": "1.3.6.1.2.1.31.1.1.1.6",
+}
+
+# Power figures are representative per device *class* (idle / max rated draw,
+# watts) drawn from typical datasheet ranges — not per-SKU precision. Good
+# enough for rack power/heat rollups; see docs/research/rack-device-ui.md.
 _BUILTIN: list[DeviceType] = [
-    DeviceType(id="builtin-ap",      name="Access Point",   category="wireless",        icon="ap",      description="802.11 wireless access point",                builtin=True),
-    DeviceType(id="builtin-cpe",     name="CPE",            category="wireless",        icon="cpe",     description="Customer-premises equipment (wireless)",       builtin=True),
-    DeviceType(id="builtin-tower",   name="Tower",          category="wireless",        icon="tower",   description="Cellular / backhaul tower",                   builtin=True),
-    DeviceType(id="builtin-switch",  name="Switch",         category="wired",           icon="switch",  description="Layer-2 Ethernet switch",                     builtin=True),
-    DeviceType(id="builtin-router",  name="Router",         category="wired",           icon="router",  description="Layer-3 IP router",                           builtin=True),
-    DeviceType(id="builtin-olt",     name="OLT",            category="fiber",           icon="olt",     description="Optical Line Terminal (PON/GPON headend)",    builtin=True),
-    DeviceType(id="builtin-onu",     name="ONU/ONT",        category="fiber",           icon="onu",     description="Optical Network Unit / Terminal (subscriber)", builtin=True),
-    DeviceType(id="builtin-fw",      name="Firewall",       category="security",        icon="fw",      description="Stateful packet-filter / NGFW",               builtin=True),
-    DeviceType(id="builtin-server",  name="Server",         category="infrastructure",  icon="server",  description="Physical or virtual server",                  builtin=True),
-    DeviceType(id="builtin-cloud",   name="Cloud / Internet", category="infrastructure", icon="cloud",  description="Internet gateway / cloud-uplink node",        builtin=True),
+    DeviceType(id="builtin-ap",      name="Access Point",   category="wireless",        icon="ap",      description="802.11 wireless access point",                builtin=True, power_watts_idle=7,   power_watts_max=15,  snmp_oids=_IF_MIB_OIDS),
+    DeviceType(id="builtin-cpe",     name="CPE",            category="wireless",        icon="cpe",     description="Customer-premises equipment (wireless)",       builtin=True, power_watts_idle=6,   power_watts_max=12,  snmp_oids=_IF_MIB_OIDS),
+    DeviceType(id="builtin-tower",   name="Tower",          category="wireless",        icon="tower",   description="Cellular / backhaul tower",                   builtin=True, power_watts_idle=150, power_watts_max=400, snmp_oids=_IF_MIB_OIDS),
+    DeviceType(id="builtin-switch",  name="Switch",         category="wired",           icon="switch",  description="Layer-2 Ethernet switch",                     builtin=True, power_watts_idle=20,  power_watts_max=60,  snmp_oids=_IF_MIB_OIDS),
+    DeviceType(id="builtin-router",  name="Router",         category="wired",           icon="router",  description="Layer-3 IP router",                           builtin=True, power_watts_idle=40,  power_watts_max=120, snmp_oids=_IF_MIB_OIDS),
+    DeviceType(id="builtin-olt",     name="OLT",            category="fiber",           icon="olt",     description="Optical Line Terminal (PON/GPON headend)",    builtin=True, power_watts_idle=150, power_watts_max=350, snmp_oids=_IF_MIB_OIDS),
+    DeviceType(id="builtin-onu",     name="ONU/ONT",        category="fiber",           icon="onu",     description="Optical Network Unit / Terminal (subscriber)", builtin=True, power_watts_idle=5,   power_watts_max=12,  snmp_oids=_IF_MIB_OIDS),
+    DeviceType(id="builtin-fw",      name="Firewall",       category="security",        icon="fw",      description="Stateful packet-filter / NGFW",               builtin=True, power_watts_idle=30,  power_watts_max=90,  snmp_oids=_IF_MIB_OIDS),
+    DeviceType(id="builtin-server",  name="Server",         category="infrastructure",  icon="server",  description="Physical or virtual server",                  builtin=True, power_watts_idle=150, power_watts_max=450, snmp_oids=_IF_MIB_OIDS),
+    DeviceType(id="builtin-cloud",   name="Cloud / Internet", category="infrastructure", icon="cloud",  description="Internet gateway / cloud-uplink node",        builtin=True, power_watts_idle=0,   power_watts_max=0),
 ]
 
 # Runtime-mutable store for operator-added custom types

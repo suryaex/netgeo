@@ -42,6 +42,17 @@ class DeviceType(BaseModel):
     )
     description: str = ""
     builtin: bool = Field(default=False, description="True for read-only built-in types")
+    # C-4/Rack#3: optional power + monitoring metadata. Backward-compatible —
+    # older catalog entries without these fields remain valid.
+    power_watts_idle: float | None = Field(
+        default=None, description="Typical idle power draw in watts"
+    )
+    power_watts_max: float | None = Field(
+        default=None, description="Maximum rated power draw in watts"
+    )
+    snmp_oids: dict[str, str] | None = Field(
+        default=None, description="Named SNMP OIDs for monitoring this device type"
+    )
 
 
 class DeviceTypeCreate(BaseModel):

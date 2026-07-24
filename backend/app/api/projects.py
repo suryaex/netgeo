@@ -1,11 +1,16 @@
 """Projects + topology endpoints."""
 from __future__ import annotations
 
+import gzip
+import json
+
 from fastapi import APIRouter, Depends
 
 from app.api.deps import repo, translate_not_found
+from app.core.config import storagehub_enabled
 from app.models import Project, ProjectCreate, Topology
 from app.services import archive as archive_svc
+from app.services import storagehub_client
 from app.store import MemoryRepository
 from app.store import NotFound as StoreNotFound
 
@@ -75,3 +80,27 @@ async def export_archive(project_id: str, r: MemoryRepository = Depends(repo)) -
     except StoreNotFound as exc:
         raise translate_not_found(exc) from exc
     return archive_svc.build_archive(bundle)
+
+
+@router.post("/projects/{project_id}/backup-to-storagehub")
+async def backup_to_storagehub(
+    project_id: str, r: MemoryRepository = Depends(repo)
+) -> dict:
+    """Export the project archive (reusing the same builder as the plain
+    ``/archive`` endpoint) and push it, gzip-compressed, into StorageHub
+    (C-2). Disabled unless NETGEO_STORAGEHUB_URL + _API_KEY are both set."""
+    if not storagehub_enabled():
+        raise storagehub_client.StorageHubError(
+            "StorageHub backup not configured", status_code=503
+        )
+    try:
+        bundle = await r.export_project(project_id)
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+    envelope = archive_svc.build_archive(bundle)
+    content = gzip.compress(json.dumps(envelope).encode("utf-8"))
+    return await storagehub_client.upload(
+        content=content,
+        filename=f"{project_id}.netgeo-archive.json.gz",
+        source=f"netgeo-{project_id}",
+    )

@@ -19,7 +19,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Plus, Server, Zap } from 'lucide-react';
 import { nodesApi, physicalApi, projectsApi } from '@/api/client';
-import type { LinkModel, NodeKind, NodeModel, Rack, Site } from '@/api/types';
+import type { LinkModel, LinkStatus, NodeKind, NodeModel, Rack, Site } from '@/api/types';
 import { useUiStore } from '@/store/uiStore';
 import { WorkspaceEmptyState } from '@/components/shell/WorkspaceEmptyState';
 import { DeviceFaceplate, type Face } from '@/components/rack/DeviceFaceplate';
@@ -172,6 +172,18 @@ export function RackElevationPanel() {
     }
     return m;
   }, [nodes]);
+
+  // Rack#1: real per-port LED status. Maps an interface id to the status of
+  // whichever link uses it as an endpoint — DeviceFaceplate looks this up
+  // instead of the old idx%3 cosmetic. Absent = no data (neutral LED).
+  const linkStatusByIface = useMemo(() => {
+    const m = new Map<string, LinkStatus>();
+    for (const l of links) {
+      if (l.a_iface) m.set(l.a_iface, l.status ?? 'unknown');
+      if (l.b_iface) m.set(l.b_iface, l.status ?? 'unknown');
+    }
+    return m;
+  }, [links]);
 
   const nodesByRack = useMemo(() => {
     const m = new Map<string, NodeModel[]>();
@@ -362,6 +374,7 @@ export function RackElevationPanel() {
                       face={face}
                       links={links}
                       nodeByEndpoint={nodeByEndpoint}
+                      linkStatusByIface={linkStatusByIface}
                       onPlace={(nodeId, ruStart, ruSpan) =>
                         place.mutate({ nodeId, rackId: rack.id, ruStart, ruSpan })
                       }
@@ -391,6 +404,7 @@ interface RackColumnProps {
   face: Face;
   links: LinkModel[];
   nodeByEndpoint: Map<string, string>;
+  linkStatusByIface: Map<string, LinkStatus>;
   onPlace: (nodeId: string, ruStart: number, ruSpan: number) => void;
   onUnplace: (nodeId: string) => void;
   onAdd: (kind: NodeKind, ruStart: number, ruSpan: number) => void;
@@ -403,6 +417,7 @@ function RackColumn({
   face,
   links,
   nodeByEndpoint,
+  linkStatusByIface,
   onPlace,
   onUnplace,
   onAdd,
@@ -548,7 +563,12 @@ function RackColumn({
                   className="absolute inset-x-1 cursor-grab overflow-hidden rounded active:cursor-grabbing"
                   style={{ bottom, height: span * RU_PX - 2 }}
                 >
-                  <DeviceFaceplate node={d} span={span} face={face} />
+                  <DeviceFaceplate
+                    node={d}
+                    span={span}
+                    face={face}
+                    linkStatusByIface={linkStatusByIface}
+                  />
                   {/* name label: small overlay so it doesn't hide the faceplate */}
                   <span className="absolute left-0.5 top-0.5 truncate rounded bg-recess/60 px-1 text-[9px] leading-tight text-fg/80 pointer-events-none">
                     {d.name}

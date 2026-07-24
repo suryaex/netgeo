@@ -89,11 +89,21 @@ class Settings(BaseSettings):
     # host-side watcher to pick up — the safer default in containers.
     UPDATE_INPROC: bool = False
 
+    # StorageHub backup connector (C-2): POST /projects/{id}/backup-to-storagehub
+    # pushes a project archive into a StorageHub instance's log-ingest endpoint.
+    # Default OFF — both URL and API key must be set to enable it.
+    NETGEO_STORAGEHUB_URL: str = ""
+    NETGEO_STORAGEHUB_API_KEY: str = ""
+    NETGEO_STORAGEHUB_SOURCE: str = "netgeo"
+    NETGEO_STORAGEHUB_VERIFY_TLS: bool = True
+
     # ---------------------------------------------------------------------------
     # Validators
     # ---------------------------------------------------------------------------
 
-    @field_validator("ENABLE_HSTS", "UPDATE_INPROC", mode="before")
+    @field_validator(
+        "ENABLE_HSTS", "UPDATE_INPROC", "NETGEO_STORAGEHUB_VERIFY_TLS", mode="before"
+    )
     @classmethod
     def _parse_bool(cls, v):  # noqa: ANN001
         if isinstance(v, str):
@@ -149,3 +159,8 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+def storagehub_enabled() -> bool:
+    """True once both the StorageHub URL and API key are configured."""
+    return bool(settings.NETGEO_STORAGEHUB_URL and settings.NETGEO_STORAGEHUB_API_KEY)

@@ -22,9 +22,14 @@
  * engine covers every kind. Upgrade path: add NodeModel.model → look up
  * DEVICE_TYPES by slug → eventually swap SVG shapes for per-model art / 3D.
  */
-import type { NodeModel } from '@/api/types';
+import type { LinkStatus, NodeModel } from '@/api/types';
+import { linkStatusColors } from '@/theme/tokens';
 import { resolveDeviceType } from './deviceTypes';
 import type { DeviceType, PortType, PortSpec, PortZone } from './deviceTypes';
+
+// Rack#1: no data for a port (no matching interface, or an interface with no
+// link) → neutral/off, never a random guess.
+const EMPTY_LINK_STATUS = new Map<string, LinkStatus>();
 
 export type Face = 'front' | 'back';
 
@@ -82,6 +87,7 @@ function renderPort(
   accent: string,
   key: string,
   poe?: boolean,
+  status?: LinkStatus,
 ): React.ReactNode {
   const cx = r.x + r.w / 2;
   const cy = r.y + r.h / 2;
@@ -158,9 +164,12 @@ function renderPort(
     );
   }
 
-  // rj45 — notched cage with 2 status LEDs
-  const active = idx % 3 === 0; // cosmetic: every 3rd port has a lit green LED
-  const poeActive = poe && idx % 4 === 0;
+  // rj45 — notched cage with 2 status LEDs, driven by the real link status
+  // (Rack#1). No status for this port (no interface / no link) -> off, not a
+  // random guess.
+  const linkColor = status ? linkStatusColors[status] : '#1a3d2a';
+  const poeActive = poe && status === 'up';
+  const secondaryColor = poeActive ? '#F5A623' : status === 'up' ? '#1BA0D7' : '#1a1a2a';
   return (
     <g key={key}>
       <rect x={r.x} y={r.y} width={r.w} height={r.h} rx="0.8" fill="#141414" stroke="#454542" strokeWidth="0.4" />
@@ -168,10 +177,10 @@ function renderPort(
       <rect x={r.x + r.w * 0.28} y={r.y + r.h * 0.62} width={r.w * 0.44} height={r.h * 0.3} rx="0.3" fill="#2c2c2a" />
       {/* link LED */}
       <circle cx={r.x + r.w * 0.2} cy={r.y + r.h * 0.25} r={Math.min(r.h * 0.12, 1.2)}
-        fill={active ? '#27C28B' : '#1a3d2a'} />
+        fill={linkColor} />
       {/* speed / PoE LED */}
       <circle cx={r.x + r.w * 0.8} cy={r.y + r.h * 0.25} r={Math.min(r.h * 0.12, 1.2)}
-        fill={poeActive ? '#F5A623' : active ? '#1BA0D7' : '#1a1a2a'} />
+        fill={secondaryColor} />
     </g>
   );
 }
@@ -233,7 +242,13 @@ function layoutZones(
 
 // ─── Front panel renderer ─────────────────────────────────────────────────────
 
-function renderFront(dt: DeviceType, H: number, accent: string): React.ReactNode[] {
+function renderFront(
+  dt: DeviceType,
+  H: number,
+  accent: string,
+  node: NodeModel,
+  linkStatusByIface: Map<string, LinkStatus>,
+): React.ReactNode[] {
   const els: React.ReactNode[] = [];
   const panelY0 = H * 0.20;
   const panelY1 = H * 0.88;
@@ -292,7 +307,16 @@ function renderFront(dt: DeviceType, H: number, accent: string): React.ReactNode
       const rects = distributeRects(spec.count, zx0, zx1, panelY0, panelY1, zone.rows, 1.5);
       for (let i = 0; i < rects.length; i++) {
         const r = rects[i]!;
-        els.push(renderPort(spec.type, r, portIdx++, accent, `port-${spec.type}-${portIdx}`, spec.poe));
+        // Ordinal position of this port on the faceplate maps 1:1 to the
+        // node's declared interfaces (Rack#1) — the only correlation the
+        // schematic engine has, since ports aren't individually modelled.
+        const portOrdinal = portIdx;
+        const iface = node.interfaces?.[portOrdinal];
+        const status = iface ? linkStatusByIface.get(iface.id) : undefined;
+        portIdx++;
+        els.push(
+          renderPort(spec.type, r, portOrdinal, accent, `port-${spec.type}-${portIdx}`, spec.poe, status),
+        );
         // tiny label above first port in zone (WAN/DMZ etc)
         if (spec.label && i === 0) {
           els.push(
@@ -427,9 +451,11 @@ interface Props {
   node: NodeModel;
   span: number;
   face: Face;
+  /** iface id -> link status (Rack#1). Omitted/empty -> every port renders neutral. */
+  linkStatusByIface?: Map<string, LinkStatus>;
 }
 
-export function DeviceFaceplate({ node, span, face }: Props) {
+export function DeviceFaceplate({ node, span, face, linkStatusByIface = EMPTY_LINK_STATUS }: Props) {
   const dt = resolveDeviceType(node.nos, node.kind, node.interfaces);
   const H = Math.max(RU_H, span * RU_H);
   const { accent, chassis, label } = dt.brand;
@@ -508,7 +534,7 @@ export function DeviceFaceplate({ node, span, face }: Props) {
 
       {/* Port field / back blocks */}
       {face === 'front'
-        ? renderFront(dt, H, accent)
+        ? renderFront(dt, H, accent, node, linkStatusByIface)
         : renderBack(dt, H, accent)}
     </svg>
   );

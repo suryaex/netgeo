@@ -24,7 +24,7 @@ import type { DeviceType } from '@/api/client';
 import type { LinkModel, LinkStatus, NodeKind, NodeModel, Rack, Site } from '@/api/types';
 import { useUiStore } from '@/store/uiStore';
 import { WorkspaceEmptyState } from '@/components/shell/WorkspaceEmptyState';
-import { DeviceFaceplate, type Face } from '@/components/rack/DeviceFaceplate';
+import { DeviceFaceplate, frontPortFractions, type Face } from '@/components/rack/DeviceFaceplate';
 import { linkStatusColors } from '@/theme/tokens';
 import { cn } from '@/lib/cn';
 
@@ -506,15 +506,34 @@ function RackColumn({
 
   // ── Cable overlay ─────────────────────────────────────────────────────────
   // Build a node-id → ru_start map for placed devices in THIS rack.
-  // ponytail: cables route to a vertical mid-point of the device block and bow
-  // right — not real port geometry. Upgrade when port-position model lands.
   const placedRu = new Map<string, { ruStart: number; ruSpan: number }>();
+  const devicesById = new Map<string, NodeModel>();
   for (const d of devices) {
     if (d.ru_start != null) placedRu.set(d.id, { ruStart: d.ru_start, ruSpan: d.ru_span ?? 1 });
+    devicesById.set(d.id, d);
   }
 
   const bodyH = ruHeight * RU_PX;
   const bodyW = 160; // w-40
+  const BLOCK_INSET = 4; // matches `inset-x-1` on the faceplate block (0.25rem @ 16px root)
+
+  // Real port anchor for one link endpoint: faceplate fraction (from
+  // frontPortFractions) mapped onto this device block's on-screen box.
+  // No match (back face, drive bay, or non-iface map-deploy endpoint) ->
+  // fall back to the old vertical-center-of-block anchor.
+  const portAnchor = (
+    dev: NodeModel | undefined,
+    ru: { ruStart: number; ruSpan: number },
+    ifaceId: string,
+    fallbackY: number,
+  ): { x: number; y: number } => {
+    const frac = face === 'front' && dev ? frontPortFractions(dev, ru.ruSpan).get(ifaceId) : undefined;
+    if (!frac) return { x: bodyW, y: fallbackY };
+    const blockW = bodyW - BLOCK_INSET * 2;
+    const blockH = ru.ruSpan * RU_PX - 2;
+    const blockTop = bodyH - (ru.ruStart - 1) * RU_PX - blockH;
+    return { x: BLOCK_INSET + frac.x * blockW, y: blockTop + frac.y * blockH };
+  };
 
   const cableLines: { x1: number; y1: number; x2: number; y2: number; color: string }[] = [];
   for (const lnk of links) {
@@ -525,10 +544,13 @@ function RackColumn({
     const b = placedRu.get(bNode);
     if (!a || !b) continue;
     // vertical center of each device block (RU 1 = bottom, so flip to top-down px)
+    // — the fallback anchor when the real port position can't be resolved.
     const yCenterA = bodyH - (a.ruStart - 1 + a.ruSpan / 2) * RU_PX;
     const yCenterB = bodyH - (b.ruStart - 1 + b.ruSpan / 2) * RU_PX;
+    const anchorA = portAnchor(devicesById.get(aNode), a, lnk.a_iface, yCenterA);
+    const anchorB = portAnchor(devicesById.get(bNode), b, lnk.b_iface, yCenterB);
     const color = linkStatusColors[lnk.status ?? 'unknown'];
-    cableLines.push({ x1: bodyW, y1: yCenterA, x2: bodyW, y2: yCenterB, color });
+    cableLines.push({ x1: anchorA.x, y1: anchorA.y, x2: anchorB.x, y2: anchorB.y, color });
   }
 
   // ── Add-device affordance ─────────────────────────────────────────────────

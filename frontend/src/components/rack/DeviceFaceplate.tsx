@@ -445,6 +445,48 @@ function renderBack(dt: DeviceType, H: number, accent: string): React.ReactNode[
   return els;
 }
 
+// ─── Port-position export (Rack#1 slice #4) ───────────────────────────────────
+
+/**
+ * Front-panel port center for each of the node's interfaces, as a fraction
+ * (0..1) of the faceplate's own width/height. Mirrors the zone-layout walk in
+ * `renderFront` (portX0/zonesX0/layoutZones/distributeRects) so cable
+ * endpoints in RackElevationPanel can land on the real port instead of the
+ * device's vertical mid-point. Only the front face has iface↔port ordinal
+ * correlation (see renderFront) — an interface with no matching port (or a
+ * server bezel, whose slots are drive bays, not network ports) is simply
+ * absent from the map; callers fall back to the old center-of-block anchor.
+ */
+export function frontPortFractions(node: NodeModel, span: number): Map<string, { x: number; y: number }> {
+  const dt = resolveDeviceType(node.nos, node.kind, node.interfaces);
+  const out = new Map<string, { x: number; y: number }>();
+  if (dt.front.isServerBezel) return out;
+
+  const H = Math.max(RU_H, span * RU_H);
+  const panelY0 = H * 0.20;
+  const panelY1 = H * 0.88;
+  const ledBlockW = dt.front.leds.length > 0 ? 24 : 0;
+  const portX0 = PANEL_X0 + (dt.brand.badge === 'stripe' ? 6 : 2) + ledBlockW;
+  const lcdExtraX = dt.front.hasLcd ? 26 : 0;
+  const zonesX0 = portX0 + lcdExtraX;
+  const zonesX1 = PANEL_X1 - 2;
+
+  const laidOut = layoutZones(dt.front.portZones, zonesX0, zonesX1, panelY0, panelY1);
+  let portIdx = 0;
+  for (const { zone, zx0, zx1 } of laidOut) {
+    for (const spec of zone.ports) {
+      const rects = distributeRects(spec.count, zx0, zx1, panelY0, panelY1, zone.rows, 1.5);
+      for (const r of rects) {
+        const iface = node.interfaces?.[portIdx];
+        portIdx++;
+        if (!iface) continue;
+        out.set(iface.id, { x: (r.x + r.w / 2) / W, y: (r.y + r.h / 2) / H });
+      }
+    }
+  }
+  return out;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Deploy local main to the live host: bundle -> ff-merge -> rebuild backend -> restart frontend+gateway -> health check.
-# Usage: NETGEO_SUDO_PW=... scripts/deploy-host.sh   (prompts for the sudo password if unset)
+# Usage: NETGEO_HOST=<host> NETGEO_SSH_USER=<user> NETGEO_SUDO_PW=... scripts/deploy-host.sh
+#        (HOST + SSH_USER are required; prompts for the sudo password if unset)
 set -euo pipefail
 
-HOST="${NETGEO_HOST:-<host>}"
-SSH_USER="${NETGEO_SSH_USER:?set-user}"
+HOST="${NETGEO_HOST:?set NETGEO_HOST to your deploy target (host/IP)}"
+SSH_USER="${NETGEO_SSH_USER:?set NETGEO_SSH_USER to the ssh user}"
 REPO="${NETGEO_REPO:-$HOME/mini-project/netgeo}"
 
 if [[ -z "${NETGEO_SUDO_PW:-}" ]]; then

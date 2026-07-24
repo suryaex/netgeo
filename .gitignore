@@ -38,3 +38,6 @@ infra/.env.prod
 
 NetGeo/Bootabler-1.4.dmg_.zip
 NetGeo/Unconfirmed*.crdownload
+
+# Dev/design docs are local-only (never pushed)
+docs/

@@ -7,8 +7,9 @@ registry (``engine.propagation``) dispatches to a closed-form path-loss model.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.api.deps import repo, translate_not_found
 from app.models import (
     CoverageRasterRequest,
     CoverageRasterResult,
@@ -23,9 +24,14 @@ from app.models import (
     PtmpResult,
     PtpRequest,
     PtpResult,
+    RfStudy,
+    RfStudyCreate,
 )
 from app.services import elevation as esvc
 from app.services import wireless as wsvc
+from app.store import MemoryRepository
+from app.store import NotFound as StoreNotFound
+from app.utils.ids import new_id
 from engine import wireless as rf
 
 router = APIRouter(prefix="/rf", tags=["rf"])
@@ -155,3 +161,36 @@ async def select_product(body: ProductSelectRequest):
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return ProductSelectResult(**result)
+
+
+# --- RF study persistence (R4 cross-cutting) ---------------------------------
+# Save-on-demand only — no auto-cache/recompute. The client computes a study
+# via the endpoints above, then POSTs the request+result here to snapshot it.
+# Re-opening returns the stored result verbatim (PtP's elevation fetch can
+# drift, so this is the only way a saved study "re-opens identically").
+
+@router.post("/studies", response_model=RfStudy, status_code=201)
+async def create_rf_study(body: RfStudyCreate, r: MemoryRepository = Depends(repo)):
+    return await r.add_rf_study(RfStudy(id=new_id(), **body.model_dump()))
+
+
+@router.get("/studies", response_model=list[RfStudy])
+async def list_rf_studies(project_id: str, r: MemoryRepository = Depends(repo)):
+    return await r.list_rf_studies(project_id)
+
+
+@router.get("/studies/{study_id}", response_model=RfStudy)
+async def get_rf_study(study_id: str, r: MemoryRepository = Depends(repo)):
+    try:
+        return await r.get_rf_study(study_id)
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+
+
+@router.delete("/studies/{study_id}", status_code=200)
+async def delete_rf_study(study_id: str, r: MemoryRepository = Depends(repo)) -> dict:
+    try:
+        await r.delete_rf_study(study_id)
+    except StoreNotFound as exc:
+        raise translate_not_found(exc) from exc
+    return {"deleted": study_id}

@@ -68,6 +68,7 @@ def _reset_repo():
     repo._activities.clear()
     repo._grade_results.clear()
     repo._fiber_paths.clear()
+    repo._rf_studies.clear()
     repo._import_snapshots.clear()
     yield
 

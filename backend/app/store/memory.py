@@ -26,6 +26,7 @@ from app.models import (
     Node,
     Project,
     Rack,
+    RfStudy,
     Scenario,
     Site,
     Topology,
@@ -86,6 +87,8 @@ class MemoryRepository:
         self._cables: dict[str, Cable] = {}
         # Fiber plant (NG-FI-01)
         self._fiber_paths: dict[str, FiberPath] = {}
+        # RF study persistence (R4 cross-cutting)
+        self._rf_studies: dict[str, RfStudy] = {}
         # Education activities (NG-EDU-01)
         self._activities: dict[str, Activity] = {}
         # Graded attempts (NG-EDU-03), keyed by result id.
@@ -360,6 +363,27 @@ class MemoryRepository:
             if fid not in self._fiber_paths:
                 raise NotFound(fid)
             del self._fiber_paths[fid]
+
+    # --- RF study persistence (R4 cross-cutting) ----------------------------
+    async def list_rf_studies(self, pid: str) -> list[RfStudy]:
+        return [s for s in self._rf_studies.values() if s.project_id == pid]
+
+    async def get_rf_study(self, sid: str) -> RfStudy:
+        try:
+            return self._rf_studies[sid]
+        except KeyError as exc:
+            raise NotFound(sid) from exc
+
+    async def add_rf_study(self, study: RfStudy) -> RfStudy:
+        async with self._lock:
+            self._rf_studies[study.id] = study
+            return study
+
+    async def delete_rf_study(self, sid: str) -> None:
+        async with self._lock:
+            if sid not in self._rf_studies:
+                raise NotFound(sid)
+            del self._rf_studies[sid]
 
     # --- import snapshots (NG-TW-03) ----------------------------------------
     async def save_import_snapshot(self, snap: ImportSnapshot) -> ImportSnapshot:

@@ -951,6 +951,38 @@ class ProductSelectResult(_Base):
     ranked: list[ProductSelectItem] = Field(default_factory=list)
 
 
+# --- RF study persistence (R4 cross-cutting) --------------------------------
+
+class RfStudyKind(str, Enum):
+    coverage = "coverage"
+    ptp = "ptp"
+    ptmp = "ptmp"
+    product_select = "product_select"
+
+
+class RfStudy(_Base):
+    """A saved RF study: the request plus its *computed result*, snapshotted at
+    save time. PtP's budget depends on a live elevation-service fetch that can
+    drift or go offline later, so re-opening a study must return the stored
+    result verbatim (no recompute) for it to "re-open identically"."""
+
+    id: str
+    project_id: str
+    kind: RfStudyKind
+    name: str = ""
+    request: dict = Field(default_factory=dict)
+    result: dict = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=_now)
+
+
+class RfStudyCreate(_Base):
+    project_id: str
+    kind: RfStudyKind
+    name: str = ""
+    request: dict = Field(default_factory=dict)
+    result: dict = Field(default_factory=dict)
+
+
 # --- digital twin: drift-diff (NG-TW-03) ------------------------------------
 
 class ImportSnapshot(_Base):
